@@ -36,12 +36,12 @@ var _ = Describe("Hazelcast Multi-Namespace", Label("multi_namespace"), func() {
 	})
 
 	Context("Hazelcast creation", func() {
-		It("should create HZ cluster with custom name and update HZ ready members status in multi-ns", Tag(Any), func() {
+		It("should create HZ cluster with custom name and update HZ ready members status in multi-ns", Tag(AnyCloud), func() {
 			if deployNamespace != "" {
 				setCRNamespace(deployNamespace)
 			}
 			setLabelAndCRName("mns-1")
-			hazelcast := hazelcastconfig.ClusterName(hzLookupKey, ee, labels)
+			hazelcast := hazelcastconfig.ClusterName(hzLookupKey, labels)
 			CreateHazelcastCR(hazelcast)
 			assertMemberLogs(hazelcast, "Cluster name: "+hazelcast.Spec.ClusterName)
 			evaluateReadyMembers(hzLookupKey)
@@ -56,7 +56,7 @@ var _ = Describe("Hazelcast Multi-Namespace", Label("multi_namespace"), func() {
 
 	Describe("Hazelcast deletion", func() {
 		When("Hazelcast CR is deleted", func() {
-			It("dependent Data Structures and HotBackup CRs should be deleted in multi-ns", Tag(Kind|EE|AnyCloud), func() {
+			It("dependent Data Structures and HotBackup CRs should be deleted in multi-ns", Tag(Kind|AnyCloud), func() {
 				if deployNamespace != "" {
 					setCRNamespace(deployNamespace)
 				}

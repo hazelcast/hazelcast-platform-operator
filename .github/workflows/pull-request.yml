@@ -362,7 +362,7 @@ jobs:
       - name: Run Tests
         id: e2e-test
         run: |
-          make test-e2e-split-kind REPORT_SUFFIX=ee_${{ matrix.node_number }} GO_TEST_FLAGS=${GO_TEST_FLAGS} NAMESPACE=${NAMESPACE} RELEASE_NAME=${RELEASE_NAME} WORKFLOW_ID=pr SHARD_ID="${{ matrix.node_number }}"
+          make test-e2e-split-kind REPORT_SUFFIX=ee_${{ matrix.node_number }} NAMESPACE=${NAMESPACE} RELEASE_NAME=${RELEASE_NAME} WORKFLOW_ID=pr SHARD_ID="${{ matrix.node_number }}"
 
       - name: Upload Test Report
         if: always()

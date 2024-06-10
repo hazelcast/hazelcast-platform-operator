@@ -46,16 +46,16 @@ var _ = Describe("Hazelcast", func() {
 				switch config {
 				case "unisocket":
 					setLabelAndCRName("ph-us")
-					cfg = hazelcastconfig.ExposeExternallyUnisocket(hzLookupKey, ee, labels)
+					cfg = hazelcastconfig.ExposeExternallyUnisocket(hzLookupKey, labels)
 				case "smartNodePort":
 					setLabelAndCRName("ph-snp")
-					cfg = hazelcastconfig.ExposeExternallySmartNodePort(hzLookupKey, ee, labels)
+					cfg = hazelcastconfig.ExposeExternallySmartNodePort(hzLookupKey, labels)
 				case "smartLoadBalancer":
 					setLabelAndCRName("ph-slb")
-					cfg = hazelcastconfig.ExposeExternallySmartLoadBalancer(hzLookupKey, ee, labels)
+					cfg = hazelcastconfig.ExposeExternallySmartLoadBalancer(hzLookupKey, labels)
 				case "smartNodePortNodeName":
 					setLabelAndCRName("ph-snpnn")
-					cfg = hazelcastconfig.ExposeExternallySmartNodePortNodeName(hzLookupKey, ee, labels)
+					cfg = hazelcastconfig.ExposeExternallySmartNodePortNodeName(hzLookupKey, labels)
 				default:
 					Fail("Incorrect input configuration")
 				}
@@ -110,7 +110,7 @@ var _ = Describe("Hazelcast", func() {
 		})
 		It("should have correct metrics", func() {
 			setLabelAndCRName("phmc")
-			mc := mcconfig.Default(mcLookupKey, ee, labels)
+			mc := mcconfig.Default(mcLookupKey, labels)
 			CreateMC(mc)
 			mcCreationTime := time.Now().Truncate(time.Hour)
 			assertAnnotationExists(mc)

@@ -30,9 +30,9 @@ var _ = Describe("Hazelcast MultiMap Config", Group("multimap"), func() {
 	})
 
 	Context("Creating MultiMap configurations", func() {
-		It("creates MultiMap config with correct default values", Tag(Kind|Any), func() {
+		It("creates MultiMap config with correct default values", Tag(Kind|AnyCloud), func() {
 			setLabelAndCRName("mm-1")
-			hazelcast := hazelcastconfig.Default(hzLookupKey, ee, labels)
+			hazelcast := hazelcastconfig.Default(hzLookupKey, labels)
 			CreateHazelcastCR(hazelcast)
 
 			By("creating the default multiMap config")
@@ -51,9 +51,9 @@ var _ = Describe("Hazelcast MultiMap Config", Group("multimap"), func() {
 	})
 
 	Context("Updating MultiMap configurations", func() {
-		It("verifies that MultiMap Config updates are prohibited", Label("cluster_scope"), Tag(Kind|Any), func() {
+		It("verifies that MultiMap Config updates are prohibited", Label("cluster_scope"), Tag(Kind|AnyCloud), func() {
 			setLabelAndCRName("mm-2")
-			hazelcast := hazelcastconfig.Default(hzLookupKey, ee, labels)
+			hazelcast := hazelcastconfig.Default(hzLookupKey, labels)
 			CreateHazelcastCR(hazelcast)
 
 			By("creating the multiMap config")

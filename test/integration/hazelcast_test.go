@@ -207,7 +207,7 @@ var _ = Describe("Hazelcast CR", func() {
 		When("applying empty spec", func() {
 			emptyHzSpecValues := &test.HazelcastSpecValues{
 				ClusterSize:     n.DefaultClusterSize,
-				Repository:      n.HazelcastRepo,
+				Repository:      n.HazelcastEERepo,
 				Version:         n.HazelcastVersion,
 				ImagePullPolicy: n.HazelcastImagePullPolicy,
 			}
@@ -1449,7 +1449,7 @@ var _ = Describe("Hazelcast CR", func() {
 					ObjectMeta: randomObjectMeta(namespace),
 					Spec: hazelcastv1alpha1.HazelcastSpec{
 						LicenseKeySecretName: "secret-name",
-						Repository:           n.HazelcastRepo,
+						Repository:           n.HazelcastEERepo,
 					},
 				}
 
@@ -1739,7 +1739,6 @@ var _ = Describe("Hazelcast CR", func() {
 	Context("with NativeMemory configuration", func() {
 		When("Native Memory property is configured", func() {
 			It("should be enabled", func() {
-				Skip("This test will only run in EE configuration")
 				spec := test.HazelcastSpec(defaultHazelcastSpecValues())
 				spec.NativeMemory = &hazelcastv1alpha1.NativeMemoryConfiguration{
 					AllocatorType: hazelcastv1alpha1.NativeMemoryPooled,
@@ -1910,19 +1909,6 @@ var _ = Describe("Hazelcast CR", func() {
 				spec := test.HazelcastSpec(defaultHazelcastSpecValues())
 				spec.TLS = &hazelcastv1alpha1.TLS{
 					SecretName: "notfound",
-				}
-				hz := &hazelcastv1alpha1.Hazelcast{
-					ObjectMeta: randomObjectMeta(namespace),
-					Spec:       spec,
-				}
-
-				Expect(k8sClient.Create(context.Background(), hz)).Should(HaveOccurred())
-			})
-
-			It("should error when not using enterprise version", func() {
-				spec := test.HazelcastSpec(defaultHazelcastSpecValues())
-				spec.TLS = &hazelcastv1alpha1.TLS{
-					SecretName: "example",
 				}
 				hz := &hazelcastv1alpha1.Hazelcast{
 					ObjectMeta: randomObjectMeta(namespace),

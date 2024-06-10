@@ -42,18 +42,15 @@ jobs:
           HZ_5_1_X=$(gh api $HZ_TAGS --jq '.[].ref | select(startswith("refs/tags/v5.1.")) | sub("^refs/tags/v"; "")' | sort -V | tail -n1)
           MC_5_0_X=$(gh api $MC_TAGS --jq '.[].ref | select(startswith("refs/tags/v5.0.")) | sub("^refs/tags/v"; "")' | sort -V | tail -n1)
           MC_5_1_X=$(gh api $MC_TAGS --jq '.[].ref | select(startswith("refs/tags/v5.1.")) | sub("^refs/tags/v"; "")' | sort -V | tail -n1)
-          matrixJson=$(jq -n --argjson NR_OF_SUITES "$NR_OF_SUITES" --argjson editions '["ee", "os"]' '[
+          matrixJson=$(jq -n --argjson NR_OF_SUITES "$NR_OF_SUITES" '[
                     range($NR_OF_SUITES) as $i |
-                    $editions[] as $edition |
                     {
                       "node_number": ($i+1 | tostring | if length==1 then "0"+. else . end),
-                      "edition": $edition,
                       "hz-version": "'$HZ_5_0_X'",
                       "mc-version": "'$MC_5_0_X'"
                     },
                     {
                       "node_number": ($i+1 | tostring | if length==1 then "0"+. else . end),
-                      "edition": $edition,
                       "hz-version": "'$HZ_5_1_X'",
                       "mc-version": "'$MC_5_1_X'"
                     }]')
@@ -120,8 +117,8 @@ jobs:
       fail-fast: false
       matrix: ${{ fromJson(needs.matrix_preparation.outputs.matrix) }}
     env:
-      NAMESPACE: kind-test-operator-${{ matrix.edition }}
-      RELEASE_NAME: hp-${{ matrix.edition }}-${{ github.run_id }}
+      NAMESPACE: kind-test-operator
+      RELEASE_NAME: hp-${{ github.run_id }}
       CLUSTER_NAME: kind
       IMG: ${{ needs.get-image.outputs.IMG }}
       HZ_VERSION: ${{ matrix.hz-version }}
@@ -226,7 +223,6 @@ jobs:
             EOF
 
       - name: Create Secrets
-        if: matrix.edition == 'ee'
         run: |
           kubectl create secret generic hazelcast-license-key \
              --namespace ${{ env.NAMESPACE }} \
@@ -243,8 +239,6 @@ jobs:
             --from-literal=storage-account=operatortest \
             --from-literal=storage-key=${{ env.AZURE_STORAGE_KEY }}
 
-      - name: Create Secret For Both OS and EE Tests
-        run: |
           kubectl create secret generic br-secret-gcp \
           --namespace ${{ env.NAMESPACE }} \
           --from-literal=google-credentials-path='${{ env.GKE_SA_KEY }}'
@@ -263,12 +257,7 @@ jobs:
       - name: Run Tests
         id: e2e-test
         run: |
-          case ${{ matrix.edition }} in
-            os) GO_TEST_FLAGS=-ee=false;;
-            ee) GO_TEST_FLAGS=-ee=true;;
-            *)  echo Unexpected edition: ${{ matrix.edition }} && exit 1;;
-          esac
-          make test-e2e-split-kind REPORT_SUFFIX=${{ matrix.edition }}_${HZ_VERSION}_${MC_VERSION}_${{ matrix.node_number }} GO_TEST_FLAGS=${GO_TEST_FLAGS} NAMESPACE=${NAMESPACE} RELEASE_NAME=${RELEASE_NAME} WORKFLOW_ID=multi SHARD_ID="${{ matrix.node_number }}"
+          make test-e2e-split-kind REPORT_SUFFIX=ee_${HZ_VERSION}_${MC_VERSION}_${{ matrix.node_number }} NAMESPACE=${NAMESPACE} RELEASE_NAME=${RELEASE_NAME} WORKFLOW_ID=multi SHARD_ID="${{ matrix.node_number }}"
 
       - name: Upload Test Report
         if: always()

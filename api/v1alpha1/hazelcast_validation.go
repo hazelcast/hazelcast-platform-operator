@@ -172,11 +172,6 @@ func (v *hazelcastValidator) validateTLS(h *Hazelcast) {
 		return
 	}
 
-	if h.Spec.GetLicenseKeySecretName() == "" {
-		v.Required(Path("spec", "tls"), "Hazelcast TLS requires enterprise version")
-		return
-	}
-
 	p := Path("spec", "tls", "secretName")
 
 	// if user skipped validation secretName can be empty
@@ -448,10 +443,6 @@ func (v *hazelcastValidator) validateNativeMemory(h *Hazelcast) {
 		return
 	}
 
-	if h.Spec.GetLicenseKeySecretName() == "" {
-		v.Required(Path("spec", "nativeMemory"), "Hazelcast Native Memory requires enterprise version")
-	}
-
 	if h.Spec.Persistence.IsEnabled() && h.Spec.NativeMemory.AllocatorType != NativeMemoryPooled {
 		v.Required(Path("spec", "nativeMemory", "allocatorType"), "MemoryAllocatorType.STANDARD cannot be used when Persistence is enabled, Please use MemoryAllocatorType.POOLED!")
 	}
@@ -474,10 +465,6 @@ func (v *hazelcastValidator) validateTieredStorage(h *Hazelcast) {
 		return
 	}
 	lds := h.Spec.LocalDevices
-
-	if h.Spec.GetLicenseKeySecretName() == "" {
-		v.Required(Path("spec", "localDevices"), "Hazelcast Tiered Storage requires enterprise version")
-	}
 
 	if !h.Spec.NativeMemory.IsEnabled() {
 		v.Required(Path("spec", "nativeMemory"), "Native Memory must be enabled at Hazelcast when Tiered Storage is enabled")

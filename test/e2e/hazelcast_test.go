@@ -32,9 +32,9 @@ var _ = Describe("Hazelcast", Group("hz"), func() {
 	})
 
 	Context("Cluster creation", func() {
-		It("should create a Hazelcast cluster with a custom name", Tag(Kind|Any), func() {
+		It("should create a Hazelcast cluster with a custom name", Tag(Kind|AnyCloud), func() {
 			setLabelAndCRName("h-1")
-			hazelcast := hazelcastconfig.ClusterName(hzLookupKey, ee, labels)
+			hazelcast := hazelcastconfig.ClusterName(hzLookupKey, labels)
 			CreateHazelcastCR(hazelcast)
 			assertMemberLogs(hazelcast, "Cluster name: "+hazelcast.Spec.ClusterName)
 			evaluateReadyMembers(hzLookupKey)
@@ -45,9 +45,9 @@ var _ = Describe("Hazelcast", Group("hz"), func() {
 				evaluateReadyMembers(hzLookupKey)
 			})
 		})
-		It("should update ready members status in Hazelcast cluster", Tag(Kind|Any), func() {
+		It("should update ready members status in Hazelcast cluster", Tag(Kind|AnyCloud), func() {
 			setLabelAndCRName("h-2")
-			hazelcast := hazelcastconfig.Default(hzLookupKey, ee, labels)
+			hazelcast := hazelcastconfig.Default(hzLookupKey, labels)
 			CreateHazelcastCR(hazelcast)
 			evaluateReadyMembers(hzLookupKey)
 			assertMembersNotRestarted(hzLookupKey)
@@ -59,9 +59,9 @@ var _ = Describe("Hazelcast", Group("hz"), func() {
 			})
 		})
 
-		It("should update detailed members status in Hazelcast cluster", Tag(Kind|Any), func() {
+		It("should update detailed members status in Hazelcast cluster", Tag(Kind|AnyCloud), func() {
 			setLabelAndCRName("h-3")
-			hazelcast := hazelcastconfig.Default(hzLookupKey, ee, labels)
+			hazelcast := hazelcastconfig.Default(hzLookupKey, labels)
 			CreateHazelcastCR(hazelcast)
 			evaluateReadyMembers(hzLookupKey)
 
@@ -82,9 +82,9 @@ var _ = Describe("Hazelcast", Group("hz"), func() {
 			))
 		})
 
-		It("should validate correct pod names and IPs for Hazelcast members", Tag(Kind|Any), func() {
+		It("should validate correct pod names and IPs for Hazelcast members", Tag(Kind|AnyCloud), func() {
 			setLabelAndCRName("h-4")
-			hazelcast := hazelcastconfig.Default(hzLookupKey, ee, labels)
+			hazelcast := hazelcastconfig.Default(hzLookupKey, labels)
 			CreateHazelcastCR(hazelcast)
 			evaluateReadyMembers(hzLookupKey)
 
@@ -113,15 +113,15 @@ var _ = Describe("Hazelcast", Group("hz"), func() {
 			Expect(hz.Status.Message).Should(Not(BeEmpty()))
 		}
 
-		It("should reflect external API errors in Hazelcast CR status", Tag(Kind|Any), func() {
+		It("should reflect external API errors in Hazelcast CR status", Tag(Kind|AnyCloud), func() {
 			setLabelAndCRName("h-5")
-			CreateHazelcastCRWithoutCheck(hazelcastconfig.Faulty(hzLookupKey, ee, labels))
+			CreateHazelcastCRWithoutCheck(hazelcastconfig.Faulty(hzLookupKey, labels))
 			assertStatusAndMessageEventually(hazelcastcomv1alpha1.Failed)
 		})
 	})
 
 	Context("Cluster deletion", func() {
-		It("should delete dependent data structures and backups on Hazelcast CR deletion", Tag(Kind|EE|AnyCloud), func() {
+		It("should delete dependent data structures and backups on Hazelcast CR deletion", Tag(Kind|AnyCloud), func() {
 			setLabelAndCRName("h-6")
 			clusterSize := int32(3)
 
@@ -156,9 +156,9 @@ var _ = Describe("Hazelcast", Group("hz"), func() {
 	})
 
 	Context("TLS Configuration", func() {
-		It("should form a cluster with TLS configuration enabled", Tag(Kind|EE|AnyCloud), func() {
+		It("should form a cluster with TLS configuration enabled", Tag(Kind|AnyCloud), func() {
 			setLabelAndCRName("h-7")
-			hz := hazelcastconfig.HazelcastTLS(hzLookupKey, ee, labels)
+			hz := hazelcastconfig.HazelcastTLS(hzLookupKey, labels)
 
 			tlsSecretNn := types.NamespacedName{
 				Name:      hz.Spec.TLS.SecretName,
@@ -176,9 +176,9 @@ var _ = Describe("Hazelcast", Group("hz"), func() {
 			evaluateReadyMembers(hzLookupKey)
 		})
 
-		It("should support mutual TLS authentication in Hazelcast cluster", Tag(Kind|EE|AnyCloud), func() {
+		It("should support mutual TLS authentication in Hazelcast cluster", Tag(Kind|AnyCloud), func() {
 			setLabelAndCRName("h-8")
-			hz := hazelcastconfig.HazelcastMTLS(hzLookupKey, ee, labels)
+			hz := hazelcastconfig.HazelcastMTLS(hzLookupKey, labels)
 
 			tlsSecretNn := types.NamespacedName{
 				Name:      hz.Spec.TLS.SecretName,

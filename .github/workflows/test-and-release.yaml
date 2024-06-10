@@ -91,7 +91,6 @@ jobs:
             EOF
 
       - name: Create Secrets
-        if: matrix.edition == 'ee'
         run: |
           kubectl create secret generic hazelcast-license-key \
              --namespace ${NAMESPACE} \

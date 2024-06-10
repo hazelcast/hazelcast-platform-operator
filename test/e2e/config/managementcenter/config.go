@@ -18,7 +18,7 @@ var (
 )
 
 var (
-	Default = func(lk types.NamespacedName, ee bool, lbls map[string]string) *hazelcastcomv1alpha1.ManagementCenter {
+	Default = func(lk types.NamespacedName, lbls map[string]string) *hazelcastcomv1alpha1.ManagementCenter {
 		return &hazelcastcomv1alpha1.ManagementCenter{
 			ObjectMeta: v1.ObjectMeta{
 				Name:      lk.Name,
@@ -28,7 +28,7 @@ var (
 			Spec: hazelcastcomv1alpha1.ManagementCenterSpec{
 				Repository:           *mcRepo,
 				Version:              *mcVersion,
-				LicenseKeySecretName: licenseKey(ee),
+				LicenseKeySecretName: naming.LicenseKeySecret,
 				ExternalConnectivity: &hazelcastcomv1alpha1.ExternalConnectivityConfiguration{
 					Type: hazelcastcomv1alpha1.ExternalConnectivityTypeLoadBalancer,
 				},
@@ -40,7 +40,7 @@ var (
 		}
 	}
 
-	PersistenceDisabled = func(lk types.NamespacedName, ee bool, lbls map[string]string) *hazelcastcomv1alpha1.ManagementCenter {
+	PersistenceDisabled = func(lk types.NamespacedName, lbls map[string]string) *hazelcastcomv1alpha1.ManagementCenter {
 		return &hazelcastcomv1alpha1.ManagementCenter{
 			ObjectMeta: v1.ObjectMeta{
 				Name:      lk.Name,
@@ -50,7 +50,7 @@ var (
 			Spec: hazelcastcomv1alpha1.ManagementCenterSpec{
 				Repository:           *mcRepo,
 				Version:              *mcVersion,
-				LicenseKeySecretName: licenseKey(ee),
+				LicenseKeySecretName: naming.LicenseKeySecret,
 				ExternalConnectivity: &hazelcastcomv1alpha1.ExternalConnectivityConfiguration{
 					Type: hazelcastcomv1alpha1.ExternalConnectivityTypeLoadBalancer,
 				},
@@ -67,7 +67,7 @@ var (
 		}
 	}
 
-	WithClusterConfig = func(lk types.NamespacedName, ee bool, clusterConfigs []hazelcastcomv1alpha1.HazelcastClusterConfig, lbls map[string]string) *hazelcastcomv1alpha1.ManagementCenter {
+	WithClusterConfig = func(lk types.NamespacedName, clusterConfigs []hazelcastcomv1alpha1.HazelcastClusterConfig, lbls map[string]string) *hazelcastcomv1alpha1.ManagementCenter {
 		return &hazelcastcomv1alpha1.ManagementCenter{
 			ObjectMeta: v1.ObjectMeta{
 				Name:      lk.Name,
@@ -77,7 +77,7 @@ var (
 			Spec: hazelcastcomv1alpha1.ManagementCenterSpec{
 				Repository:           *mcRepo,
 				Version:              *mcVersion,
-				LicenseKeySecretName: licenseKey(ee),
+				LicenseKeySecretName: naming.LicenseKeySecret,
 				ExternalConnectivity: &hazelcastcomv1alpha1.ExternalConnectivityConfiguration{
 					Type: hazelcastcomv1alpha1.ExternalConnectivityTypeLoadBalancer,
 				},
@@ -86,7 +86,7 @@ var (
 		}
 	}
 
-	RouteEnabled = func(lk types.NamespacedName, ee bool, lbls map[string]string) *hazelcastcomv1alpha1.ManagementCenter {
+	RouteEnabled = func(lk types.NamespacedName, lbls map[string]string) *hazelcastcomv1alpha1.ManagementCenter {
 		return &hazelcastcomv1alpha1.ManagementCenter{
 			ObjectMeta: v1.ObjectMeta{
 				Name:      lk.Name,
@@ -96,7 +96,7 @@ var (
 			Spec: hazelcastcomv1alpha1.ManagementCenterSpec{
 				Repository:           *mcRepo,
 				Version:              *mcVersion,
-				LicenseKeySecretName: licenseKey(ee),
+				LicenseKeySecretName: naming.LicenseKeySecret,
 				ExternalConnectivity: &hazelcastcomv1alpha1.ExternalConnectivityConfiguration{
 
 					Type: hazelcastcomv1alpha1.ExternalConnectivityTypeClusterIP,
@@ -117,7 +117,7 @@ var (
 		}
 	}
 
-	Faulty = func(lk types.NamespacedName, ee bool, lbls map[string]string) *hazelcastcomv1alpha1.ManagementCenter {
+	Faulty = func(lk types.NamespacedName, lbls map[string]string) *hazelcastcomv1alpha1.ManagementCenter {
 		return &hazelcastcomv1alpha1.ManagementCenter{
 			ObjectMeta: v1.ObjectMeta{
 				Name:      lk.Name,
@@ -127,16 +127,8 @@ var (
 			Spec: hazelcastcomv1alpha1.ManagementCenterSpec{
 				Repository:           *mcRepo,
 				Version:              "not-exists",
-				LicenseKeySecretName: licenseKey(ee),
+				LicenseKeySecretName: naming.LicenseKeySecret,
 			},
 		}
 	}
 )
-
-func licenseKey(ee bool) string {
-	if ee {
-		return naming.LicenseKeySecret
-	} else {
-		return ""
-	}
-}

@@ -32,7 +32,7 @@ var _ = Describe("Platform Soak Tests", Label("soak"), func() {
 		GinkgoWriter.Printf("Aftereach end time is %v\n", Now().String())
 	})
 
-	It("should upgrade HZ version after pause/resume with default partition count during 4 hours and keep 45 GB data", Serial, Tag(EE|AnyCloud), func() {
+	It("should upgrade HZ version after pause/resume with default partition count during 4 hours and keep 45 GB data", Serial, Tag(AnyCloud), func() {
 		setLabelAndCRName("soak-1")
 		var pvcSizeInMb = 14500
 		var pauseBetweenFills = 4 * Minute
@@ -60,7 +60,7 @@ var _ = Describe("Platform Soak Tests", Label("soak"), func() {
 			})
 		}
 
-		mc := mcconfig.Default(mcLookupKey, ee, labels)
+		mc := mcconfig.Default(mcLookupKey, labels)
 		mc.Spec.Resources = &corev1.ResourceRequirements{
 			Limits: map[corev1.ResourceName]resource.Quantity{
 				corev1.ResourceMemory: resource.MustParse("1Gi")},

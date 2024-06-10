@@ -38,7 +38,7 @@ var _ = Describe("Hazelcast CR with Tiered Storage feature enabled", Group("plat
 
 	})
 	Context("Tiered Store enabled for map", func() {
-		It("should successfully fill the map with more than allocated memory", Tag(EE|AnyCloud), func() {
+		It("should successfully fill the map with more than allocated memory", Tag(AnyCloud), func() {
 			setLabelAndCRName("hpts-1")
 
 			deviceName := "test-device"
@@ -86,7 +86,7 @@ var _ = Describe("Hazelcast CR with Tiered Storage feature enabled", Group("plat
 			WaitForMapSizeWithClient(context.Background(), cl, hzLookupKey, tsMap.MapName(), expectedMapSize, 30*Minute)
 		})
 
-		It("should fail to fill the map with more than allocated memory + disk size", Tag(EE|AnyCloud), func() {
+		It("should fail to fill the map with more than allocated memory + disk size", Tag(AnyCloud), func() {
 			setLabelAndCRName("hpts-2")
 
 			deviceName := "test-device"
@@ -143,7 +143,7 @@ var _ = Describe("Hazelcast CR with Tiered Storage feature enabled", Group("plat
 				Should(ContainSubstring("com.hazelcast.internal.tstore.device.DeviceOutOfCapacityException"))
 		})
 
-		It("should get all data after scale down and up", Tag(EE|AnyCloud), func() {
+		It("should get all data after scale down and up", Tag(AnyCloud), func() {
 			setLabelAndCRName("hpts-3")
 
 			deviceName := "test-device"
@@ -205,7 +205,7 @@ var _ = Describe("Hazelcast CR with Tiered Storage feature enabled", Group("plat
 
 		})
 
-		It("should get all data and member should join the cluster after ungraceful shutdown", Tag(EE|AnyCloud), func() {
+		It("should get all data and member should join the cluster after ungraceful shutdown", Tag(AnyCloud), func() {
 			setLabelAndCRName("hpts-4")
 
 			deviceName := "test-device"

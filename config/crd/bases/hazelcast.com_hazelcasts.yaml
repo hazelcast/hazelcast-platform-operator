@@ -48,6 +48,9 @@ spec:
           metadata:
             type: object
           spec:
+            default:
+              licenseKeySecretName: hazelcast-license-key
+              repository: docker.io/hazelcast/hazelcast-enterprise
             description: Initial values will be filled with its fields' default values.
             properties:
               advancedNetwork:
@@ -841,7 +844,7 @@ spec:
                 description: Hazelcast system properties, see https://docs.hazelcast.com/hazelcast/latest/system-properties
                 type: object
               repository:
-                default: docker.io/hazelcast/hazelcast-enterprise
+                default: docker.io/hazelcast/hazelcast
                 description: Repository to pull the Hazelcast Platform image from.
                 type: string
               resources:

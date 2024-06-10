@@ -30,9 +30,9 @@ var _ = Describe("Hazelcast ReplicatedMap Config", Group("replicatedmap"), func(
 	})
 
 	Context("Creating ReplicatedMap configurations", func() {
-		It("creates ReplicatedMap config with correct default values", Tag(Kind|Any), func() {
+		It("creates ReplicatedMap config with correct default values", Tag(Kind|AnyCloud), func() {
 			setLabelAndCRName("hrm-1")
-			hazelcast := hazelcastconfig.Default(hzLookupKey, ee, labels)
+			hazelcast := hazelcastconfig.Default(hzLookupKey, labels)
 			CreateHazelcastCR(hazelcast)
 
 			By("creating the default ReplicatedMap config")
@@ -50,9 +50,9 @@ var _ = Describe("Hazelcast ReplicatedMap Config", Group("replicatedmap"), func(
 	})
 
 	Context("Updating ReplicatedMap configurations", func() {
-		It("verifies that ReplicatedMap Config updates are prohibited", Label("cluster_scope"), Tag(Kind|Any), func() {
+		It("verifies that ReplicatedMap Config updates are prohibited", Label("cluster_scope"), Tag(Kind|AnyCloud), func() {
 			setLabelAndCRName("hrm-2")
-			hazelcast := hazelcastconfig.Default(hzLookupKey, ee, labels)
+			hazelcast := hazelcastconfig.Default(hzLookupKey, labels)
 			CreateHazelcastCR(hazelcast)
 
 			By("creating the ReplicatedMap config")
