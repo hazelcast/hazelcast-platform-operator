@@ -192,6 +192,11 @@ type HazelcastSpec struct {
 	// UserCodeNamespaces provide a container for Java classpath resources, such as user code and accompanying artifacts like property files
 	// +optional
 	UserCodeNamespaces *UserCodeNamespacesConfig `json:"userCodeNamespaces,omitempty"`
+
+	// Env configuration of environment variables
+	// +optional
+	// +kubebuilder:validation:XValidation:message="Environment variables cannot start with 'HZ_'. Use customConfigCmName to configure Hazelcast.",rule="self.all(env, env.name.startsWith('HZ_') == false)"
+	Env []corev1.EnvVar `json:"env,omitempty"`
 }
 
 func (s *HazelcastSpec) GetLicenseKeySecretName() string {
