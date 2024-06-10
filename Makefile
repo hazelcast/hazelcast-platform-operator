@@ -195,11 +195,11 @@ GO_TEST_FLAGS ?= "-ee=true"
 
 test-it: manifests generate envtest ## Run tests.
 	mkdir -p ${ENVTEST_ASSETS_DIR}
-	KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) --bin-dir $(ENVTEST_ASSETS_DIR) -p path)" go test -tags $(GO_BUILD_TAGS) -v ./test/integration/... $(GO_TEST_FLAGS) -eventually-timeout 30s -timeout 5m
+	KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) --bin-dir $(ENVTEST_ASSETS_DIR) -p path)" go test -tags $(GO_BUILD_TAGS) -v ./test/integration/... -eventually-timeout 30s -timeout 5m
 
 test-it-focus: manifests generate envtest ## Run tests.
 	mkdir -p ${ENVTEST_ASSETS_DIR}
-	KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) --bin-dir $(ENVTEST_ASSETS_DIR) -p path)" go test -tags $(GO_BUILD_TAGS) -v ./test/integration/...  $(GO_TEST_FLAGS) -eventually-timeout 30s -timeout 5m
+	KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) --bin-dir $(ENVTEST_ASSETS_DIR) -p path)" go test -tags $(GO_BUILD_TAGS) -v ./test/integration/... -eventually-timeout 30s -timeout 5m
 
 E2E_TEST_LABELS?=operator
 

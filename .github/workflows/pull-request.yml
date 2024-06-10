@@ -106,7 +106,7 @@ jobs:
         run: make test-unit
 
       - name: Run integration tests (EE)
-        run: make GO_TEST_FLAGS="-ee=true" test-it
+        run: make test-it
 
   check_breaking_changes:
     name: Check breaking changes
