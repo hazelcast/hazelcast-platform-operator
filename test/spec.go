@@ -21,7 +21,7 @@ func HazelcastSpec(values *HazelcastSpecValues) hazelcastv1alpha1.HazelcastSpec 
 		Repository:           values.Repository,
 		Version:              values.Version,
 		ImagePullPolicy:      values.ImagePullPolicy,
-		LicenseKeySecretName: values.LicenseKey,
+		LicenseKeySecretName: &values.LicenseKey,
 	}
 }
 

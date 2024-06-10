@@ -74,7 +74,7 @@ type HazelcastSpec struct {
 
 	// Name of the secret with Hazelcast Enterprise License Key.
 	// +required
-	LicenseKeySecretName string `json:"licenseKeySecretName,omitempty"`
+	LicenseKeySecretName *string `json:"licenseKeySecretName"`
 
 	// Configuration to expose Hazelcast cluster to external clients.
 	// +optional
@@ -195,10 +195,10 @@ type HazelcastSpec struct {
 }
 
 func (s *HazelcastSpec) GetLicenseKeySecretName() string {
-	if s.LicenseKeySecretName == "" {
+	if *s.LicenseKeySecretName == "" {
 		return s.DeprecatedLicenseKeySecret
 	}
-	return s.LicenseKeySecretName
+	return *s.LicenseKeySecretName
 }
 
 // +kubebuilder:validation:Enum=Native;BigEndian;LittleEndian
@@ -1379,7 +1379,7 @@ type Hazelcast struct {
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
 	// Initial values will be filled with its fields' default values.
-	// +kubebuilder:default:={"repository" : "docker.io/hazelcast/hazelcast"}
+	// +kubebuilder:default:={"repository" : "docker.io/hazelcast/hazelcast-enterprise", "licenseKeySecretName": "hazelcast-license-key"}
 	// +optional
 	Spec HazelcastSpec `json:"spec,omitempty"`
 

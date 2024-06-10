@@ -18,6 +18,11 @@ var (
 	hazelcastEERepo  = flag.String("hazelcast-ee-repo", naming.HazelcastEERepo, "Enterprise Hazelcast repository used in e2e tests")
 )
 
+func licenseKeySecret() *string {
+	n := naming.LicenseKeySecret
+	return &n
+}
+
 var (
 	ClusterName = func(lk types.NamespacedName, lbls map[string]string) *hazelcastcomv1alpha1.Hazelcast {
 		return &hazelcastcomv1alpha1.Hazelcast{
@@ -31,7 +36,7 @@ var (
 				ClusterName:          "development",
 				Repository:           *hazelcastEERepo,
 				Version:              *hazelcastVersion,
-				LicenseKeySecretName: naming.LicenseKeySecret,
+				LicenseKeySecretName: licenseKeySecret(),
 				LoggingLevel:         hazelcastcomv1alpha1.LoggingLevelDebug,
 			},
 		}
@@ -48,7 +53,7 @@ var (
 				ClusterSize:          &[]int32{3}[0],
 				Repository:           *hazelcastEERepo,
 				Version:              *hazelcastVersion,
-				LicenseKeySecretName: naming.LicenseKeySecret,
+				LicenseKeySecretName: licenseKeySecret(),
 				LoggingLevel:         hazelcastcomv1alpha1.LoggingLevelDebug,
 			},
 		}
@@ -65,7 +70,7 @@ var (
 				ClusterSize:          &[]int32{3}[0],
 				Repository:           *hazelcastEERepo,
 				Version:              *hazelcastVersion,
-				LicenseKeySecretName: naming.LicenseKeySecret,
+				LicenseKeySecretName: licenseKeySecret(),
 				LoggingLevel:         hazelcastcomv1alpha1.LoggingLevelDebug,
 				ExposeExternally: &hazelcastcomv1alpha1.ExposeExternallyConfiguration{
 					Type:                 hazelcastcomv1alpha1.ExposeExternallyTypeSmart,
@@ -87,7 +92,7 @@ var (
 				ClusterSize:          &[]int32{3}[0],
 				Repository:           *hazelcastEERepo,
 				Version:              *hazelcastVersion,
-				LicenseKeySecretName: naming.LicenseKeySecret,
+				LicenseKeySecretName: licenseKeySecret(),
 				LoggingLevel:         hazelcastcomv1alpha1.LoggingLevelDebug,
 				ExposeExternally: &hazelcastcomv1alpha1.ExposeExternallyConfiguration{
 					Type:                 hazelcastcomv1alpha1.ExposeExternallyTypeSmart,
@@ -109,7 +114,7 @@ var (
 				ClusterSize:          &[]int32{3}[0],
 				Repository:           *hazelcastEERepo,
 				Version:              *hazelcastVersion,
-				LicenseKeySecretName: naming.LicenseKeySecret,
+				LicenseKeySecretName: licenseKeySecret(),
 				LoggingLevel:         hazelcastcomv1alpha1.LoggingLevelDebug,
 				ExposeExternally: &hazelcastcomv1alpha1.ExposeExternallyConfiguration{
 					Type:                 hazelcastcomv1alpha1.ExposeExternallyTypeSmart,
@@ -131,7 +136,7 @@ var (
 				ClusterSize:          &[]int32{3}[0],
 				Repository:           *hazelcastEERepo,
 				Version:              *hazelcastVersion,
-				LicenseKeySecretName: naming.LicenseKeySecret,
+				LicenseKeySecretName: licenseKeySecret(),
 				LoggingLevel:         hazelcastcomv1alpha1.LoggingLevelDebug,
 				ExposeExternally: &hazelcastcomv1alpha1.ExposeExternallyConfiguration{
 					Type:                 hazelcastcomv1alpha1.ExposeExternallyTypeUnisocket,
@@ -152,7 +157,7 @@ var (
 				ClusterSize:          pointer.Int32(clusterSize),
 				Repository:           *hazelcastEERepo,
 				Version:              *hazelcastVersion,
-				LicenseKeySecretName: naming.LicenseKeySecret,
+				LicenseKeySecretName: licenseKeySecret(),
 				LoggingLevel:         hazelcastcomv1alpha1.LoggingLevelDebug,
 				Persistence: &hazelcastcomv1alpha1.HazelcastPersistenceConfiguration{
 					ClusterDataRecoveryPolicy: hazelcastcomv1alpha1.FullRecovery,
@@ -169,7 +174,7 @@ var (
 		return hazelcastcomv1alpha1.HazelcastSpec{
 			ClusterSize:          pointer.Int32(clusterSize),
 			Repository:           *hazelcastEERepo,
-			LicenseKeySecretName: naming.LicenseKeySecret,
+			LicenseKeySecretName: licenseKeySecret(),
 			Version:              naming.HazelcastVersion,
 			LoggingLevel:         hazelcastcomv1alpha1.LoggingLevelDebug,
 			CPSubsystem: &hazelcastcomv1alpha1.CPSubsystem{
@@ -186,7 +191,7 @@ var (
 			ClusterSize:          pointer.Int32(clusterSize),
 			Version:              naming.HazelcastVersion,
 			Repository:           *hazelcastEERepo,
-			LicenseKeySecretName: naming.LicenseKeySecret,
+			LicenseKeySecretName: licenseKeySecret(),
 			LoggingLevel:         hazelcastcomv1alpha1.LoggingLevelDebug,
 			Persistence: &hazelcastcomv1alpha1.HazelcastPersistenceConfiguration{
 				PVC: &hazelcastcomv1alpha1.PvcConfiguration{
@@ -222,7 +227,7 @@ var (
 				ClusterSize:          &[]int32{1}[0],
 				Repository:           *hazelcastEERepo,
 				Version:              *hazelcastVersion,
-				LicenseKeySecretName: naming.LicenseKeySecret,
+				LicenseKeySecretName: licenseKeySecret(),
 				DeprecatedUserCodeDeployment: &hazelcastcomv1alpha1.UserCodeDeploymentConfig{
 					RemoteFileConfiguration: hazelcastcomv1alpha1.RemoteFileConfiguration{
 						BucketConfiguration: &hazelcastcomv1alpha1.BucketConfiguration{
@@ -246,7 +251,7 @@ var (
 				ClusterSize:          pointer.Int32(1),
 				Repository:           *hazelcastEERepo,
 				Version:              *hazelcastVersion,
-				LicenseKeySecretName: naming.LicenseKeySecret,
+				LicenseKeySecretName: licenseKeySecret(),
 				JetEngineConfiguration: &hazelcastcomv1alpha1.JetEngineConfiguration{
 					Enabled:               pointer.Bool(true),
 					ResourceUploadEnabled: true,
@@ -266,7 +271,7 @@ var (
 				ClusterSize:          pointer.Int32(1),
 				Repository:           *hazelcastEERepo,
 				Version:              *hazelcastVersion,
-				LicenseKeySecretName: naming.LicenseKeySecret,
+				LicenseKeySecretName: licenseKeySecret(),
 				JetEngineConfiguration: &hazelcastcomv1alpha1.JetEngineConfiguration{
 					Enabled:               pointer.Bool(true),
 					ResourceUploadEnabled: true,
@@ -292,7 +297,7 @@ var (
 				ClusterSize:          pointer.Int32(1),
 				Repository:           *hazelcastEERepo,
 				Version:              *hazelcastVersion,
-				LicenseKeySecretName: naming.LicenseKeySecret,
+				LicenseKeySecretName: licenseKeySecret(),
 				JetEngineConfiguration: &hazelcastcomv1alpha1.JetEngineConfiguration{
 					Enabled:               pointer.Bool(true),
 					ResourceUploadEnabled: true,
@@ -315,7 +320,7 @@ var (
 				ClusterSize:          pointer.Int32(1),
 				Repository:           *hazelcastEERepo,
 				Version:              *hazelcastVersion,
-				LicenseKeySecretName: naming.LicenseKeySecret,
+				LicenseKeySecretName: licenseKeySecret(),
 				JetEngineConfiguration: &hazelcastcomv1alpha1.JetEngineConfiguration{
 					Enabled:               pointer.Bool(true),
 					ResourceUploadEnabled: true,
@@ -353,7 +358,7 @@ var (
 				ClusterSize:          pointer.Int32(1),
 				Repository:           *hazelcastEERepo,
 				Version:              *hazelcastVersion,
-				LicenseKeySecretName: naming.LicenseKeySecret,
+				LicenseKeySecretName: licenseKeySecret(),
 				JetEngineConfiguration: &hazelcastcomv1alpha1.JetEngineConfiguration{
 					Enabled:               pointer.Bool(true),
 					ResourceUploadEnabled: true,
@@ -388,7 +393,7 @@ var (
 				ClusterSize:          &[]int32{1}[0],
 				Repository:           *hazelcastEERepo,
 				Version:              *hazelcastVersion,
-				LicenseKeySecretName: naming.LicenseKeySecret,
+				LicenseKeySecretName: licenseKeySecret(),
 				DeprecatedUserCodeDeployment: &hazelcastcomv1alpha1.UserCodeDeploymentConfig{
 					RemoteFileConfiguration: hazelcastcomv1alpha1.RemoteFileConfiguration{
 						RemoteURLs: urls,
@@ -410,7 +415,7 @@ var (
 				ClusterSize:               &[]int32{1}[0],
 				Repository:                *hazelcastEERepo,
 				Version:                   *hazelcastVersion,
-				LicenseKeySecretName:      naming.LicenseKeySecret,
+				LicenseKeySecretName:      licenseKeySecret(),
 				ExecutorServices:          allExecutorServices["es"].([]hazelcastcomv1alpha1.ExecutorServiceConfiguration),
 				DurableExecutorServices:   allExecutorServices["des"].([]hazelcastcomv1alpha1.DurableExecutorServiceConfiguration),
 				ScheduledExecutorServices: allExecutorServices["ses"].([]hazelcastcomv1alpha1.ScheduledExecutorServiceConfiguration),
@@ -430,7 +435,7 @@ var (
 				HighAvailabilityMode: mode,
 				Repository:           *hazelcastEERepo,
 				Version:              *hazelcastVersion,
-				LicenseKeySecretName: naming.LicenseKeySecret,
+				LicenseKeySecretName: licenseKeySecret(),
 				LoggingLevel:         hazelcastcomv1alpha1.LoggingLevelDebug,
 				ExposeExternally: &hazelcastcomv1alpha1.ExposeExternallyConfiguration{
 					Type:                 hazelcastcomv1alpha1.ExposeExternallyTypeUnisocket,
@@ -451,7 +456,7 @@ var (
 				ClusterSize:          &[]int32{3}[0],
 				Repository:           *hazelcastEERepo,
 				Version:              *hazelcastVersion,
-				LicenseKeySecretName: naming.LicenseKeySecret,
+				LicenseKeySecretName: licenseKeySecret(),
 				TLS: &hazelcastcomv1alpha1.TLS{
 					SecretName: lk.Name + "-tls",
 				},
@@ -470,7 +475,7 @@ var (
 				ClusterSize:          &[]int32{3}[0],
 				Repository:           *hazelcastEERepo,
 				Version:              *hazelcastVersion,
-				LicenseKeySecretName: naming.LicenseKeySecret,
+				LicenseKeySecretName: licenseKeySecret(),
 				TLS: &hazelcastcomv1alpha1.TLS{
 					SecretName:           lk.Name + "-mtls",
 					MutualAuthentication: hazelcastcomv1alpha1.MutualAuthenticationRequired,
@@ -490,7 +495,7 @@ var (
 				ClusterSize:          pointer.Int32(clusterSize),
 				Repository:           *hazelcastEERepo,
 				Version:              *hazelcastVersion,
-				LicenseKeySecretName: naming.LicenseKeySecret,
+				LicenseKeySecretName: licenseKeySecret(),
 				Persistence: &hazelcastcomv1alpha1.HazelcastPersistenceConfiguration{
 					ClusterDataRecoveryPolicy: hazelcastcomv1alpha1.FullRecovery,
 					PVC: &hazelcastcomv1alpha1.PvcConfiguration{
@@ -562,7 +567,7 @@ var (
 			Spec: hazelcastcomv1alpha1.HazelcastSpec{
 				ClusterSize:          &[]int32{3}[0],
 				Repository:           *hazelcastEERepo,
-				LicenseKeySecretName: naming.LicenseKeySecret,
+				LicenseKeySecretName: licenseKeySecret(),
 				Version:              "not-exists",
 				LoggingLevel:         hazelcastcomv1alpha1.LoggingLevelDebug,
 			},
@@ -925,7 +930,7 @@ var (
 				ClusterSize:          pointer.Int32(3),
 				Repository:           *hazelcastEERepo,
 				Version:              *hazelcastVersion,
-				LicenseKeySecretName: naming.LicenseKeySecret,
+				LicenseKeySecretName: licenseKeySecret(),
 				LoggingLevel:         hazelcastcomv1alpha1.LoggingLevelDebug,
 				NativeMemory: &hazelcastcomv1alpha1.NativeMemoryConfiguration{
 					AllocatorType: hazelcastcomv1alpha1.NativeMemoryStandard,

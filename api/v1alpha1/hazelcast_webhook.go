@@ -49,8 +49,9 @@ func (r *Hazelcast) ValidateDelete() (admission.Warnings, error) {
 }
 
 func (r *Hazelcast) Default() {
-	if r.Spec.LicenseKeySecretName == "" && r.Spec.DeprecatedLicenseKeySecret != "" {
-		r.Spec.LicenseKeySecretName = r.Spec.DeprecatedLicenseKeySecret
+	if r.Spec.LicenseKeySecretName == nil && r.Spec.DeprecatedLicenseKeySecret != "" {
+		d := r.Spec.DeprecatedLicenseKeySecret
+		r.Spec.LicenseKeySecretName = &d
 		r.Spec.DeprecatedLicenseKeySecret = ""
 	}
 	r.defaultOptionalToNil()
