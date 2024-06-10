@@ -222,13 +222,14 @@ var _ = Describe("Hazelcast CR", func() {
 			})
 
 			It("should update the CR with the default values", func() {
+				l := "license-key-secret"
 				hz := &hazelcastv1alpha1.Hazelcast{
 					ObjectMeta: randomObjectMeta(namespace),
 					Spec: hazelcastv1alpha1.HazelcastSpec{
 						ClusterSize:          &[]int32{5}[0],
 						Repository:           "myorg/hazelcast",
 						Version:              "1.0",
-						LicenseKeySecretName: "license-key-secret",
+						LicenseKeySecretName: &l,
 						ImagePullPolicy:      corev1.PullAlways,
 					},
 				}
@@ -1264,6 +1265,8 @@ var _ = Describe("Hazelcast CR", func() {
 	})
 
 	Context("StatefulSet", func() {
+		fl := "key-secret"
+		sl := ""
 		firstSpec := hazelcastv1alpha1.HazelcastSpec{
 			ClusterSize:          pointer.Int32(2),
 			Repository:           "hazelcast/hazelcast-enterprise",
@@ -1271,7 +1274,7 @@ var _ = Describe("Hazelcast CR", func() {
 			ImagePullPolicy:      corev1.PullAlways,
 			ImagePullSecrets:     nil,
 			ExposeExternally:     nil,
-			LicenseKeySecretName: "key-secret",
+			LicenseKeySecretName: &fl,
 		}
 
 		secondSpec := hazelcastv1alpha1.HazelcastSpec{
@@ -1286,7 +1289,7 @@ var _ = Describe("Hazelcast CR", func() {
 			ExposeExternally: &hazelcastv1alpha1.ExposeExternallyConfiguration{
 				Type: hazelcastv1alpha1.ExposeExternallyTypeSmart,
 			},
-			LicenseKeySecretName: "",
+			LicenseKeySecretName: &sl,
 			Scheduling: &hazelcastv1alpha1.SchedulingConfiguration{
 				Affinity: &corev1.Affinity{
 					NodeAffinity: &corev1.NodeAffinity{
@@ -1442,10 +1445,11 @@ var _ = Describe("Hazelcast CR", func() {
 	Context("LicenseKey", func() {
 		When("is given with OS repo", func() {
 			It("should mutate EE repo", func() {
+				ls := "secret-name"
 				hz := &hazelcastv1alpha1.Hazelcast{
 					ObjectMeta: randomObjectMeta(namespace),
 					Spec: hazelcastv1alpha1.HazelcastSpec{
-						LicenseKeySecretName: "secret-name",
+						LicenseKeySecretName: &ls,
 						Repository:           n.HazelcastRepo,
 					},
 				}
@@ -1465,7 +1469,8 @@ var _ = Describe("Hazelcast CR", func() {
 					Skip("This test will only run in EE configuration")
 				}
 				spec := test.HazelcastSpec(defaultHazelcastSpecValues(), ee)
-				spec.LicenseKeySecretName = ""
+				s := ""
+				spec.LicenseKeySecretName = &s
 
 				hz := &hazelcastv1alpha1.Hazelcast{
 					ObjectMeta: randomObjectMeta(namespace),

@@ -23,7 +23,7 @@ func HazelcastSpec(values *HazelcastSpecValues, ee bool) hazelcastv1alpha1.Hazel
 		ImagePullPolicy: values.ImagePullPolicy,
 	}
 	if ee {
-		spec.LicenseKeySecretName = values.LicenseKey
+		spec.LicenseKeySecretName = &values.LicenseKey
 	}
 	return spec
 }
