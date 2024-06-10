@@ -242,6 +242,11 @@ jobs:
         run: |
           make test-e2e NAMESPACE=${NAMESPACE} RELEASE_NAME=$RELEASE_NAME REPORT_SUFFIX=ee_01 WORKFLOW_ID=aks
 
+      - name: Check if the operator pod has not restarted
+        run: |
+          source .github/scripts/utils.sh
+          assert_operator_pod_not_restarted ${NAMESPACE}
+
       - name: Clean up after Tests
         if: always()
         run: |

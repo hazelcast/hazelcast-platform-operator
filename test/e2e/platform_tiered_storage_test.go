@@ -6,11 +6,12 @@ import (
 	"strconv"
 	. "time"
 
-	hzclient "github.com/hazelcast/hazelcast-platform-operator/internal/hazelcast-client"
-	"github.com/hazelcast/hazelcast-platform-operator/test"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/utils/pointer"
+
+	hzclient "github.com/hazelcast/hazelcast-platform-operator/internal/hazelcast-client"
+	"github.com/hazelcast/hazelcast-platform-operator/test"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -22,6 +23,7 @@ import (
 )
 
 var _ = Describe("Hazelcast CR with Tiered Storage feature enabled", Group("platform_tiered_storage"), func() {
+	localPort := strconv.Itoa(8900 + GinkgoParallelProcess())
 
 	AfterEach(func() {
 		GinkgoWriter.Printf("Aftereach start time is %v\n", Now().String())
@@ -74,9 +76,14 @@ var _ = Describe("Hazelcast CR with Tiered Storage feature enabled", Group("plat
 			tsMap.Spec.TieredStore.MemoryCapacity = &[]resource.Quantity{resource.MustParse(mapMemoryCapacitySize)}[0]
 			Expect(k8sClient.Create(context.Background(), tsMap)).Should(Succeed())
 			assertMapStatus(tsMap, hazelcastv1alpha1.MapSuccess)
-			FillMapBySizeInMb(ctx, tsMap.MapName(), mapSizeInMb, mapSizeInMb, hazelcast)
 
-			WaitForMapSize(context.Background(), hzLookupKey, tsMap.MapName(), expectedMapSize, 30*Minute)
+			stopChan := portForwardPod(hazelcast.Name+"-0", hazelcast.Namespace, localPort+":5701")
+			defer closeChannel(stopChan)
+			cl := newHazelcastClientPortForward(context.Background(), hazelcast, localPort)
+
+			FillMapBySizeInMbWithClient(ctx, cl, tsMap.MapName(), mapSizeInMb, mapSizeInMb, hazelcast)
+
+			WaitForMapSizeWithClient(context.Background(), cl, hzLookupKey, tsMap.MapName(), expectedMapSize, 30*Minute)
 		})
 
 		It("should fail to fill the map with more than allocated memory + disk size", Tag(AnyCloud), func() {
@@ -88,7 +95,6 @@ var _ = Describe("Hazelcast CR with Tiered Storage feature enabled", Group("plat
 			var mapSizeInMb = 3000         // 3 Gi
 			var totalMemorySizeInMb = 2048 // 2 Gi
 			var diskSizeInMb = 1000
-			ctx := context.Background()
 
 			totalMemorySize := strconv.Itoa(totalMemorySizeInMb) + "Mi"
 			nativeMemorySize := strconv.Itoa(nativeMemorySizeInMb) + "Mi"
@@ -96,10 +102,6 @@ var _ = Describe("Hazelcast CR with Tiered Storage feature enabled", Group("plat
 			diskSize := strconv.Itoa(diskSizeInMb) + "Mi"
 			hazelcast := hazelcastconfig.HazelcastTieredStorage(hzLookupKey, deviceName, labels)
 			hazelcast.Spec.ClusterSize = pointer.Int32(2)
-			hazelcast.Spec.ExposeExternally = &hazelcastv1alpha1.ExposeExternallyConfiguration{
-				Type:                 hazelcastv1alpha1.ExposeExternallyTypeUnisocket,
-				DiscoveryServiceType: corev1.ServiceTypeLoadBalancer,
-			}
 			hazelcast.Spec.LocalDevices[0].PVC.RequestStorage = &[]resource.Quantity{resource.MustParse(diskSize)}[0]
 			hazelcast.Spec.Resources = &corev1.ResourceRequirements{
 				Limits: map[corev1.ResourceName]resource.Quantity{
@@ -120,11 +122,7 @@ var _ = Describe("Hazelcast CR with Tiered Storage feature enabled", Group("plat
 
 			fmt.Printf("filling the map '%s' with '%d' MB data\n", tsMap.MapName(), mapSizeInMb)
 			hzAddress := hzclient.HazelcastUrl(hazelcast)
-			clientHz := GetHzClient(ctx, types.NamespacedName{Name: hazelcast.Name, Namespace: hazelcast.Namespace}, true)
-			defer func() {
-				err := clientHz.Shutdown(ctx)
-				Expect(err).ToNot(HaveOccurred())
-			}()
+
 			t := Now()
 			mapLoaderPod := createMapLoaderPod(hzAddress, hazelcast.Spec.ClusterName, mapSizeInMb, tsMap.MapName(), types.NamespacedName{Name: hazelcast.Name, Namespace: hazelcast.Namespace})
 			defer DeletePod(mapLoaderPod.Name, 10, types.NamespacedName{Namespace: hazelcast.Namespace})
@@ -162,10 +160,6 @@ var _ = Describe("Hazelcast CR with Tiered Storage feature enabled", Group("plat
 			mapMemoryCapacitySize := strconv.Itoa(mapMemory) + "Mi"
 			diskSize := strconv.Itoa(diskSizeInMb) + "Mi"
 			hazelcast := hazelcastconfig.HazelcastTieredStorage(hzLookupKey, deviceName, labels)
-			hazelcast.Spec.ExposeExternally = &hazelcastv1alpha1.ExposeExternallyConfiguration{
-				Type:                 hazelcastv1alpha1.ExposeExternallyTypeUnisocket,
-				DiscoveryServiceType: corev1.ServiceTypeLoadBalancer,
-			}
 			hazelcast.Spec.LocalDevices[0].PVC.RequestStorage = &[]resource.Quantity{resource.MustParse(diskSize)}[0]
 			hazelcast.Spec.Resources = &corev1.ResourceRequirements{
 				Limits: map[corev1.ResourceName]resource.Quantity{
@@ -183,9 +177,13 @@ var _ = Describe("Hazelcast CR with Tiered Storage feature enabled", Group("plat
 			tsMap.Spec.TieredStore.MemoryCapacity = &[]resource.Quantity{resource.MustParse(mapMemoryCapacitySize)}[0]
 			Expect(k8sClient.Create(context.Background(), tsMap)).Should(Succeed())
 			assertMapStatus(tsMap, hazelcastv1alpha1.MapSuccess)
-			FillMapBySizeInMb(ctx, tsMap.MapName(), mapSizeInMb, mapSizeInMb, hazelcast)
 
-			WaitForMapSize(context.Background(), hzLookupKey, tsMap.MapName(), expectedMapSize, 3*Minute)
+			stopChan := portForwardPod(hazelcast.Name+"-0", hazelcast.Namespace, localPort+":5701")
+			defer closeChannel(stopChan)
+			cl := newHazelcastClientPortForward(context.Background(), hazelcast, localPort)
+			FillMapBySizeInMbWithClient(ctx, cl, tsMap.MapName(), mapSizeInMb, mapSizeInMb, hazelcast)
+
+			WaitForMapSizeWithClient(context.Background(), cl, hzLookupKey, tsMap.MapName(), expectedMapSize, 3*Minute)
 
 			By("scale down Hazelcast")
 			UpdateHazelcastCR(hazelcast, func(hazelcast *hazelcastv1alpha1.Hazelcast) *hazelcastv1alpha1.Hazelcast {
@@ -224,10 +222,6 @@ var _ = Describe("Hazelcast CR with Tiered Storage feature enabled", Group("plat
 			mapMemoryCapacitySize := strconv.Itoa(mapMemory) + "Mi"
 			diskSize := strconv.Itoa(diskSizeInMb) + "Mi"
 			hazelcast := hazelcastconfig.HazelcastTieredStorage(hzLookupKey, deviceName, labels)
-			hazelcast.Spec.ExposeExternally = &hazelcastv1alpha1.ExposeExternallyConfiguration{
-				Type:                 hazelcastv1alpha1.ExposeExternallyTypeUnisocket,
-				DiscoveryServiceType: corev1.ServiceTypeLoadBalancer,
-			}
 			hazelcast.Spec.LocalDevices[0].PVC.RequestStorage = &[]resource.Quantity{resource.MustParse(diskSize)}[0]
 			hazelcast.Spec.Resources = &corev1.ResourceRequirements{
 				Limits: map[corev1.ResourceName]resource.Quantity{
@@ -245,7 +239,11 @@ var _ = Describe("Hazelcast CR with Tiered Storage feature enabled", Group("plat
 			tsMap.Spec.TieredStore.MemoryCapacity = &[]resource.Quantity{resource.MustParse(mapMemoryCapacitySize)}[0]
 			Expect(k8sClient.Create(context.Background(), tsMap)).Should(Succeed())
 			assertMapStatus(tsMap, hazelcastv1alpha1.MapSuccess)
-			FillMapBySizeInMb(ctx, tsMap.MapName(), mapSizeInMb, mapSizeInMb, hazelcast)
+
+			stopChan := portForwardPod(hazelcast.Name+"-0", hazelcast.Namespace, localPort+":5701")
+			defer closeChannel(stopChan)
+			cl := newHazelcastClientPortForward(context.Background(), hazelcast, localPort)
+			FillMapBySizeInMbWithClient(ctx, cl, tsMap.MapName(), mapSizeInMb, mapSizeInMb, hazelcast)
 
 			WaitForMapSize(context.Background(), hzLookupKey, tsMap.MapName(), expectedMapSize, 3*Minute)
 
@@ -253,8 +251,7 @@ var _ = Describe("Hazelcast CR with Tiered Storage feature enabled", Group("plat
 			WaitForPodReady(hazelcast.Name+"-2", hzLookupKey, 1*Minute)
 			evaluateReadyMembers(hzLookupKey)
 
-			WaitForMapSize(context.Background(), hzLookupKey, tsMap.MapName(), expectedMapSize, 3*Minute)
-
+			WaitForMapSizeWithClient(context.Background(), cl, hzLookupKey, tsMap.MapName(), expectedMapSize, 3*Minute)
 		})
 	})
 

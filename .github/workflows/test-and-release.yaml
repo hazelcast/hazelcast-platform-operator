@@ -175,6 +175,26 @@ jobs:
           echo "Checking Management Center CR after upgrade"
           kubectl wait --for=jsonpath='{.status.phase}'=Running --timeout=300s ManagementCenter/managementcenter || (echo "Management Center CR Check Failed" && kubectl get managementcenters.hazelcast.com managementcenter -o wide; exit 1;)
 
+  check_breaking_changes:
+    name: Check breaking changes
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+
+      - name: Check breaking changes between stable and latest-snapshot version
+        working-directory: tools/version-diff-tool
+        run: |
+          helm repo add hazelcast https://hazelcast-charts.s3.amazonaws.com && helm repo update
+          STABLE_VERSION=$(curl -s https://artifacthub.io/api/v1/packages/helm/hazelcast/hazelcast-platform-operator | jq -r '.available_versions | map(select(.version | contains("snapshot") | not)) | .[0].version')
+          LATEST_SNAPSHOT="../../helm-charts/hazelcast-platform-operator/charts/hazelcast-platform-operator-crds"
+          RESULT=$(go run main.go -base $STABLE_VERSION -revision latest-snapshot -revision-repo-url "$LATEST_SNAPSHOT" -ignore request-property-max-set,request-property-min-set)
+          echo "$RESULT" | grep -q "0 breaking changes" || { echo "$RESULT"; exit 1; }
+
   test_container:
     name: Build and Test Container
     defaults:

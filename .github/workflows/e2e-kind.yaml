@@ -231,3 +231,8 @@ jobs:
         id: e2e-test
         run: |
           make test-e2e REPORT_SUFFIX=ee_${{ inputs.k8s-cluster-version }} NAMESPACE=${NAMESPACE} RELEASE_NAME=${RELEASE_NAME} WORKFLOW_ID=pr
+
+      - name: Check if the operator pod has not restarted
+        run: |
+          source .github/scripts/utils.sh
+          assert_operator_pod_not_restarted ${NAMESPACE}

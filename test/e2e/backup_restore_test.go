@@ -581,6 +581,7 @@ var _ = Describe("Hazelcast CR with Persistence feature enabled", Group("backup_
 			backupRestore(hazelcast, hotBackup, false)
 		},
 			Entry("using GCP Workload Identity", Tag(GCP), "cn-workload-identity-test", "gs://operator-e2e-external-backup"),
+			Entry("using AWS IAM ServiceAccount", Tag(AWS), "aws-iam-sa", "s3://operator-e2e-external-backup"),
 		)
 	})
 

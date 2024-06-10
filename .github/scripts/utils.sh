@@ -599,3 +599,44 @@ wait_condition_pod_ready() {
   echo "The pods labeled with '$pod_label' in '$namespace' namespace are not ready yet"
   return 1
 }
+
+get_operator_pod_name(){
+    namespace=$1
+    podName=$(kubectl get pod --selector='app.kubernetes.io/name=hazelcast-platform-operator' --namespace=$namespace -o=jsonpath='{.items[*].metadata.name}')
+    if [ -z "$podName" ]; then
+        echo "operator pod not found in '$namespace' namespace"
+        return 1
+    fi
+    echo $podName | grep -q " "
+    if [ $? -eq 0 ]; then
+        echo "there are multiple operator pods in the namespace '$namespace'"
+        return 1
+    fi
+    echo $podName
+}
+
+get_pod_restart_count(){
+    namespace=$1
+    podName=$2
+    kubectl get pod $podName --namespace=$namespace -o=jsonpath='{.status.containerStatuses[0].restartCount}'
+}
+
+assert_operator_pod_not_restarted(){
+    namespace=$1
+    operatorPod=$(get_operator_pod_name $namespace)
+    echo "operator pod name: $operatorPod"
+    if [ $? -ne 0 ]; then
+        echo $operatorPod
+        return 1
+    fi
+    restartCount=$(get_pod_restart_count $namespace $operatorPod)
+    if [ $? -ne 0 ]; then
+        echo $restartCount
+        return 1
+    fi
+    echo "restart count: $restartCount"
+    if [[ $restartCount -ne 0 ]]; then
+        echo "restart count is not zero"
+        return 1
+    fi
+}
