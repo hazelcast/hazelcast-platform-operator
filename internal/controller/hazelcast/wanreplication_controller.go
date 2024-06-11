@@ -719,7 +719,7 @@ func (r *WanReplicationReconciler) SetupWithManager(mgr ctrl.Manager) error {
 			}),
 		).
 		Watches(&hazelcastv1alpha1.Map{}, handler.EnqueueRequestsFromMapFunc(r.wanRequestsForTerminationCandidateMap)).
-		Watches(&hazelcastv1alpha1.Hazelcast{}, handler.EnqueueRequestsFromMapFunc(r.wanRequestsForCreatedOrDeletedHazelcast),
+		Watches(&hazelcastv1alpha1.Hazelcast{}, handler.EnqueueRequestsFromMapFunc(r.wanRequestsForDeletedHazelcast),
 			builder.WithPredicates(predicate.Funcs{
 				CreateFunc: func(createEvent event.CreateEvent) bool {
 					return false
@@ -810,7 +810,7 @@ func (r *WanReplicationReconciler) wanRequestsForTerminationCandidateMap(_ conte
 	return reqs
 }
 
-func (r *WanReplicationReconciler) wanRequestsForCreatedOrDeletedHazelcast(ctx context.Context, m client.Object) []reconcile.Request {
+func (r *WanReplicationReconciler) wanRequestsForDeletedHazelcast(ctx context.Context, m client.Object) []reconcile.Request {
 	hz, ok := m.(*hazelcastv1alpha1.Hazelcast)
 	if !ok {
 		return []reconcile.Request{}
