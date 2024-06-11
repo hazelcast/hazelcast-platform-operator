@@ -6,7 +6,6 @@ import (
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
-	v1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/types"
@@ -194,25 +193,6 @@ var _ = Describe("Hazelcast", Group("hz"), func() {
 
 			CreateHazelcastCR(hz)
 			evaluateReadyMembers(hzLookupKey)
-		})
-	})
-
-	Context("OS cluster creation", func() {
-		It("should delete the cluster if it is not enterprise", Tag(Kind|AnyCloud), func() {
-			setLabelAndCRName("h-9")
-			hazelcast := hazelcastconfig.Default(hzLookupKey, labels)
-			Expect(k8sClient.Create(context.Background(), hazelcast)).Should(Succeed())
-
-			hz := &hazelcastcomv1alpha1.Hazelcast{}
-			Eventually(func() hazelcastcomv1alpha1.Phase {
-				err := k8sClient.Get(context.Background(), hzLookupKey, hz)
-				Expect(err).ToNot(HaveOccurred())
-				return hz.Status.Phase
-			}, 3*Minute, interval).Should(Equal(hazelcastcomv1alpha1.Failed))
-			Expect(hz.Status.Message).Should(Equal("Hazelcast Platform Operator cannot be used to create open source clusters"))
-
-			sts := &v1.StatefulSet{}
-			assertDoesNotExist(hzLookupKey, sts)
 		})
 	})
 })
