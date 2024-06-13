@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"encoding/pem"
+	errs "errors"
 	"fmt"
 	"hash/crc32"
 	"net"
@@ -16,6 +17,7 @@ import (
 
 	"github.com/go-logr/logr"
 	proto "github.com/hazelcast/hazelcast-go-client"
+	clientTypes "github.com/hazelcast/hazelcast-go-client/types"
 	"github.com/hazelcast/platform-operator-agent/init/compound"
 	"github.com/hazelcast/platform-operator-agent/init/jar_download_bucket"
 	"github.com/pavlo-v-chernykh/keystore-go/v4"
@@ -2949,6 +2951,30 @@ func (r *HazelcastReconciler) ensureClusterActive(ctx context.Context, client hz
 		return nil
 	}
 	return svc.ChangeClusterState(ctx, codecTypes.ClusterStateActive)
+}
+
+var illegalClusterType = errs.New("only enterprise clusters are supported")
+
+func (r *HazelcastReconciler) ensureClusterEnterprise(ctx context.Context, client hzclient.Client, h *hazelcastv1alpha1.Hazelcast) error {
+	req := codec.EncodeClientAuthenticationRequest(
+		h.Name,
+		"",
+		"",
+		clientTypes.NewUUID(),
+		"GOO",
+		1,
+		"1.5.0",
+		"operator",
+		[]string{})
+	resp, err := client.InvokeOnRandomTarget(ctx, req, nil)
+	if err != nil {
+		return err
+	}
+	_, _, _, _, _, _, _, failOverSupported := codec.DecodeClientAuthenticationResponse(resp)
+	if !failOverSupported {
+		return illegalClusterType
+	}
+	return nil
 }
 
 func appendHAModeTopologySpreadConstraints(h *hazelcastv1alpha1.Hazelcast) []v1.TopologySpreadConstraint {

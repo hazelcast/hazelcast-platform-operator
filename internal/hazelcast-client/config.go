@@ -24,16 +24,6 @@ const (
 
 func BuildConfig(h *hazelcastv1alpha1.Hazelcast, pool *x509.CertPool, cert *tls.Certificate, logger hzlogger.Logger) hazelcast.Config {
 	config := hazelcast.Config{
-		// normally we should not configure failover.
-		// It is a workaround to understand if the created cluster is enterprise, because it is only supported by enterprise.
-		// This is why our primary cluster config and failover cluster config is the same.
-		Failover: cluster.FailoverConfig{
-			Configs: []cluster.Config{
-				clusterConfig(h, pool, cert),
-			},
-			TryCount: 1,
-			Enabled:  true,
-		},
 		Logger: hzlogger.Config{
 			CustomLogger: logger,
 		},
