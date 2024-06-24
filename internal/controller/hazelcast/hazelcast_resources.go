@@ -947,7 +947,6 @@ func initContainerConfig(ctx context.Context, c client.Client, h *hazelcastv1alp
 		InitContainer: &compound.Config{},
 	}
 
-	// UCN
 	if h.Spec.UserCodeNamespaces.IsEnabled() {
 		ns, err := filterUserCodeNamespaces(ctx, c, h)
 		if err != nil {
@@ -973,7 +972,6 @@ func initContainerConfig(ctx context.Context, c client.Client, h *hazelcastv1alp
 		}
 	}
 
-	// UCD
 	ucn := h.Spec.DeprecatedUserCodeDeployment
 
 	if h.Spec.DeprecatedUserCodeDeployment.IsBucketEnabled() {
@@ -999,7 +997,6 @@ func initContainerConfig(ctx context.Context, c client.Client, h *hazelcastv1alp
 		}
 	}
 
-	// JET
 	jet := h.Spec.JetEngineConfiguration
 
 	if h.Spec.JetEngineConfiguration.IsBucketEnabled() {
@@ -1025,7 +1022,6 @@ func initContainerConfig(ctx context.Context, c client.Client, h *hazelcastv1alp
 		}
 	}
 
-	// Persistence Restore
 	if !h.Spec.Persistence.IsRestoreEnabled() {
 		return yaml.Marshal(cfgW)
 	}
