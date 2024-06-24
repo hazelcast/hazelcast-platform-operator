@@ -122,7 +122,7 @@ jobs:
           echo "IMG=${{ env.GAR_REGION }}-docker.pkg.dev/${{ env.GAR_PROJECT }}/${{ env.GAR_REPO }}/$(uuidgen):5d" >> $GITHUB_OUTPUT
 
       - name: Build Image
-        uses: docker/build-push-action@v5.3.0
+        uses: docker/build-push-action@v6.1.0
         with:
           context: .
           builder: ${{ steps.buildx.outputs.name }}
@@ -253,6 +253,11 @@ jobs:
             *)  echo Unexpected edition: ${{ matrix.edition }} && exit 1;;
           esac
           make test-e2e GO_TEST_FLAGS=${GO_TEST_FLAGS} NAMESPACE=${NAMESPACE} RELEASE_NAME=$RELEASE_NAME REPORT_SUFFIX=${{ matrix.edition }}_01 WORKFLOW_ID=aks
+
+      - name: Check if the operator pod has not restarted
+        run: |
+          source .github/scripts/utils.sh
+          assert_operator_pod_not_restarted ${NAMESPACE}
 
       - name: Clean up after Tests
         if: always()

@@ -61,7 +61,7 @@ const (
 // DefaultProperties are not overridable by the user
 var DefaultProperties = map[string]string{
 	"hazelcast.cluster.version.auto.upgrade.enabled": "true",
-	// https://docs.hazelcast.com/hazelcast/5.3/kubernetes/kubernetes-auto-discovery#configuration
+	// https://docs.hazelcast.com/hazelcast/latest/kubernetes/kubernetes-auto-discovery#configuration
 	// We added the following properties to here with their default values, because DefaultProperties cannot be overridden
 	"hazelcast.persistence.auto.cluster.state": "true",
 }
