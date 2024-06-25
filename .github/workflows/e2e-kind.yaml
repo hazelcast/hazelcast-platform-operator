@@ -247,7 +247,7 @@ jobs:
       - name: Check if the operator pod has not restarted
         run: |
           source .github/scripts/utils.sh
-          operator_pod_name=get_operator_pod_name ${NAMESPACE}
+          operator_pod_name=$(get_operator_pod_name ${NAMESPACE})
           kubectl get pod $operator_pod_name --namespace=${NAMESPACE} -oyaml
           kubectl events --namespace=${NAMESPACE}
           assert_operator_pod_not_restarted ${NAMESPACE}
