@@ -452,7 +452,7 @@ var _ = Describe("Hazelcast CR with Persistence feature enabled", Group("backup_
 		})
 
 		It("should restore multiple times from HotBackupResourceName", Tag(AnyCloud), func() {
-			setLabelAndCRName("br-8")
+			setLabelAndCRName("br-9")
 			clusterSize := int32(3)
 
 			By("creating cluster with external backup enabled")
@@ -513,7 +513,7 @@ var _ = Describe("Hazelcast CR with Persistence feature enabled", Group("backup_
 		})
 
 		It("should check cache entry persistence after HotBackup", Tag(AnyCloud), func() {
-			setLabelAndCRName("br-9")
+			setLabelAndCRName("br-10")
 			clusterSize := int32(3)
 
 			By("creating cluster with external backup enabled")
@@ -556,7 +556,7 @@ var _ = Describe("Hazelcast CR with Persistence feature enabled", Group("backup_
 		})
 
 		DescribeTable("when restoring from ExternalBackup with bucket secret", func(bucketURI, secretName string, useBucketConfig bool) {
-			setLabelAndCRName("br-10")
+			setLabelAndCRName("br-11")
 			By("creating cluster with backup enabled")
 			clusterSize := int32(3)
 
@@ -571,7 +571,7 @@ var _ = Describe("Hazelcast CR with Persistence feature enabled", Group("backup_
 		)
 
 		DescribeTable("when restoring from ExternalBackup with service account", func(serviceAccount, bucketURI string) {
-			setLabelAndCRName("br-11")
+			setLabelAndCRName("br-12")
 			By("creating cluster with backup enabled")
 			clusterSize := int32(3)
 
@@ -588,7 +588,7 @@ var _ = Describe("Hazelcast CR with Persistence feature enabled", Group("backup_
 	Context("Startup actions configuration", func() {
 		DescribeTable("should start the cluster successfully triggering",
 			func(action hazelcastcomv1alpha1.PersistenceStartupAction, dataPolicy hazelcastcomv1alpha1.DataRecoveryPolicyType) {
-				setLabelAndCRName("br-12")
+				setLabelAndCRName("br-13")
 				clusterSize := int32(3)
 
 				By("creating cluster with backup enabled")
@@ -625,7 +625,7 @@ var _ = Describe("Hazelcast CR with Persistence feature enabled", Group("backup_
 
 	Context("Restoring from local backup", func() {
 		It("should restore successfully", Tag(Kind|AnyCloud), func() {
-			setLabelAndCRName("br-13")
+			setLabelAndCRName("br-14")
 			clusterSize := int32(3)
 			hazelcast := hazelcastconfig.HazelcastPersistencePVC(hzLookupKey, clusterSize, labels)
 
