@@ -113,9 +113,7 @@ var _ = Describe("CP Subsystem", Group("cp_subsystem"), func() {
 		By("Fill CP Map", func() {
 			localPort := strconv.Itoa(8900 + GinkgoParallelProcess())
 			stopChan := portForwardPod(hazelcast.Name+"-0", hazelcast.Namespace, localPort+":5701")
-			defer func() {
-				closeChannel(stopChan)
-			}()
+			defer closeChannel(stopChan)
 			cl := newHazelcastClientPortForward(context.Background(), hazelcast, localPort)
 			cli := hzClient.NewClientInternal(cl)
 
