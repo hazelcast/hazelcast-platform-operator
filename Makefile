@@ -104,7 +104,7 @@ ENABLED_HZ_NODE_DISCOVERY ?=true
 RELEASE_NAME ?= v1
 CRD_RELEASE_NAME ?= hazelcast-platform-operator-crds
 export DEPLOYMENT_NAME := $(RELEASE_NAME)-hazelcast-platform-operator
-STRING_SET_VALUES := developerModeEnabled=$(DEVELOPER_MODE_ENABLED),phoneHomeEnabled=$(PHONE_HOME_ENABLED),installCRDs=$(INSTALL_CRDS),image.imageOverride=$(IMG),watchedNamespaces='{$(WATCHED_NAMESPACES)}',debug.enabled=$(DEBUG_ENABLED),createClusterScopedResources=$(CREATE_CLUSTER_SCOPE_RESOURCES),webhook.enabled=$(WEBHOOK_ENABLED),enableHazelcastNodeDiscovery=$(ENABLED_HZ_NODE_DISCOVERY)
+STRING_SET_VALUES := resources.requests.cpu=250m,resources.requests.memory=500m,resources.limits.cpu=500m,resources.limits.memory=1024Mi,developerModeEnabled=$(DEVELOPER_MODE_ENABLED),phoneHomeEnabled=$(PHONE_HOME_ENABLED),installCRDs=$(INSTALL_CRDS),image.imageOverride=$(IMG),watchedNamespaces='{$(WATCHED_NAMESPACES)}',debug.enabled=$(DEBUG_ENABLED),createClusterScopedResources=$(CREATE_CLUSTER_SCOPE_RESOURCES),webhook.enabled=$(WEBHOOK_ENABLED),enableHazelcastNodeDiscovery=$(ENABLED_HZ_NODE_DISCOVERY)
 
 # Get the currently used golang install path (in GOPATH/bin, unless GOBIN is set)
 ifeq (,$(shell go env GOBIN))
