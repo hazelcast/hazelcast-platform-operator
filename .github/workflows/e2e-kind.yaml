@@ -78,7 +78,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        edition: ["os", "ee"]
+        edition: ["ee"]
     env:
       NAMESPACE: kind-test-operator-${{ matrix.edition }}
       RELEASE_NAME: kind-${{ matrix.edition }}

@@ -231,7 +231,8 @@ func (r *JetJobReconciler) downloadFile(ctx context.Context, job *hazelcastv1alp
 	mtlsClient, ok := r.mtlsClientRegistry.Get(hazelcastName.Namespace)
 	if !ok {
 		returnErr := errors.New("failed to get MTLS client")
-		_, _ = r.updateStatus(ctx, jjnn, failedJetJobStatus(returnErr))
+		_, err := r.updateStatus(ctx, jjnn, failedJetJobStatus(returnErr))
+		return err
 	}
 	for _, m := range client.OrderedMembers() {
 		m := m
