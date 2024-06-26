@@ -162,9 +162,6 @@ jobs:
 
           - repo-name: certified-operators
             repo-owner: redhat-openshift-ecosystem
-
-          - repo-name: community-operators-prod
-            repo-owner: redhat-openshift-ecosystem
     env:
       REPO_NAME: ${{ matrix.repo-name }}
       REPO_OWNER: ${{ matrix.repo-owner }}
@@ -377,9 +374,6 @@ jobs:
           - repo-name: certified-operators
             repo-owner: redhat-openshift-ecosystem
 
-          - repo-name: community-operators-prod
-            repo-owner: redhat-openshift-ecosystem
-
           - repo-name: hazelcast-platform-operator
             repo-owner: hazelcast
     env:
@@ -407,7 +401,7 @@ jobs:
           token: ${{ env.DEVOPS_GITHUB_TOKEN }}
 
       - name: Enable Auto-Merge For Bundle PR's
-        if: always() && matrix.repo-name == 'certified-operators' || matrix.repo-name == 'community-operators' || matrix.repo-name == 'community-operators-prod'
+        if: always() && matrix.repo-name == 'certified-operators' || matrix.repo-name == 'community-operators'
         run: |
           echo ${{ env.DEVOPS_GITHUB_TOKEN }} | gh auth login --with-token
           git config user.email "devopshelm@hazelcast.com"
@@ -502,12 +496,12 @@ jobs:
           source .github/scripts/utils.sh
           delete_container_image "${{ env.PREFLIGHT_PROJECT_ID }}" "${RELEASE_VERSION}" "${{ env.PFLT_PYXIS_API_TOKEN }}" "5"
 
-      - name: Close PR's in 'certified-operators, community-operators and community-operators-prod' Repo's
+      - name: Close PR's in 'certified-operators, community-operators' Repo's
         if: always()
         run: |
           BUNDLE_RELEASE_VERSION=$( make print-bundle-version VERSION=${RELEASE_VERSION} )
           echo ${{ env.DEVOPS_GITHUB_TOKEN }} | gh auth login --with-token
-          for REPO in "redhat-openshift-ecosystem/certified-operators" "k8s-operatorhub/community-operators" "redhat-openshift-ecosystem/community-operators-prod"; do   
+          for REPO in "redhat-openshift-ecosystem/certified-operators" "k8s-operatorhub/community-operators"; do   
             PR_NUMBER=$(gh pr list --repo $REPO --search "operator ${{ env.OPERATOR_NAME }} (${BUNDLE_RELEASE_VERSION})" --json number | jq -r '.[].number')
             gh pr close $PR_NUMBER --repo $REPO --delete-branch 2>/dev/null
           done
