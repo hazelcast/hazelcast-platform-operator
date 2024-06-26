@@ -270,8 +270,8 @@ func (r *HazelcastReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 	r.statusServiceRegistry.Create(req.NamespacedName, cl, r.Log, r.triggerReconcileChan)
 
 	if err = r.ensureClusterEnterprise(ctx, cl, h); errs.Is(err, illegalClusterType) {
-		err2 := r.Client.Delete(ctx, &statefulSet)
-		if err2 != nil {
+		delErr := r.Client.Delete(ctx, &statefulSet)
+		if delErr != nil {
 			return ctrl.Result{}, err
 		}
 		return r.update(ctx, h, recoptions.Error(err), withHzFailedPhase(err.Error()))
