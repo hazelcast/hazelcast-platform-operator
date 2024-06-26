@@ -2,7 +2,6 @@ package hazelcast
 
 import (
 	"context"
-	errs "errors"
 	"fmt"
 	"time"
 
@@ -269,12 +268,15 @@ func (r *HazelcastReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 	}
 	r.statusServiceRegistry.Create(req.NamespacedName, cl, r.Log, r.triggerReconcileChan)
 
-	if err = r.ensureClusterEnterprise(ctx, cl, h); errs.Is(err, illegalClusterType) {
-		delErr := r.Client.Delete(ctx, &statefulSet)
-		if delErr != nil {
+	var isEnterprise bool
+	if isEnterprise, err = r.ensureClusterEnterprise(ctx, cl, h); err != nil {
+		return r.update(ctx, h, recoptions.Error(err), withHzFailedPhase(err.Error()))
+	}
+	if !isEnterprise {
+		if err = r.Client.Delete(ctx, &statefulSet); err != nil {
 			return ctrl.Result{}, err
 		}
-		return r.update(ctx, h, recoptions.Error(err), withHzFailedPhase(err.Error()))
+		return r.update(ctx, h, recoptions.Error(illegalClusterType), withHzFailedPhase(illegalClusterType.Error()))
 	}
 
 	if err = r.ensureClusterActive(ctx, cl, h); err != nil {

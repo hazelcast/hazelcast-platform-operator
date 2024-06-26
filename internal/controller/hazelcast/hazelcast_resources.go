@@ -2955,7 +2955,7 @@ func (r *HazelcastReconciler) ensureClusterActive(ctx context.Context, client hz
 
 var illegalClusterType = errs.New("only enterprise clusters are supported")
 
-func (r *HazelcastReconciler) ensureClusterEnterprise(ctx context.Context, client hzclient.Client, h *hazelcastv1alpha1.Hazelcast) error {
+func (r *HazelcastReconciler) ensureClusterEnterprise(ctx context.Context, client hzclient.Client, h *hazelcastv1alpha1.Hazelcast) (bool, error) {
 	req := codec.EncodeClientAuthenticationRequest(
 		h.Name,
 		"",
@@ -2968,13 +2968,10 @@ func (r *HazelcastReconciler) ensureClusterEnterprise(ctx context.Context, clien
 		[]string{})
 	resp, err := client.InvokeOnRandomTarget(ctx, req, nil)
 	if err != nil {
-		return err
+		return false, err
 	}
 	_, _, _, _, _, _, _, failOverSupported := codec.DecodeClientAuthenticationResponse(resp)
-	if !failOverSupported {
-		return illegalClusterType
-	}
-	return nil
+	return failOverSupported, nil
 }
 
 func appendHAModeTopologySpreadConstraints(h *hazelcastv1alpha1.Hazelcast) []v1.TopologySpreadConstraint {
