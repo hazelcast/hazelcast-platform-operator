@@ -201,6 +201,29 @@ webhooks:
       service:
         name: {{ $fullname }}
         namespace: {{ .Release.Namespace }}
+        path: /validate-hazelcast-com-v1alpha1-usercodenamespace
+    failurePolicy: Fail
+    name: vusercodenamespace.kb.io
+    rules:
+      - apiGroups:
+          - hazelcast.com
+        apiVersions:
+          - v1alpha1
+        operations:
+          - CREATE
+          - UPDATE
+        resources:
+          - usercodenamespaces
+    sideEffects: None
+    namespaceSelector:
+      {{- include "watched-namespaces.labelSelector" . | nindent 6 }}
+  - admissionReviewVersions:
+      - v1
+    clientConfig:
+      caBundle: {{ $ca.Cert | b64enc }}
+      service:
+        name: {{ $fullname }}
+        namespace: {{ .Release.Namespace }}
         path: /validate-hazelcast-com-v1alpha1-wanreplication
     failurePolicy: Ignore
     name: vwanreplication.kb.io
@@ -348,6 +371,60 @@ spec:
       targetPort: 9443
   selector:
     {{- include "hazelcast-platform-operator.selectorLabels" . | nindent 4 }}
+---
+apiVersion: admissionregistration.k8s.io/v1
+kind: MutatingWebhookConfiguration
+metadata:
+  name: {{ $fullname }}
+  labels:
+    {{- include "hazelcast-platform-operator.labels" . | nindent 4 }}
+webhooks:
+  - admissionReviewVersions:
+      - v1
+    clientConfig:
+      caBundle: {{ $ca.Cert | b64enc }}
+      service:
+        name: {{ $fullname }}
+        namespace: {{ .Release.Namespace }}
+        path: /mutate-hazelcast-com-v1alpha1-hazelcast
+    failurePolicy: Ignore
+    name: mhazelcast.kb.io
+    rules:
+      - apiGroups:
+          - hazelcast.com
+        apiVersions:
+          - v1alpha1
+        operations:
+          - CREATE
+          - UPDATE
+        resources:
+          - hazelcasts
+    sideEffects: None
+    namespaceSelector:
+          {{- include "watched-namespaces.labelSelector" . | nindent 6 }}
+  - admissionReviewVersions:
+      - v1
+    clientConfig:
+      caBundle: {{ $ca.Cert | b64enc }}
+      service:
+        name: {{ $fullname }}
+        namespace: {{ .Release.Namespace }}
+        path: /mutate-hazelcast-com-v1alpha1-managementcenter
+    failurePolicy: Ignore
+    name: mmanagementcenter.kb.io
+    rules:
+      - apiGroups:
+          - hazelcast.com
+        apiVersions:
+          - v1alpha1
+        operations:
+          - CREATE
+          - UPDATE
+        resources:
+          - managementcenters
+    sideEffects: None
+    namespaceSelector:
+          {{- include "watched-namespaces.labelSelector" . | nindent 6 }}
 ---
 apiVersion: v1
 kind: Secret

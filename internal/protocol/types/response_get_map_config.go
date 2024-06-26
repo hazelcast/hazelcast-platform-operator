@@ -12,4 +12,5 @@ type MapConfig struct {
 	EvictionPolicy    int32
 	MergePolicy       string
 	Indexes           []IndexConfig
+	TieredStoreConfig TieredStoreConfig
 }

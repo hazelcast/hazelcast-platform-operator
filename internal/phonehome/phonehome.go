@@ -98,6 +98,7 @@ type PhoneHomeData struct {
 	CronHotBackupCount            int                    `json:"chbc"`
 	TopicCount                    int                    `json:"tc"`
 	HighAvailabilityMode          []string               `json:"ha"`
+	Resources                     []Resources            `json:"res"`
 	NativeMemoryCount             int                    `json:"nmc"`
 	JVMConfigUsage                JVMConfigUsage         `json:"jcu"`
 	AdvancedNetwork               AdvancedNetwork        `json:"an"`
@@ -107,6 +108,17 @@ type PhoneHomeData struct {
 	CustomConfigCount             int                    `json:"ccon"`
 	JetJobSnapshotCount           int                    `json:"jjsc"`
 	SQLCount                      int                    `json:"sc"`
+	TieredStorage                 TieredStorage          `json:"ts"`
+	CPSubsystem                   CPSubsystem            `json:"cp"`
+	UserCodeNamespaces            UserCodeNamespaces     `json:"ucn"`
+}
+
+type UserCodeNamespaces struct {
+	Count int `json:"c"`
+}
+
+type CPSubsystem struct {
+	Count int `json:"c"`
 }
 
 type JVMConfigUsage struct {
@@ -182,6 +194,15 @@ type TLS struct {
 	MTLSCount int `json:"mc"`
 }
 
+type TieredStorage struct {
+	MapCount int `json:"mc"`
+}
+
+type Resources struct {
+	LimitMemory int64 `json:"lmem"`
+	LimitCPU    int64 `json:"lcpu"`
+}
+
 func newPhoneHomeData(cl client.Client, opInfo *OperatorInfo) PhoneHomeData {
 	phd := PhoneHomeData{
 		OperatorID:           opInfo.UID,
@@ -206,6 +227,8 @@ func newPhoneHomeData(cl client.Client, opInfo *OperatorInfo) PhoneHomeData {
 	phd.fillTopicMetrics(cl)
 	phd.fillJetMetrics(cl)
 	phd.fillSnapshotMetrics(cl)
+	phd.fillTieredStorageMetrics(cl)
+	phd.fillUCNMetrics(cl)
 	return phd
 }
 
@@ -223,6 +246,7 @@ func (phm *PhoneHomeData) fillHazelcastMetrics(cl client.Client, hzClientRegistr
 	customConfigCount := 0
 	clusterUUIDs := []string{}
 	highAvailabilityModes := []string{}
+	resources := []Resources{}
 	nativeMemoryCount := 0
 	sqlCount := 0
 
@@ -260,13 +284,15 @@ func (phm *PhoneHomeData) fillHazelcastMetrics(cl client.Client, hzClientRegistr
 			phm.AdvancedNetwork.addUsageMetrics(hz.Spec.AdvancedNetwork.WAN)
 		}
 		phm.BackupAndRestore.addUsageMetrics(hz.Spec.Persistence)
-		phm.UserCodeDeployment.addUsageMetrics(hz.Spec.UserCodeDeployment)
+		phm.UserCodeDeployment.addUsageMetrics(hz.Spec.DeprecatedUserCodeDeployment)
 		phm.JVMConfigUsage.addUsageMetrics(hz.Spec.JVM)
 		phm.JetEngine.addUsageMetrics(hz.Spec.JetEngineConfiguration)
 		phm.TLS.addUsageMetrics(hz.Spec.TLS)
+		phm.CPSubsystem.addUsageMetrics(hz.Spec.CPSubsystem)
 		createdMemberCount += int(*hz.Spec.ClusterSize)
 		executorServiceCount += len(hz.Spec.ExecutorServices) + len(hz.Spec.DurableExecutorServices) + len(hz.Spec.ScheduledExecutorServices)
 		highAvailabilityModes = append(highAvailabilityModes, string(hz.Spec.HighAvailabilityMode))
+		resources = append(resources, newResources(hz))
 
 		cid, ok := ClusterUUID(hzClientRegistry, hz.Name, hz.Namespace)
 		if ok {
@@ -279,6 +305,7 @@ func (phm *PhoneHomeData) fillHazelcastMetrics(cl client.Client, hzClientRegistr
 	phm.ExecutorServiceCount = executorServiceCount
 	phm.ClusterUUIDs = clusterUUIDs
 	phm.HighAvailabilityMode = highAvailabilityModes
+	phm.Resources = resources
 	phm.NativeMemoryCount = nativeMemoryCount
 	phm.SerializationCount = serializationCount
 	phm.CustomConfigCount = customConfigCount
@@ -335,7 +362,7 @@ func (br *BackupAndRestore) addUsageMetrics(p *hazelcastv1alpha1.HazelcastPersis
 	if !p.IsEnabled() {
 		return
 	}
-	if p.Pvc != nil {
+	if p.PVC != nil {
 		br.PvcCount += 1
 	}
 	if p.IsRestoreEnabled() {
@@ -361,6 +388,13 @@ func (ucd *UserCodeDeployment) addUsageMetrics(hucd *hazelcastv1alpha1.UserCodeD
 	}
 }
 
+func (cp *CPSubsystem) addUsageMetrics(cpc *hazelcastv1alpha1.CPSubsystem) {
+	if cpc == nil {
+		return
+	}
+	cp.Count++
+}
+
 func (j *JVMConfigUsage) addUsageMetrics(jc *hazelcastv1alpha1.JVMConfiguration) {
 	if jc == nil {
 		return
@@ -383,6 +417,16 @@ func (j *JVMConfigUsage) addUsageMetrics(jc *hazelcastv1alpha1.JVMConfiguration)
 	if len(jc.Args) > 0 {
 		j.Count += 1
 		return
+	}
+}
+
+func newResources(hz hazelcastv1alpha1.Hazelcast) Resources {
+	if hz.Spec.Resources == nil {
+		return Resources{}
+	}
+	return Resources{
+		LimitMemory: hz.Spec.Resources.Limits.Memory().Value(),
+		LimitCPU:    hz.Spec.Resources.Limits.Cpu().MilliValue(),
 	}
 }
 
@@ -525,7 +569,7 @@ func (phm *PhoneHomeData) fillWanSyncMetrics(cl client.Client) {
 	if err != nil || wsl.Items == nil {
 		return
 	}
-	phm.WanReplicationCount = len(wsl.Items)
+	phm.WanSyncCount = len(wsl.Items)
 }
 
 func (phm *PhoneHomeData) fillHotBackupMetrics(cl client.Client) {
@@ -605,6 +649,31 @@ func (phm *PhoneHomeData) fillSnapshotMetrics(cl client.Client) {
 		return
 	}
 	phm.JetJobSnapshotCount = len(jjsl.Items)
+}
+
+func (phm *PhoneHomeData) fillUCNMetrics(cl client.Client) {
+	ucnl := &hazelcastv1alpha1.UserCodeNamespaceList{}
+	err := cl.List(context.Background(), ucnl, listOptions()...)
+	if err != nil || ucnl.Items == nil {
+		return
+	}
+	phm.UserCodeNamespaces.Count = len(ucnl.Items)
+}
+
+func (phm *PhoneHomeData) fillTieredStorageMetrics(cl client.Client) {
+	tsMapCount := 0
+	ml := &hazelcastv1alpha1.MapList{}
+	err := cl.List(context.Background(), ml, listOptions()...)
+	if err != nil {
+		return //TODO maybe add retry
+	}
+
+	for _, m := range ml.Items {
+		if m.Spec.TieredStore != nil {
+			tsMapCount += 1
+		}
+	}
+	phm.TieredStorage.MapCount = tsMapCount
 }
 
 func listOptions() []client.ListOption {

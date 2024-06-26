@@ -3,8 +3,7 @@ apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    controller-gen.kubebuilder.io/version: v0.10.0
-  creationTimestamp: null
+    controller-gen.kubebuilder.io/version: v0.13.0
   name: replicatedmaps.hazelcast.com
 spec:
   group: hazelcast.com
@@ -73,6 +72,10 @@ spec:
               name:
                 description: Name of the ReplicatedMap config to be created. If empty,
                   CR name will be used.
+                type: string
+              userCodeNamespace:
+                description: Name of the User Code Namespace applied to this instance
+                minLength: 1
                 type: string
             required:
             - hazelcastResourceName

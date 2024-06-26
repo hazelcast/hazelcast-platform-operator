@@ -126,6 +126,7 @@ Rules needed for giving Hazelcast node read permissions
   verbs:
   - get
   - list
+  - watch
 - apiGroups:
   - rbac.authorization.k8s.io
   resources:
@@ -575,6 +576,32 @@ Rules needed for operator watched namespaces
   - hazelcast.com
   resources:
   - topics/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
+  - hazelcast.com
+  resources:
+  - usercodenamespaces
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - hazelcast.com
+  resources:
+  - usercodenamespaces/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - hazelcast.com
+  resources:
+  - usercodenamespaces/status
   verbs:
   - get
   - patch

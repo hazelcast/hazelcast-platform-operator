@@ -18,6 +18,7 @@ package codec
 
 import (
 	proto "github.com/hazelcast/hazelcast-go-client"
+
 	"github.com/hazelcast/hazelcast-platform-operator/internal/protocol/types"
 )
 
@@ -51,6 +52,7 @@ func EncodeDynamicConfigAddDurableExecutorConfigRequest(es *types.DurableExecuto
 
 	EncodeString(clientMessage, es.Name)
 	EncodeNullableForString(clientMessage, es.SplitBrainProtectionName)
+	EncodeNullableForString(clientMessage, es.UserCodeNamespace)
 
 	return clientMessage
 }

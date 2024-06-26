@@ -28,7 +28,7 @@ var _ = Describe("Topic CR", func() {
 	})
 
 	Context("with default configuration", func() {
-		It("should create successfully", Label("fast"), func() {
+		It("should create successfully", func() {
 			t := &hazelcastv1alpha1.Topic{
 				ObjectMeta: randomObjectMeta(namespace),
 				Spec: hazelcastv1alpha1.TopicSpec{
@@ -47,7 +47,7 @@ var _ = Describe("Topic CR", func() {
 		})
 
 		When("applying empty spec", func() {
-			It("should fail to create", Label("fast"), func() {
+			It("should fail to create", func() {
 				t := &hazelcastv1alpha1.Topic{
 					ObjectMeta: randomObjectMeta(namespace),
 				}

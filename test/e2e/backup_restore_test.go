@@ -22,6 +22,7 @@ import (
 
 var _ = Describe("Hazelcast CR with Persistence feature enabled", Group("backup_restore"), func() {
 	localPort := strconv.Itoa(8400 + GinkgoParallelProcess())
+
 	backupRestore := func(hazelcast *hazelcastcomv1alpha1.Hazelcast, hotBackup *hazelcastcomv1alpha1.HotBackup, useBucketConfig bool) {
 		By("creating cluster with backup enabled")
 		CreateHazelcastCR(hazelcast)
@@ -31,18 +32,19 @@ var _ = Describe("Hazelcast CR with Persistence feature enabled", Group("backup_
 		m := hazelcastconfig.PersistedMap(mapLookupKey, hazelcast.Name, labels)
 		Expect(k8sClient.Create(context.Background(), m)).Should(Succeed())
 		assertMapStatus(m, hazelcastcomv1alpha1.MapSuccess)
-		fillTheMapDataPortForward(context.Background(), hazelcast, localPort, m.MapName(), 10)
+		mapSize := 30
+		fillTheMapDataPortForward(context.Background(), hazelcast, localPort, m.MapName(), mapSize)
 
 		By("triggering backup")
 		t := Now()
 		Expect(k8sClient.Create(context.Background(), hotBackup)).Should(Succeed())
 		hotBackup = assertHotBackupSuccess(hotBackup, 1*Minute)
 
-		By("checking if backup status is correct")
+		By("checking if backup status is successful")
 		assertCorrectBackupStatus(hotBackup, GetBackupSequence(t, hzLookupKey))
 
 		By("adding new entries after backup")
-		fillTheMapDataPortForward(context.Background(), hazelcast, localPort, m.MapName(), 15)
+		fillTheMapDataPortForward(context.Background(), hazelcast, localPort, m.MapName(), 20)
 
 		By("removing Hazelcast CR")
 		RemoveHazelcastCR(hazelcast)
@@ -55,8 +57,9 @@ var _ = Describe("Hazelcast CR with Persistence feature enabled", Group("backup_
 		By("checking the cluster state and map size")
 		assertHazelcastRestoreStatus(restoredHz, hazelcastcomv1alpha1.RestoreSucceeded)
 		assertClusterStatePortForward(context.Background(), restoredHz, localPort, codecTypes.ClusterStateActive)
-		waitForMapSizePortForward(context.Background(), restoredHz, localPort, m.MapName(), 10, 1*Minute)
+		waitForMapSizePortForward(context.Background(), restoredHz, localPort, m.MapName(), mapSize, 1*Minute)
 	}
+
 	AfterEach(func() {
 		GinkgoWriter.Printf("Aftereach start time is %v\n", Now().String())
 		if skipCleanup() {
@@ -73,8 +76,7 @@ var _ = Describe("Hazelcast CR with Persistence feature enabled", Group("backup_
 	})
 
 	Context("The hot backup process", func() {
-		It("triggers successfully", Tag(Fast|EE|AnyCloud), func() {
-
+		It("triggers successfully", Tag(Kind|EE|AnyCloud), func() {
 			setLabelAndCRName("br-1")
 			clusterSize := int32(3)
 
@@ -103,7 +105,7 @@ var _ = Describe("Hazelcast CR with Persistence feature enabled", Group("backup_
 			assertHotBackupSuccess(hotBackup, 1*Minute)
 		})
 
-		It("starts after the cluster becomes ready", Tag(Fast|EE|AnyCloud), func() {
+		It("starts after the cluster becomes ready", Tag(Kind|EE|AnyCloud), func() {
 			setLabelAndCRName("br-2")
 			clusterSize := int32(1)
 			hazelcast := hazelcastconfig.HazelcastPersistencePVC(hzLookupKey, clusterSize, labels)
@@ -122,7 +124,7 @@ var _ = Describe("Hazelcast CR with Persistence feature enabled", Group("backup_
 			assertHotBackupSuccess(hotBackup, 1*Minute)
 		})
 
-		It("is interrupted when the HotBackup CR is deleted", Tag(Fast|EE|AnyCloud), func() {
+		It("is interrupted when the HotBackup CR is deleted", Tag(Kind|EE|AnyCloud), func() {
 			setLabelAndCRName("br-3")
 			ctx := context.Background()
 			bucketURI := "gs://operator-e2e-external-backup"
@@ -142,7 +144,7 @@ var _ = Describe("Hazelcast CR with Persistence feature enabled", Group("backup_
 				Limits: map[corev1.ResourceName]resource.Quantity{
 					corev1.ResourceMemory: resource.MustParse(strconv.Itoa(pvcSizeInMb) + "Mi")},
 			}
-			hazelcast.Spec.Persistence.Pvc.RequestStorage = &[]resource.Quantity{resource.MustParse(strconv.Itoa(pvcSizeInMb) + "Mi")}[0]
+			hazelcast.Spec.Persistence.PVC.RequestStorage = &[]resource.Quantity{resource.MustParse(strconv.Itoa(pvcSizeInMb) + "Mi")}[0]
 			CreateHazelcastCR(hazelcast)
 			evaluateReadyMembers(hzLookupKey)
 
@@ -190,7 +192,7 @@ var _ = Describe("Hazelcast CR with Persistence feature enabled", Group("backup_
 			test.EventuallyInLogs(agentLogReader, 10*Second, logInterval).Should(ContainSubstring("canceling task"))
 		})
 
-		It("fails when external backup credentials are incorrect", Tag(Fast|EE|AnyCloud), func() {
+		It("fails when external backup credentials are incorrect", Tag(Kind|EE|AnyCloud), func() {
 			setLabelAndCRName("br-4")
 			ctx := context.Background()
 			clusterSize := int32(1)
@@ -212,7 +214,7 @@ var _ = Describe("Hazelcast CR with Persistence feature enabled", Group("backup_
 
 			By("creating cluster with external backup enabled")
 			hazelcast := hazelcastconfig.HazelcastPersistencePVC(hzLookupKey, clusterSize, labels)
-			hazelcast.Spec.Persistence.Pvc.RequestStorage = &[]resource.Quantity{resource.MustParse(strconv.Itoa(pvcSizeInMb) + "Mi")}[0]
+			hazelcast.Spec.Persistence.PVC.RequestStorage = &[]resource.Quantity{resource.MustParse(strconv.Itoa(pvcSizeInMb) + "Mi")}[0]
 
 			CreateHazelcastCR(hazelcast)
 			evaluateReadyMembers(hzLookupKey)
@@ -245,7 +247,7 @@ var _ = Describe("Hazelcast CR with Persistence feature enabled", Group("backup_
 			Expect(hotBackup.Status.Message).Should(ContainSubstring("Upload failed"))
 		})
 
-		It("triggers multiple times using CronHotBackup", Tag(Fast|EE|AnyCloud), func() {
+		It("triggers multiple times using CronHotBackup", Tag(Kind|EE|AnyCloud), func() {
 			setLabelAndCRName("br-5")
 			By("creating cron hot backup")
 			hbSpec := &hazelcastcomv1alpha1.HotBackupSpec{}
@@ -271,7 +273,7 @@ var _ = Describe("Hazelcast CR with Persistence feature enabled", Group("backup_
 			Expect(len(hbl.Items)).To(Equal(0))
 		})
 
-		It("should backup, restore and backup data again successfully", Tag(Slow|EE|AnyCloud), func() {
+		It("should backup and restore in sequence successfully", Tag(EE|AnyCloud), func() {
 			setLabelAndCRName("br-6")
 			var mapSizeInMb = 1072
 			var additionalEntries = 111
@@ -291,7 +293,7 @@ var _ = Describe("Hazelcast CR with Persistence feature enabled", Group("backup_
 				Limits: map[corev1.ResourceName]resource.Quantity{
 					corev1.ResourceMemory: resource.MustParse(strconv.Itoa(pvcSizeInMb) + "Mi")},
 			}
-			hazelcast.Spec.Persistence.Pvc.RequestStorage = &[]resource.Quantity{resource.MustParse(strconv.Itoa(pvcSizeInMb) + "Mi")}[0]
+			hazelcast.Spec.Persistence.PVC.RequestStorage = &[]resource.Quantity{resource.MustParse(strconv.Itoa(pvcSizeInMb) + "Mi")}[0]
 			CreateHazelcastCR(hazelcast)
 
 			By("creating the map config and putting entries")
@@ -310,21 +312,26 @@ var _ = Describe("Hazelcast CR with Persistence feature enabled", Group("backup_
 
 			By("creating new Hazelcast cluster from the first backup")
 			hazelcast = hazelcastconfig.HazelcastPersistencePVC(hzLookupKey, clusterSize, labels)
-			hazelcast.Spec.Persistence.Restore = hazelcastcomv1alpha1.RestoreConfiguration{
-				HotBackupResourceName: hotBackup.Name,
-			}
 			hazelcast.Spec.ExposeExternally = &hazelcastcomv1alpha1.ExposeExternallyConfiguration{
 				Type:                 hazelcastcomv1alpha1.ExposeExternallyTypeSmart,
 				DiscoveryServiceType: corev1.ServiceTypeLoadBalancer,
 				MemberAccess:         hazelcastcomv1alpha1.MemberAccessLoadBalancer,
 			}
+			hazelcast.Spec.Persistence.Restore = hazelcastcomv1alpha1.RestoreConfiguration{
+				HotBackupResourceName: hotBackup.Name,
+			}
 			hazelcast.Spec.Resources = &corev1.ResourceRequirements{
 				Limits: map[corev1.ResourceName]resource.Quantity{
 					corev1.ResourceMemory: resource.MustParse(strconv.Itoa(pvcSizeInMb) + "Mi")},
 			}
-			hazelcast.Spec.Persistence.Pvc.RequestStorage = &[]resource.Quantity{resource.MustParse(strconv.Itoa(pvcSizeInMb) + "Mi")}[0]
+			hazelcast.Spec.Persistence.PVC.RequestStorage = &[]resource.Quantity{resource.MustParse(strconv.Itoa(pvcSizeInMb) + "Mi")}[0]
 			CreateHazelcastCR(hazelcast)
 			evaluateReadyMembers(hzLookupKey)
+
+			By("checking the cluster state and map size")
+			assertHazelcastRestoreStatus(hazelcast, hazelcastcomv1alpha1.RestoreSucceeded)
+			assertClusterStatePortForward(context.Background(), hazelcast, localPort, codecTypes.ClusterStateActive)
+			WaitForMapSize(context.Background(), hzLookupKey, dm.MapName(), expectedMapSize, 10*Minute)
 
 			By("putting entries after first restore")
 			err := FillMapByEntryCount(ctx, hzLookupKey, false, dm.MapName(), additionalEntries)
@@ -335,16 +342,36 @@ var _ = Describe("Hazelcast CR with Persistence feature enabled", Group("backup_
 			Expect(k8sClient.Create(context.Background(), hotBackup2)).Should(Succeed())
 			assertHotBackupSuccess(hotBackup2, 10*Minute)
 
+			By("deleting Hazelcast cluster")
+			RemoveHazelcastCR(hazelcast)
+
+			By("creating new Hazelcast cluster from the second backup")
+			hazelcast = hazelcastconfig.HazelcastPersistencePVC(hzLookupKey, clusterSize, labels)
+			hazelcast.Spec.ExposeExternally = &hazelcastcomv1alpha1.ExposeExternallyConfiguration{
+				Type:                 hazelcastcomv1alpha1.ExposeExternallyTypeSmart,
+				DiscoveryServiceType: corev1.ServiceTypeLoadBalancer,
+				MemberAccess:         hazelcastcomv1alpha1.MemberAccessLoadBalancer,
+			}
+			hazelcast.Spec.Persistence.Restore = hazelcastcomv1alpha1.RestoreConfiguration{
+				HotBackupResourceName: hotBackup2.Name,
+			}
+			hazelcast.Spec.Resources = &corev1.ResourceRequirements{
+				Limits: map[corev1.ResourceName]resource.Quantity{
+					corev1.ResourceMemory: resource.MustParse(strconv.Itoa(pvcSizeInMb) + "Mi")},
+			}
+			hazelcast.Spec.Persistence.PVC.RequestStorage = &[]resource.Quantity{resource.MustParse(strconv.Itoa(pvcSizeInMb) + "Mi")}[0]
+			CreateHazelcastCR(hazelcast)
+			evaluateReadyMembers(hzLookupKey)
+
 			By("checking the cluster state and map size")
 			assertHazelcastRestoreStatus(hazelcast, hazelcastcomv1alpha1.RestoreSucceeded)
 			assertClusterStatePortForward(context.Background(), hazelcast, localPort, codecTypes.ClusterStateActive)
 			WaitForMapSize(context.Background(), hzLookupKey, dm.MapName(), expectedMapSize+additionalEntries, 10*Minute)
 		})
-
 	})
 
 	Context("Restoring and verifying data", func() {
-		It("should restore from LocalBackup using PVC and HotBackupResourceName", Tag(Fast|EE|AnyCloud), func() {
+		It("should restore from LocalBackup using PVC and HotBackupResourceName", Tag(Kind|EE|AnyCloud), func() {
 			setLabelAndCRName("br-7")
 			clusterSize := int32(3)
 
@@ -353,7 +380,7 @@ var _ = Describe("Hazelcast CR with Persistence feature enabled", Group("backup_
 			backupRestore(hazelcast, hotBackup, false)
 		})
 
-		It("should restore 3 GB from an external backup using a GCP bucket", Tag(Slow|EE|AnyCloud), func() {
+		It("should restore 3 GB from an external backup using a GCP bucket", Tag(EE|AnyCloud), func() {
 			setLabelAndCRName("br-8")
 			ctx := context.Background()
 			var mapSizeInMb = 3072
@@ -374,7 +401,7 @@ var _ = Describe("Hazelcast CR with Persistence feature enabled", Group("backup_
 				Limits: map[corev1.ResourceName]resource.Quantity{
 					corev1.ResourceMemory: resource.MustParse(strconv.Itoa(pvcSizeInMb) + "Mi")},
 			}
-			hazelcast.Spec.Persistence.Pvc.RequestStorage = &[]resource.Quantity{resource.MustParse(strconv.Itoa(pvcSizeInMb) + "Mi")}[0]
+			hazelcast.Spec.Persistence.PVC.RequestStorage = &[]resource.Quantity{resource.MustParse(strconv.Itoa(pvcSizeInMb) + "Mi")}[0]
 
 			CreateHazelcastCR(hazelcast)
 			evaluateReadyMembers(hzLookupKey)
@@ -394,8 +421,11 @@ var _ = Describe("Hazelcast CR with Persistence feature enabled", Group("backup_
 			By("putting entries after backup")
 			err := FillMapByEntryCount(ctx, hzLookupKey, false, dm.MapName(), 111)
 			Expect(err).To(BeNil())
+
 			By("deleting Hazelcast cluster")
 			RemoveHazelcastCR(hazelcast)
+
+			By("Removing member's backup PVCs")
 			deletePVCs(hzLookupKey)
 
 			By("creating cluster from external backup")
@@ -411,7 +441,7 @@ var _ = Describe("Hazelcast CR with Persistence feature enabled", Group("backup_
 				Limits: map[corev1.ResourceName]resource.Quantity{
 					corev1.ResourceMemory: resource.MustParse(strconv.Itoa(pvcSizeInMb) + "Mi")},
 			}
-			hazelcast.Spec.Persistence.Pvc.RequestStorage = &[]resource.Quantity{resource.MustParse(strconv.Itoa(pvcSizeInMb) + "Mi")}[0]
+			hazelcast.Spec.Persistence.PVC.RequestStorage = &[]resource.Quantity{resource.MustParse(strconv.Itoa(pvcSizeInMb) + "Mi")}[0]
 			CreateHazelcastCR(hazelcast)
 			evaluateReadyMembers(hzLookupKey)
 
@@ -421,13 +451,12 @@ var _ = Describe("Hazelcast CR with Persistence feature enabled", Group("backup_
 			WaitForMapSize(context.Background(), hzLookupKey, dm.MapName(), expectedMapSize, 30*Minute)
 		})
 
-		It("should restore multiple times from HotBackupResourceName", Tag(Slow|EE|AnyCloud), func() {
-			setLabelAndCRName("br-8")
+		It("should restore multiple times from HotBackupResourceName", Tag(EE|AnyCloud), func() {
+			setLabelAndCRName("br-9")
 			clusterSize := int32(3)
 
 			By("creating cluster with external backup enabled")
 			hazelcast := hazelcastconfig.HazelcastPersistencePVC(hzLookupKey, clusterSize, labels)
-
 			CreateHazelcastCR(hazelcast)
 			evaluateReadyMembers(hzLookupKey)
 
@@ -450,6 +479,7 @@ var _ = Describe("Hazelcast CR with Persistence feature enabled", Group("backup_
 			hotBackup2 = assertHotBackupSuccess(hotBackup2, 1*Minute)
 			fillTheMapDataPortForward(context.Background(), hazelcast, localPort, m.MapName(), 10)
 
+			By("deleting Hazelcast cluster")
 			RemoveHazelcastCR(hazelcast)
 
 			By("creating cluster from from first backup")
@@ -465,6 +495,7 @@ var _ = Describe("Hazelcast CR with Persistence feature enabled", Group("backup_
 			assertClusterStatePortForward(context.Background(), hazelcast, localPort, codecTypes.ClusterStateActive)
 			waitForMapSizePortForward(context.Background(), hazelcast, localPort, m.MapName(), 10, 1*Minute)
 
+			By("deleting Hazelcast cluster")
 			RemoveHazelcastCR(hazelcast)
 
 			By("creating cluster from from second backup")
@@ -481,10 +512,11 @@ var _ = Describe("Hazelcast CR with Persistence feature enabled", Group("backup_
 			waitForMapSizePortForward(context.Background(), hazelcast, localPort, m.MapName(), 20, 1*Minute)
 		})
 
-		It("should check cache entry persistence after HotBackup", Tag(Slow|EE|AnyCloud), func() {
-			setLabelAndCRName("br-9")
+		It("should check cache entry persistence after HotBackup", Tag(EE|AnyCloud), func() {
+			setLabelAndCRName("br-10")
 			clusterSize := int32(3)
 
+			By("creating cluster with external backup enabled")
 			hazelcast := hazelcastconfig.HazelcastPersistencePVC(hzLookupKey, clusterSize, labels)
 			CreateHazelcastCR(hazelcast)
 			evaluateReadyMembers(hzLookupKey)
@@ -496,7 +528,7 @@ var _ = Describe("Hazelcast CR with Persistence feature enabled", Group("backup_
 			assertDataStructureStatus(chLookupKey, hazelcastcomv1alpha1.DataStructureSuccess, cache)
 
 			By("filling the cache with entries")
-			entryCount := 10
+			entryCount := 20
 			fillCachePortForward(hazelcast, cache.GetDSName(), localPort, entryCount)
 			validateCacheEntriesPortForward(hazelcast, localPort, cache.GetDSName(), entryCount)
 
@@ -505,9 +537,7 @@ var _ = Describe("Hazelcast CR with Persistence feature enabled", Group("backup_
 			Expect(k8sClient.Create(context.Background(), hotBackup)).Should(Succeed())
 			assertHotBackupSuccess(hotBackup, 1*Minute)
 
-			By("filling the cache with entries after backup")
-			fillCachePortForward(hazelcast, cache.GetDSName(), localPort, entryCount)
-
+			By("deleting Hazelcast cluster")
 			RemoveHazelcastCR(hazelcast)
 
 			By("creating new Hazelcast cluster from existing backup")
@@ -516,6 +546,7 @@ var _ = Describe("Hazelcast CR with Persistence feature enabled", Group("backup_
 				HotBackupResourceName: hotBackup.Name,
 			}
 
+			By("checking the cluster state")
 			Expect(k8sClient.Create(context.Background(), hazelcast)).Should(Succeed())
 			evaluateReadyMembers(hzLookupKey)
 			assertHazelcastRestoreStatus(hazelcast, hazelcastcomv1alpha1.RestoreSucceeded)
@@ -525,7 +556,7 @@ var _ = Describe("Hazelcast CR with Persistence feature enabled", Group("backup_
 		})
 
 		DescribeTable("when restoring from ExternalBackup with bucket secret", func(bucketURI, secretName string, useBucketConfig bool) {
-			setLabelAndCRName("br-10")
+			setLabelAndCRName("br-11")
 			By("creating cluster with backup enabled")
 			clusterSize := int32(3)
 
@@ -533,17 +564,17 @@ var _ = Describe("Hazelcast CR with Persistence feature enabled", Group("backup_
 			hotBackup := hazelcastconfig.HotBackupBucket(hbLookupKey, hazelcast.Name, labels, bucketURI, secretName)
 			backupRestore(hazelcast, hotBackup, useBucketConfig)
 		},
-			Entry("using AWS S3 bucket HotBackupResourceName", Tag(Slow|EE|AnyCloud), "s3://operator-e2e-external-backup", "br-secret-s3", false),
-			Entry("using GCP bucket HotBackupResourceName", Tag(Slow|EE|AnyCloud), "gs://operator-e2e-external-backup", "br-secret-gcp", false),
-			Entry("using Azure bucket HotBackupResourceName", Tag(Slow|EE|AnyCloud), "azblob://operator-e2e-external-backup", "br-secret-az", false),
-			Entry("using GCP bucket restore from BucketConfig", Tag(Slow|EE|AnyCloud), "gs://operator-e2e-external-backup", "br-secret-gcp", true),
+			Entry("using AWS S3 bucket HotBackupResourceName", Tag(EE|AnyCloud), "s3://operator-e2e-external-backup", "br-secret-s3", false),
+			Entry("using GCP bucket HotBackupResourceName", Tag(EE|AnyCloud), "gs://operator-e2e-external-backup", "br-secret-gcp", false),
+			Entry("using Azure bucket HotBackupResourceName", Tag(EE|AnyCloud), "azblob://operator-e2e-external-backup", "br-secret-az", false),
+			Entry("using GCP bucket restore from BucketConfig", Tag(EE|AnyCloud), "gs://operator-e2e-external-backup", "br-secret-gcp", true),
 		)
 
 		DescribeTable("when restoring from ExternalBackup with service account", func(serviceAccount, bucketURI string) {
 			if !ee {
 				Skip("This test will only run in EE configuration")
 			}
-			setLabelAndCRName("br-11")
+			setLabelAndCRName("br-12")
 			By("creating cluster with backup enabled")
 			clusterSize := int32(3)
 
@@ -552,16 +583,18 @@ var _ = Describe("Hazelcast CR with Persistence feature enabled", Group("backup_
 			hazelcast.Spec.ServiceAccountName = serviceAccount
 			backupRestore(hazelcast, hotBackup, false)
 		},
-			Entry("using GCP Workload Identity", Tag(Slow|EE|GCP), "cn-workload-identity-test", "gs://operator-e2e-external-backup"),
+			Entry("using GCP Workload Identity", Tag(EE|GCP), "cn-workload-identity-test", "gs://operator-e2e-external-backup"),
+			Entry("using AWS IAM ServiceAccount", Tag(EE|AWS), "aws-iam-sa", "s3://operator-e2e-external-backup"),
 		)
 	})
 
 	Context("Startup actions configuration", func() {
 		DescribeTable("should start the cluster successfully triggering",
 			func(action hazelcastcomv1alpha1.PersistenceStartupAction, dataPolicy hazelcastcomv1alpha1.DataRecoveryPolicyType) {
-				setLabelAndCRName("br-12")
+				setLabelAndCRName("br-13")
 				clusterSize := int32(3)
 
+				By("creating cluster with backup enabled")
 				hazelcast := hazelcastconfig.HazelcastPersistencePVC(hzLookupKey, clusterSize, labels)
 				CreateHazelcastCR(hazelcast)
 				evaluateReadyMembers(hzLookupKey)
@@ -571,23 +604,71 @@ var _ = Describe("Hazelcast CR with Persistence feature enabled", Group("backup_
 				Expect(k8sClient.Create(context.Background(), hotBackup)).Should(Succeed())
 				assertHotBackupSuccess(hotBackup, 1*Minute)
 
+				By("deleting the Hazelcast CR")
 				RemoveHazelcastCR(hazelcast)
 
 				By("creating new Hazelcast cluster from existing backup with 2 members")
 
 				hazelcast = hazelcastconfig.HazelcastPersistencePVC(hzLookupKey, clusterSize, labels)
 				hazelcast.Spec.ClusterSize = &[]int32{2}[0]
-				hazelcast.Spec.Persistence.DataRecoveryTimeout = 60
+				hazelcast.Spec.Persistence.DataRecoveryTimeout = 300
 				hazelcast.Spec.Persistence.ClusterDataRecoveryPolicy = dataPolicy
 				hazelcast.Spec.Persistence.StartupAction = action
-				hazelcast.Spec.Persistence.Restore.HotBackupResourceName = hotBackup.Name
+				hazelcast.Spec.Persistence.Restore = hazelcastcomv1alpha1.RestoreConfiguration{
+					HotBackupResourceName: hotBackup.Name,
+				}
 				CreateHazelcastCR(hazelcast)
 				evaluateReadyMembers(hzLookupKey)
 				assertClusterStatePortForward(context.Background(), hazelcast, localPort, codecTypes.ClusterStateActive)
 			},
-			Entry("ForceStart action and FullRecovery policy", Tag(Slow|EE|AnyCloud), hazelcastcomv1alpha1.ForceStart, hazelcastcomv1alpha1.FullRecovery),
-			Entry("PartialStart action and MostRecent policy", Tag(Slow|EE|AnyCloud), hazelcastcomv1alpha1.PartialStart, hazelcastcomv1alpha1.MostRecent),
+			Entry("ForceStart action and FullRecovery policy", Tag(EE|AnyCloud), hazelcastcomv1alpha1.ForceStart, hazelcastcomv1alpha1.FullRecovery),
+			Entry("PartialStart action and MostRecent policy", Tag(EE|AnyCloud), hazelcastcomv1alpha1.PartialStart, hazelcastcomv1alpha1.MostRecent),
 		)
+	})
+
+	Context("Restoring from local backup", func() {
+		It("should restore successfully", Tag(Kind|EE|AnyCloud), func() {
+			setLabelAndCRName("br-14")
+			clusterSize := int32(3)
+			hazelcast := hazelcastconfig.HazelcastPersistencePVC(hzLookupKey, clusterSize, labels)
+
+			By("creating cluster with backup enabled")
+			CreateHazelcastCR(hazelcast)
+			evaluateReadyMembers(hzLookupKey)
+
+			By("creating the map config and adding entries")
+			m := hazelcastconfig.PersistedMap(mapLookupKey, hazelcast.Name, labels)
+			Expect(k8sClient.Create(context.Background(), m)).Should(Succeed())
+			assertMapStatus(m, hazelcastcomv1alpha1.MapSuccess)
+			fillTheMapDataPortForward(context.Background(), hazelcast, localPort, m.MapName(), 10)
+
+			By("triggering backup")
+			hotBackup := hazelcastconfig.HotBackup(hbLookupKey, hazelcast.Name, labels)
+			t := Now()
+			Expect(k8sClient.Create(context.Background(), hotBackup)).Should(Succeed())
+			hotBackup = assertHotBackupSuccess(hotBackup, 1*Minute)
+
+			By("checking if backup status is correct")
+			assertCorrectBackupStatus(hotBackup, GetBackupSequence(t, hzLookupKey))
+
+			By("removing Hazelcast CR")
+			RemoveHazelcastCR(hazelcast)
+
+			By("creating cluster from backup")
+			fromLocal := hazelcastcomv1alpha1.RestoreConfiguration{
+				LocalConfiguration: &hazelcastcomv1alpha1.RestoreFromLocalConfiguration{
+					BackupFolder: hotBackup.Status.GetBackupFolder(),
+				},
+			}
+			restoredHz := hazelcastconfig.HazelcastRestore(hazelcast, fromLocal)
+			CreateHazelcastCR(restoredHz)
+			evaluateReadyMembers(hzLookupKey)
+
+			By("checking the cluster state and map size")
+			assertHazelcastRestoreStatus(restoredHz, hazelcastcomv1alpha1.RestoreSucceeded)
+			assertClusterStatePortForward(context.Background(), restoredHz, localPort, codecTypes.ClusterStateActive)
+			waitForMapSizePortForward(context.Background(), restoredHz, localPort, m.MapName(), 10, 1*Minute)
+		})
 	})
 
 })

@@ -3,7 +3,7 @@ package e2e
 import (
 	"context"
 	"fmt"
-	"strings"
+	"net"
 	. "time"
 
 	hzClient "github.com/hazelcast/hazelcast-go-client"
@@ -11,6 +11,8 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	corev1 "k8s.io/api/core/v1"
+	kerrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	hazelcastcomv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
@@ -39,12 +41,21 @@ var _ = Describe("Hazelcast CR with expose externally feature", Group("expose_ex
 		}, 2*Minute, interval).Should(Not(BeEmpty()))
 	}
 
+	skipIfIstioSetup := func() {
+		if isIstioSetup() {
+			Skip("skipping suites in Istio setup")
+		}
+	}
+
 	Context("Cluster connectivity", func() {
-		It("should enable Hazelcast unisocket client connection to an externally exposed cluster", Tag(Fast|Any), func() {
+		It("should enable Hazelcast unisocket client connection to an externally exposed cluster", Tag(Kind|Any), func() {
+			skipIfIstioSetup()
+
 			setLabelAndCRName("hee-1")
 			hazelcast := hazelcastconfig.ExposeExternallyUnisocket(hzLookupKey, ee, labels)
 			CreateHazelcastCR(hazelcast)
 			evaluateReadyMembers(hzLookupKey)
+
 			hzMap := "map"
 			entryCount := 100
 			err := FillMapByEntryCount(ctx, hzLookupKey, true, hzMap, entryCount)
@@ -53,16 +64,22 @@ var _ = Describe("Hazelcast CR with expose externally feature", Group("expose_ex
 			assertExternalAddressesNotEmpty()
 		})
 
-		It("should enable Hazelcast smart client connection to a cluster exposed with NodePort", Tag(Fast|AnyLicense|AWS|GCP|AZURE), func() {
+		It("should enable Hazelcast smart client connection to a cluster exposed with NodePort", Tag(AnyLicense|AWS|GCP|AZURE), func() {
+			skipIfIstioSetup()
+
 			setLabelAndCRName("hee-2")
 			hazelcast := hazelcastconfig.ExposeExternallySmartNodePort(hzLookupKey, ee, labels)
 			CreateHazelcastCR(hazelcast)
 			evaluateReadyMembers(hzLookupKey)
+
 			members := getHazelcastMembers(ctx, hazelcast)
+
 			clientHz := GetHzClient(ctx, hzLookupKey, false)
 			defer Expect(clientHz.Shutdown(ctx)).To(BeNil())
 			internalClient := hzClient.NewClientInternal(clientHz)
 			clientMembers := internalClient.OrderedMembers()
+			Expect(members).Should(HaveLen(len(clientMembers)))
+
 			By("matching HZ members with client members and comparing their public IPs")
 			for _, member := range members {
 				matched := false
@@ -71,6 +88,7 @@ var _ = Describe("Hazelcast CR with expose externally feature", Group("expose_ex
 						continue
 					}
 					matched = true
+
 					service := getServiceOfMember(ctx, hzLookupKey.Namespace, member)
 					Expect(service.Spec.Type).Should(Equal(corev1.ServiceTypeNodePort))
 					Expect(service.Spec.Ports).Should(HaveLen(2))
@@ -79,14 +97,12 @@ var _ = Describe("Hazelcast CR with expose externally feature", Group("expose_ex
 					externalAddresses := filterNodeAddressesByExternalIP(node.Status.Addresses)
 					Expect(externalAddresses).Should(HaveLen(1))
 					externalAddress := fmt.Sprintf("%s:%d", externalAddresses[0], nodePort)
+
 					clientPublicAddresses := filterClientMemberAddressesByPublicIdentifier(clientMember)
 					Expect(clientPublicAddresses).Should(HaveLen(1))
 					clientPublicAddress := clientPublicAddresses[0]
 					Expect(externalAddress).Should(Equal(clientPublicAddress))
 
-					By(fmt.Sprintf("checking if connected to the member %q", clientMember.UUID.String()))
-					connected := internalClient.ConnectedToMember(clientMember.UUID)
-					Expect(connected).Should(BeTrue())
 					break
 				}
 				if !matched {
@@ -94,29 +110,34 @@ var _ = Describe("Hazelcast CR with expose externally feature", Group("expose_ex
 				}
 			}
 
-			hzMap := "map"
-			entryCount := 100
-			err := FillMapByEntryCount(ctx, hzLookupKey, false, hzMap, entryCount)
-			Expect(err).To(BeNil())
-			WaitForMapSize(ctx, hzLookupKey, hzMap, entryCount, Minute)
+			By("checking if the client has connected to all the members")
+			Eventually(func() bool {
+				return clientConnectedToAllMembers(ctx, hzLookupKey)
+			}, Minute, 10*Second).Should(BeTrue())
 
 			assertExternalAddressesNotEmpty()
+
+			Expect(FillMapByEntryCount(ctx, hzLookupKey, false, "map", 100)).To(BeNil())
+			WaitForMapSize(ctx, hzLookupKey, "map", 100, Minute)
 		})
 
-		It("should enable Hazelcast smart client connection to a cluster exposed with LoadBalancer", Tag(Slow|Any), func() {
+		It("should enable Hazelcast smart client connection to a cluster exposed with LoadBalancer", Tag(Any), func() {
+			skipIfIstioSetup()
+
 			setLabelAndCRName("hee-3")
 			hazelcast := hazelcastconfig.ExposeExternallySmartLoadBalancer(hzLookupKey, ee, labels)
 			CreateHazelcastCR(hazelcast)
 			evaluateReadyMembers(hzLookupKey)
 
 			members := getHazelcastMembers(ctx, hazelcast)
+
 			clientHz := GetHzClient(ctx, hzLookupKey, false)
 			defer Expect(clientHz.Shutdown(ctx)).To(BeNil())
 			internalClient := hzClient.NewClientInternal(clientHz)
 			clientMembers := internalClient.OrderedMembers()
+			Expect(members).Should(HaveLen(len(clientMembers)))
 
 			By("matching HZ members with client members and comparing their public IPs")
-
 			for _, member := range members {
 				matched := false
 				for _, clientMember := range clientMembers {
@@ -124,29 +145,31 @@ var _ = Describe("Hazelcast CR with expose externally feature", Group("expose_ex
 						continue
 					}
 					matched = true
+
 					service := getServiceOfMember(ctx, hzLookupKey.Namespace, member)
 					Expect(service.Spec.Type).Should(Equal(corev1.ServiceTypeLoadBalancer))
 					Expect(service.Status.LoadBalancer.Ingress).Should(HaveLen(1))
 					svcLoadBalancerIngress := service.Status.LoadBalancer.Ingress[0]
+
 					clientPublicAddresses := filterClientMemberAddressesByPublicIdentifier(clientMember)
 					Expect(clientPublicAddresses).Should(HaveLen(1))
-					clientPublicIp := clientPublicAddresses[0][:strings.IndexByte(clientPublicAddresses[0], ':')]
+					clientPublicIp, port, err := net.SplitHostPort(clientPublicAddresses[0])
+					Expect(err).ToNot(HaveOccurred())
+					Expect(port).Should(Equal("5701"))
+
 					if svcLoadBalancerIngress.IP != "" {
 						Expect(svcLoadBalancerIngress.IP).Should(Equal(clientPublicIp))
-					} else {
-						hostname := svcLoadBalancerIngress.Hostname
+					} else if svcLoadBalancerIngress.Hostname != "" {
 						Eventually(func() bool {
-							matched, err := DnsLookupAddressMatched(ctx, hostname, clientPublicIp)
+							matched, err := DnsLookupAddressMatched(ctx, svcLoadBalancerIngress.Hostname, clientPublicIp)
 							if err != nil {
 								return false
 							}
 							return matched
 						}, 3*Minute, interval).Should(BeTrue())
+					} else {
+						Fail("expected LoadBalancer IP or Hostname to be non-empty")
 					}
-
-					By(fmt.Sprintf("checking if connected to the member %q", clientMember.UUID.String()))
-					connected := internalClient.ConnectedToMember(clientMember.UUID)
-					Expect(connected).Should(BeTrue())
 
 					break
 				}
@@ -155,13 +178,15 @@ var _ = Describe("Hazelcast CR with expose externally feature", Group("expose_ex
 				}
 			}
 
-			hzMap := "map"
-			entryCount := 100
-			err := FillMapByEntryCount(ctx, hzLookupKey, false, hzMap, entryCount)
-			Expect(err).To(BeNil())
-			WaitForMapSize(ctx, hzLookupKey, hzMap, entryCount, Minute)
+			By("checking if the client has connected to all the members")
+			Eventually(func() bool {
+				return clientConnectedToAllMembers(ctx, hzLookupKey)
+			}, Minute, 10*Second).Should(BeTrue())
 
 			assertExternalAddressesNotEmpty()
+
+			Expect(FillMapByEntryCount(ctx, hzLookupKey, false, "map", 100)).To(BeNil())
+			WaitForMapSize(ctx, hzLookupKey, "map", 100, Minute)
 		})
 	})
 })
@@ -208,4 +233,32 @@ func filterClientMemberAddressesByPublicIdentifier(member hzCluster.MemberInfo) 
 		}
 	}
 	return addresses
+}
+
+func clientConnectedToAllMembers(ctx context.Context, lk types.NamespacedName) bool {
+	clientHz := GetHzClient(ctx, lk, false)
+	defer Expect(clientHz.Shutdown(ctx)).To(BeNil())
+	internalClient := hzClient.NewClientInternal(clientHz)
+	clientMembers := internalClient.OrderedMembers()
+	for _, member := range clientMembers {
+		if !internalClient.ConnectedToMember(member.UUID) {
+			return false
+		}
+	}
+	return true
+}
+
+// checks if the istio system namespace exists and injection label is set in the test namespace
+func isIstioSetup() bool {
+	err := k8sClient.Get(context.Background(), client.ObjectKey{Name: "istio-system"}, &corev1.Namespace{})
+	if kerrors.IsNotFound(err) {
+		return false
+	}
+	Expect(err).NotTo(HaveOccurred())
+
+	namespace := &corev1.Namespace{}
+	err = k8sClient.Get(context.Background(), client.ObjectKey{Name: hzNamespace}, namespace)
+	Expect(err).NotTo(HaveOccurred())
+	val, ok := namespace.Labels["istio-injection"]
+	return ok && val == "enabled"
 }

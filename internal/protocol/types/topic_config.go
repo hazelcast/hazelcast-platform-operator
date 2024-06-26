@@ -15,6 +15,8 @@ type TopicConfig struct {
 	StatisticsEnabled     bool   `xml:"statistics-enabled"`
 	//nullable
 	ListenerConfigs []ListenerConfigHolder
+	// nullable
+	UserCodeNamespace string
 }
 
 // Default values are explicitly written for all fields that are not nullable

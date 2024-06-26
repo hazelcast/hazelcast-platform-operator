@@ -1,0 +1,9 @@
+apiVersion: hazelcast.com/v1alpha1
+kind: Map
+metadata:
+  name: my-map
+spec:
+  hazelcastResourceName: hazelcast
+  userCodeNamespace: ucn-sample
+  entryListeners:
+    - className: org.example.SampleEntryListener

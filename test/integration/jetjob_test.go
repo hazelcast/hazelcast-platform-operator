@@ -29,7 +29,7 @@ var _ = Describe("JetJob CR", func() {
 	})
 
 	Context("JetJob create validation", func() {
-		It("should not create JetJob with State not Running", Label("fast"), func() {
+		It("should not create JetJob with State not Running", func() {
 			jj := &hazelcastv1alpha1.JetJob{
 				ObjectMeta: randomObjectMeta(namespace),
 				Spec: hazelcastv1alpha1.JetJobSpec{
@@ -44,7 +44,7 @@ var _ = Describe("JetJob CR", func() {
 				Should(MatchError(ContainSubstring("Invalid value: \"Suspended\": should be set to Running on creation")))
 		})
 
-		It("should error when secret doesn't exist with the given bucket secretName", Label("fast"), func() {
+		It("should error when secret doesn't exist with the given bucket secretName", func() {
 			jj := &hazelcastv1alpha1.JetJob{
 				ObjectMeta: randomObjectMeta(namespace),
 				Spec: hazelcastv1alpha1.JetJobSpec{
@@ -67,7 +67,7 @@ var _ = Describe("JetJob CR", func() {
 	})
 
 	Context("JetJob update validation", func() {
-		It("should not update immutable fields", Label("fast"), func() {
+		It("should not update immutable fields", func() {
 			spec := hazelcastv1alpha1.JetJobSpec{
 				Name:                        "jetjobname",
 				HazelcastResourceName:       "hazelcast",
@@ -112,7 +112,7 @@ var _ = Describe("JetJob CR", func() {
 			))
 		})
 
-		It("should not allow adding bucket configuration", Label("fast"), func() {
+		It("should not allow adding bucket configuration", func() {
 			spec := hazelcastv1alpha1.JetJobSpec{
 				Name:                  "jetjobname",
 				HazelcastResourceName: "hazelcast",

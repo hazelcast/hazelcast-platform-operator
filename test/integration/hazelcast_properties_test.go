@@ -29,7 +29,7 @@ var _ = Describe("Hazelcast Properties", func() {
 	})
 
 	Context("with custom properties", func() {
-		It("should add new property", Label("fast"), func() {
+		It("should add new property", func() {
 			hz := &hazelcastv1alpha1.Hazelcast{
 				ObjectMeta: randomObjectMeta(namespace),
 				Spec:       test.HazelcastSpec(defaultHazelcastSpecValues(), ee),
@@ -57,7 +57,7 @@ var _ = Describe("Hazelcast Properties", func() {
 			}))
 		})
 
-		It("should not override default property", Label("fast"), func() {
+		It("should not override default property", func() {
 			hz := &hazelcastv1alpha1.Hazelcast{
 				ObjectMeta: randomObjectMeta(namespace),
 				Spec:       test.HazelcastSpec(defaultHazelcastSpecValues(), ee),

@@ -30,7 +30,7 @@ var _ = Describe("HotBackup CR", func() {
 	})
 
 	Context("with default configuration", func() {
-		It("should create successfully", Label("fast"), func() {
+		It("should create successfully", func() {
 			hb := &hazelcastv1alpha1.HotBackup{
 				ObjectMeta: randomObjectMeta(namespace),
 				Spec: hazelcastv1alpha1.HotBackupSpec{
@@ -46,7 +46,7 @@ var _ = Describe("HotBackup CR", func() {
 	})
 
 	Context("HotBackup is deleted", func() {
-		It("should not be allowed when it is referenced by Hazelcast restore", Label("fast"), func() {
+		It("should not be allowed when it is referenced by Hazelcast restore", func() {
 			hb := &hazelcastv1alpha1.HotBackup{
 				ObjectMeta: randomObjectMeta(namespace),
 				Spec: hazelcastv1alpha1.HotBackupSpec{
@@ -58,7 +58,7 @@ var _ = Describe("HotBackup CR", func() {
 
 			spec := test.HazelcastSpec(defaultHazelcastSpecValues(), ee)
 			spec.Persistence = &hazelcastv1alpha1.HazelcastPersistenceConfiguration{
-				Pvc: &hazelcastv1alpha1.PersistencePvcConfiguration{
+				PVC: &hazelcastv1alpha1.PvcConfiguration{
 					AccessModes: []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce},
 				},
 				Restore: hazelcastv1alpha1.RestoreConfiguration{

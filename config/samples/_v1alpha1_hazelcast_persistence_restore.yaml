@@ -9,7 +9,6 @@ spec:
   agent:
     repository: hazelcast/platform-operator-agent
   persistence:
-    baseDir: "/data/hot-restart/"
     clusterDataRecoveryPolicy: "FullRecoveryOnly"
     pvc:
       accessModes: ["ReadWriteOnce"]

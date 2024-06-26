@@ -3,8 +3,7 @@ apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    controller-gen.kubebuilder.io/version: v0.10.0
-  creationTimestamp: null
+    controller-gen.kubebuilder.io/version: v0.13.0
   name: queues.hazelcast.com
 spec:
   group: hazelcast.com
@@ -94,6 +93,10 @@ spec:
                 description: The name of the comparator class. If the class name is
                   provided, the Queue becomes Priority Queue. You can learn more at
                   https://docs.hazelcast.com/hazelcast/latest/data-structures/priority-queue.
+                type: string
+              userCodeNamespace:
+                description: Name of the User Code Namespace applied to this instance
+                minLength: 1
                 type: string
             required:
             - hazelcastResourceName

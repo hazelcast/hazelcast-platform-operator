@@ -10,7 +10,7 @@ env:
   OPERATOR_NAME: "hazelcast-platform-operator"
   RELEASE_VERSION: ${{ inputs.RELEASE_VERSION }}
   PUBLISH_TIMEOUT_IN_MINS: "60"
-  GRADE_CHECK_TIMEOUT_IN_MINS: "10"
+  GRADE_CHECK_TIMEOUT_IN_MINS: "20"
   AWS_REGION: us-east-1
 
 jobs:
@@ -21,7 +21,6 @@ jobs:
       RELEASE_VERSION: ${{ steps.set-outputs.outputs.RELEASE_VERSION }}
       IMAGE_NAME: ${{ steps.set-outputs.outputs.IMAGE_NAME }}
       IMAGE_DIGEST: ${{ steps.push-operator-image.outputs.IMAGE_DIGEST }}
-      CURRENT_LATEST_TAG: ${{ steps.get-current-latest-tag.outputs.CURRENT_LATEST_TAG }}
       BUNDLE_RELEASE_VERSION: ${{ steps.set-outputs.outputs.BUNDLE_RELEASE_VERSION }}
     steps:
       - name: Configure AWS Credentials
@@ -37,6 +36,7 @@ jobs:
           secret-ids: |
             DOCKERHUB_USERNAME,CN/DOCKERHUB_USERNAME
             DOCKERHUB_PASSWORD,CN/DOCKERHUB_PASSWORD
+            DEVOPS_GITHUB_TOKEN,CN/DEVOPS_GITHUB_TOKEN
 
       - name: Checkout
         uses: actions/checkout@v4
@@ -56,6 +56,7 @@ jobs:
       - name: Get the Current Latest Tag
         id: get-current-latest-tag
         run: |
+          echo ${{ env.DEVOPS_GITHUB_TOKEN }} | gh auth login --with-token
           token=$(curl --fail -L -s -X POST 'https://hub.docker.com/v2/users/login' \
           -H 'Content-Type: application/json' \
           --data-raw '{
@@ -63,10 +64,11 @@ jobs:
             "password": "${{ env.DOCKERHUB_PASSWORD }}"
           }'| jq -r '.token')
 
-          CURRENT_LATEST_TAG=$(curl --fail -L -s -X GET 'https://hub.docker.com/v2/namespaces/hazelcast/repositories/hazelcast-platform-operator/images?status=active&currently_tagged=true&page_size=100' \
-          -H "Authorization: Bearer $token" | jq -r  '.results[] | select(any(.tags[]; .tag == "latest" and .is_current == true)) | .tags[] | select(.is_current == true and .tag != "latest" and (.tag | test("\\d+\\.\\d+\\.\\d+")))| .tag')
-          echo "CURRENT_LATEST_TAG=${CURRENT_LATEST_TAG}" >> $GITHUB_ENV
-          echo "CURRENT_LATEST_TAG=${CURRENT_LATEST_TAG}" >> $GITHUB_OUTPUT
+          CURRENT_LATEST_TAG=$(curl -s "https://hub.docker.com/v2/repositories/hazelcast/hazelcast-platform-operator/tags/?page_size=100" \
+          -H "Authorization: Bearer $token" | jq -r '[.results[] | select(.name | test("\\d+\\.\\d+\\.\\d+")) | {name, last_updated}] | sort_by(.last_updated) | last.name')
+          gh api --method PATCH -H "Accept: application/vnd.github+json" \
+           /repos/hazelcast/hazelcast-platform-operator/environments/prod/variables/CURRENT_LATEST_TAG \
+             -f "name=CURRENT_LATEST_TAG" -f "value=$CURRENT_LATEST_TAG"
 
       - name: Build Operator Image
         run: |
@@ -147,13 +149,25 @@ jobs:
           source .github/scripts/utils.sh
           sync_certificated_image_tags "${{ env.PREFLIGHT_PROJECT_ID }}" "$CERT_IMAGE_ID" "${{ env.PFLT_PYXIS_API_TOKEN }}"
 
-  redhat_certified_operator_release:
-    name: Create a PR in 'certified-operators' Repository
+  operator_bundle_release:
+    name: Create a PR in
     runs-on: ubuntu-latest
     needs: ['publish_docker_image', 'publish_image_to_redhat']
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - repo-name: community-operators
+            repo-owner: k8s-operatorhub
+
+          - repo-name: certified-operators
+            repo-owner: redhat-openshift-ecosystem
+
+          - repo-name: community-operators-prod
+            repo-owner: redhat-openshift-ecosystem
     env:
-      REPO_NAME: certified-operators
-      REPO_OWNER: redhat-openshift-ecosystem
+      REPO_NAME: ${{ matrix.repo-name }}
+      REPO_OWNER: ${{ matrix.repo-owner }}
       RELEASE_VERSION: ${{ needs.publish_docker_image.outputs.RELEASE_VERSION }}
       IMAGE_DIGEST: ${{ needs.publish_docker_image.outputs.IMAGE_DIGEST }}
       BUNDLE_RELEASE_VERSION: ${{ needs.publish_docker_image.outputs.BUNDLE_RELEASE_VERSION }}
@@ -188,7 +202,7 @@ jobs:
         run: |
           make bundle-ocp-validate
 
-      - name: Checkout to devOpsHelm
+      - name: Checkout to devOpsHelm/${{ env.REPO_NAME }}
         uses: actions/checkout@v4
         with:
           repository: devOpsHelm/${{ env.REPO_NAME }}
@@ -210,12 +224,13 @@ jobs:
           git config user.name "devOpsHelm"
           BRANCH_NAME=${OPERATOR_NAME}-${BUNDLE_RELEASE_VERSION}-${{ github.run_id }}
 
-          # Copy bundle files under new version of the operator
           git checkout -b $BRANCH_NAME
+          if [ "${{ env.REPO_NAME }}" == "certified-operators" ]; then
+            sed -i "s|merge: *[^ ]*|merge: false|" operators/${OPERATOR_NAME}/ci.yaml
+          fi
           mkdir -p operators/${OPERATOR_NAME}/${BUNDLE_RELEASE_VERSION}
           cp -r ../bundle/* operators/${OPERATOR_NAME}/${BUNDLE_RELEASE_VERSION}/
 
-          # Commit and push changes
           git add  ./operators/${OPERATOR_NAME}
           git commit --signoff -m "Update ${OPERATOR_NAME} to ${BUNDLE_RELEASE_VERSION}"
           git push -u origin $BRANCH_NAME
@@ -226,96 +241,20 @@ jobs:
           echo ${{ env.DEVOPS_GITHUB_TOKEN }} | gh auth login --with-token
           gh pr create --title \
           "operator ${OPERATOR_NAME} (${BUNDLE_RELEASE_VERSION})" --body "" --repo ${REPO_OWNER}/${REPO_NAME}
-
-  operatorhub_release:
-    name: Create a PR in
-    runs-on: ubuntu-latest
-    needs: ['publish_docker_image', 'publish_image_to_redhat']
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - repo-name: community-operators
-            repo-owner: k8s-operatorhub
-
-          - repo-name: community-operators-prod
-            repo-owner: redhat-openshift-ecosystem
-    env:
-      REPO_NAME: ${{ matrix.repo-name }}
-      REPO_OWNER: ${{ matrix.repo-owner }}
-      RELEASE_VERSION: ${{ needs.publish_docker_image.outputs.RELEASE_VERSION }}
-      IMAGE_DIGEST: ${{ needs.publish_docker_image.outputs.IMAGE_DIGEST }}
-      BUNDLE_RELEASE_VERSION: ${{ needs.publish_docker_image.outputs.BUNDLE_RELEASE_VERSION }}
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Build Red Hat Bundle
-        run: |
-          IMAGE_NAME_DIGEST=docker.io/hazelcast/${OPERATOR_NAME}@${IMAGE_DIGEST}
-          make bundle IMG=${IMAGE_NAME_DIGEST} VERSION=${RELEASE_VERSION}
-          cat >> ./bundle/metadata/annotations.yaml <<EOF
-            # OpenShift annotations.
-            com.redhat.openshift.versions: v4.8
-            operators.operatorframework.io.bundle.channel.default.v1: alpha
-          EOF
-
-      - name: Configure AWS Credentials
-        uses: aws-actions/configure-aws-credentials@v4.0.2
-        with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ env.AWS_REGION }}
-
-      - name: Get Secrets
-        uses: aws-actions/aws-secretsmanager-get-secrets@v2
-        with:
-          secret-ids: |
-            DEVOPS_GITHUB_TOKEN,CN/DEVOPS_GITHUB_TOKEN
-
-      - name: Checkout to devOpsHelm/${{ env.REPO_NAME }}
-        uses: actions/checkout@v4
-        with:
-          repository: devopsHelm/${{ env.REPO_NAME }}
-          path: ${{ env.REPO_NAME }}
-          token: ${{ env.DEVOPS_GITHUB_TOKEN }}
-
-      - name: Update main branch of the fork
-        working-directory: ${{ env.REPO_NAME}}
-        run: |
-          git checkout main
-          git remote add upstream https://github.com/${REPO_OWNER}/${REPO_NAME}.git
-          git pull upstream main
-          git push origin main
-
-      - name: Commit and push changes to bundle
-        working-directory: ${{ env.REPO_NAME}}
-        run: |
-          git config user.email "devopshelm@hazelcast.com"
-          git config user.name "devOpsHelm"
-          BRANCH_NAME=${OPERATOR_NAME}-${BUNDLE_RELEASE_VERSION}-${{ github.run_id }}
-
-          # Copy bundle files under new version of the operator
-          git checkout -b $BRANCH_NAME
-          mkdir -p operators/${OPERATOR_NAME}/${BUNDLE_RELEASE_VERSION}
-          cp -r ../bundle/* operators/${OPERATOR_NAME}/${BUNDLE_RELEASE_VERSION}/
-
-          # Commit and push changes
-          git add  ./operators/${OPERATOR_NAME}
-          git commit --signoff -m "Update ${OPERATOR_NAME} to ${BUNDLE_RELEASE_VERSION}"
-          git push -u origin $BRANCH_NAME
-
-      - name: Create PR
-        working-directory: ${{ env.REPO_NAME }}
-        run: |
-          echo ${{ env.DEVOPS_GITHUB_TOKEN }} | gh auth login --with-token
-          gh pr create --title "operator ${OPERATOR_NAME} (${BUNDLE_RELEASE_VERSION})" \
-            --body "" --repo ${REPO_OWNER}/${REPO_NAME}
+          if ! gh pr view ${{ github.event.pull_request.number }} &> /dev/null; then
+              echo "Pull request ${{ github.event.pull_request.number }} not found, retrying in 10 seconds..."
+              sleep 10
+          fi
+          if [ "${{ env.REPO_NAME }}" != "certified-operators" ]; then
+            gh pr comment ${{ github.event.pull_request.number }} --body "/hold"
+          fi
 
   helm_chart_release:
     name: Publish Helm Chart
     runs-on: ubuntu-latest
-    needs: ['operatorhub_release']
+    needs: ['operator_bundle_release']
+    outputs:
+      REPLACED_VERSION: ${{ steps.helm_chart_version.outputs.REPLACED_VERSION }}
     steps:
       - name: Checkout 'Hazelcast Operator' Repository
         uses: actions/checkout@v4
@@ -365,87 +304,34 @@ jobs:
           EOT
 
       - name: Create Kind Cluster
-        uses: helm/kind-action@v1.8.0
+        uses: helm/kind-action@v1.10.0
         with:
           config: ./kind-config.yaml
           cluster_name: kind
 
       - name: Install and Verify Hazelcast Operator Image Tag
         run: |
-          LATEST_VERSION=$(curl -s https://artifacthub.io/api/v1/packages/helm/hazelcast/hazelcast-platform-operator | jq -r '.version')
+          LATEST_STABLE_VERSION=$(curl -s https://artifacthub.io/api/v1/packages/helm/hazelcast/hazelcast-platform-operator | jq -r '.available_versions | map(select(.version | contains("snapshot") | not)) | .[0].version')
           helm repo add hazelcast https://hazelcast-charts.s3.amazonaws.com && \
           helm repo update && \
-          helm install operator hazelcast/hazelcast-platform-operator --version=$LATEST_VERSION --set=installCRDs=true --set=phoneHomeEnabled=false --wait
+          helm install operator hazelcast/hazelcast-platform-operator --version=$LATEST_STABLE_VERSION --set=installCRDs=true --set=phoneHomeEnabled=false --wait
           kubectl rollout status deployment.apps/operator-hazelcast-platform-operator
           kubectl wait pods -l app.kubernetes.io/name=hazelcast-platform-operator --for condition=Ready --timeout=180s
           INSTALLED_VERSION=$(kubectl get deployment operator-hazelcast-platform-operator -o=jsonpath="{.spec.template.spec.containers[*].image}" | awk -F ':' '{print $2}')
-          if [[ ${LATEST_VERSION} == ${INSTALLED_VERSION} ]]; then
+          if [[ ${LATEST_STABLE_VERSION} == ${INSTALLED_VERSION} ]]; then
             echo "The latest operator image is successfully installed."
           else
             echo "The latest operator image tag doesn't equal the installed image tag."
             exit 1
           fi
 
-      - name: Checkout to 'Hazelcast Charts' Repository
-        uses: actions/checkout@v4
-        with:
-          repository: hazelcast/charts
-          token: ${{ env.DEVOPS_GITHUB_TOKEN }}
-
-      - name: Create Release Branch
-        run: |
-          git config user.email "devopshelm@hazelcast.com"
-          git config user.name "devOpsHelm"
-          git checkout -b $RELEASE_VERSION
-          git push -u origin $RELEASE_VERSION
-
-      - name: Checkout to Hazelcast Platform Repository
-        uses: actions/checkout@v4
-        with:
-          repository: hazelcast/hazelcast-platform-operator
-          token: ${{ env.DEVOPS_GITHUB_TOKEN }}
-          ref: ${{ inputs.RELEASE_VERSION }}
-
-      - name: Commit And Push Changes To 'Hazelcast Charts' Repository
-        run: |
-          echo ${{ env.DEVOPS_GITHUB_TOKEN }} | gh auth login --with-token
-          git config user.email "devopshelm@hazelcast.com"
-          git config user.name "devOpsHelm"
-          git subtree add --prefix=charts https://github.com/hazelcast/charts.git $RELEASE_VERSION --squash
-          git rm -r charts/stable/hazelcast-platform-operator/*
-          cp -rf helm-charts/hazelcast-platform-operator/* charts/stable/hazelcast-platform-operator
-          git add charts/
-          git commit --signoff -m "Update Operator Chart to $RELEASE_VERSION"
-          git subtree push --prefix=charts https://github.com/hazelcast/charts.git $RELEASE_VERSION
-
-      - name: Checkout to 'Hazelcast Charts' Repository
-        uses: actions/checkout@v4
-        with:
-          repository: hazelcast/charts
-          token: ${{ env.DEVOPS_GITHUB_TOKEN }}
-          ref: ${{ inputs.RELEASE_VERSION }}
-
-      - name: Create a New Tag in 'Hazelcast Charts' Repository
-        run: |
-          TAG_VERSION=v${RELEASE_VERSION}-operator
-          git tag ${TAG_VERSION}
-          git push origin ${TAG_VERSION}
-          
-          #remove branch
-          git push origin --delete $RELEASE_VERSION
-
-      - name: Checkout 'main' Branch
-        uses: actions/checkout@v4
-        with:
-          repository: hazelcast/hazelcast-platform-operator
-          token: ${{ env.DEVOPS_GITHUB_TOKEN }}
-          ref: main
-
       - name: Update Chart Version in Main Branch
+        id: helm_chart_version
         working-directory: helm-charts/hazelcast-platform-operator
         run: |
           REPLACED_VERSION=$(echo "$RELEASE_VERSION" | awk -F'.' '{print $1"."$2+1".0"}')
           echo "REPLACED_VERSION=${REPLACED_VERSION}" >> $GITHUB_ENV
+          echo "REPLACED_VERSION=${REPLACED_VERSION}" >> $GITHUB_OUTPUT
           sed -i -E -e 's/(version: ).*/\1"'$REPLACED_VERSION-snapshot'"/' -e 's/(appVersion: ).*/\1"'$REPLACED_VERSION-snapshot'"/' charts/hazelcast-platform-operator-crds/Chart.yaml Chart.yaml
 
       - name: Commit and Push Changes
@@ -459,7 +345,7 @@ jobs:
           git commit --signoff -m "$(echo -e "Update helm chart to ${REPLACED_VERSION} version")"
           git push -u origin $BRANCH_NAME
 
-      - name: Create and Merge PR to Main Branch
+      - name: Create PR to Main Branch
         run: |
           echo ${{ env.DEVOPS_GITHUB_TOKEN }} | gh auth login --with-token
           gh pr create --title "Update Helm Chart Version to ${REPLACED_VERSION}-snapshot" \
@@ -467,15 +353,99 @@ jobs:
           --milestone "${RELEASE_VERSION}" \
           --body ""
 
+  validate_release:
+    if: always()
+    name: Approve/Reject release?
+    needs: ['publish_docker_image', 'publish_image_to_redhat', 'helm_chart_release']
+    runs-on: ubuntu-latest
+    environment: 'prod'
+    steps:
+      - run: ""
+
+  merge_pr:
+    name: Merge all PR's
+    needs: validate_release
+    if: always() && needs.validate_release.result == 'success'
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - repo-name: community-operators
+            repo-owner: k8s-operatorhub
+
+          - repo-name: certified-operators
+            repo-owner: redhat-openshift-ecosystem
+
+          - repo-name: community-operators-prod
+            repo-owner: redhat-openshift-ecosystem
+
+          - repo-name: hazelcast-platform-operator
+            repo-owner: hazelcast
+    env:
+      REPO_NAME: ${{ matrix.repo-name }}
+      REPO_OWNER: ${{ matrix.repo-owner }}
+    steps:
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4.0.2
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Get Secrets
+        uses: aws-actions/aws-secretsmanager-get-secrets@v2
+        with:
+          secret-ids: |
+            DEVOPS_GITHUB_TOKEN,CN/DEVOPS_GITHUB_TOKEN
+
+      - name: Checkout to devOpsHelm/${{ env.REPO_NAME }}
+        uses: actions/checkout@v4
+        with:
+          repository: devOpsHelm/${{ env.REPO_NAME }}
+          path: ${{ env.REPO_NAME }}
+          token: ${{ env.DEVOPS_GITHUB_TOKEN }}
+
+      - name: Enable Auto-Merge For Bundle PR's
+        if: always() && matrix.repo-name == 'certified-operators' || matrix.repo-name == 'community-operators' || matrix.repo-name == 'community-operators-prod'
+        run: |
+          echo ${{ env.DEVOPS_GITHUB_TOKEN }} | gh auth login --with-token
+          git config user.email "devopshelm@hazelcast.com"
+          git config user.name "devOpsHelm"
+          BUNDLE_RELEASE_VERSION=$( make print-bundle-version VERSION=${RELEASE_VERSION} )
+          BRANCH_NAME=${OPERATOR_NAME}-${BUNDLE_RELEASE_VERSION}-${{ github.run_id }}
+          PR_NUMBER=$(gh pr list --repo ${{ env.REPO_OWNER }}/${{ env.REPO_NAME }} --search "operator ${{ env.OPERATOR_NAME }} (${BUNDLE_RELEASE_VERSION})" --json number | jq -r '.[].number')
+          if [ "${{ env.REPO_NAME }}" == "certified-operators" ]; then
+              git fetch --all
+              git checkout --track origin/$BRANCH_NAME
+              sed -i "s|merge: *[^ ]*|merge: true|" operators/${OPERATOR_NAME}/ci.yaml
+              git add  ./operators/${OPERATOR_NAME}
+              git commit --signoff -m "Update ${OPERATOR_NAME} to ${BUNDLE_RELEASE_VERSION}"
+              git push -u origin $BRANCH_NAME
+            else 
+              gh pr comment $PR_NUMBER --body "/hold cancel"
+            fi
+
+      - name: Checkout to hazelcast/hazelcast-platform-operator
+        if: always() && matrix.repo-name == 'hazelcast-platform-operator'
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ env.REPO_OWNER }}/${{ env.REPO_NAME }}
+          token: ${{ env.DEVOPS_GITHUB_TOKEN }}
+
+      - name: Merge Helm Chart PR
+        if: always() && matrix.repo-name == 'hazelcast-platform-operator'
+        run: |
+          echo ${{ env.DEVOPS_GITHUB_TOKEN }} | gh auth login --with-token
+          REPLACED_VERSION=$(echo "$RELEASE_VERSION" | awk -F'.' '{print $1"."$2+1".0"}')
+          HELM_CHART_PR_NUMBER=$(gh pr list --repo hazelcast/hazelcast-platform-operator --search "Update Helm Chart Version to ${REPLACED_VERSION}-snapshot" --json number | jq -r '.[].number')
+          gh pr merge $HELM_CHART_PR_NUMBER --admin 
+
   revert_changes:
     name: Revert Release Changes
-    needs: ['publish_docker_image', 'publish_image_to_redhat', 'helm_chart_release']
-    if: always() && (needs.publish_docker_image.result == 'failure' || needs.publish_image_to_redhat.result == 'failure' || needs.operatorhub_release.result == 'failure' || needs.helm_chart_release.result == 'failure')
+    needs: validate_release
+    if: always() && needs.validate_release.result == 'failure'
     runs-on: ubuntu-latest
-    env:
-      CURRENT_LATEST_TAG: ${{ needs.publish_docker_image.outputs.CURRENT_LATEST_TAG }}
-      IMAGE_DIGEST: ${{ needs.publish_docker_image.outputs.IMAGE_DIGEST }}
-      BUNDLE_RELEASE_VERSION: ${{ needs.publish_docker_image.outputs.BUNDLE_RELEASE_VERSION }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -498,6 +468,7 @@ jobs:
             PFLT_PYXIS_API_TOKEN,CN/PREFLIGHT_RHEL_API_KEY
 
       - name: Removing Published Docker Image
+        if: always() && !contains(needs.publish_docker_image.result, 'skipped')
         run: |
           auth_token=$(curl --fail -L -s -X POST 'https://hub.docker.com/v2/users/login' \
           -H 'Content-Type: application/json' \
@@ -505,45 +476,49 @@ jobs:
             "username": "${{ env.DOCKERHUB_USERNAME }}",
             "password": "${{ env.DOCKERHUB_PASSWORD }}"
           }'| jq -r '.token')
-
-          curl --fail -L -s -X POST 'https://hub.docker.com/v2/namespaces/hazelcast/delete-images' \
-          -H "Authorization: Bearer $auth_token" \
-          -H 'Content-Type: application/json' \
-          --data-raw '{
-              "manifests": [
-                  {
-                      "repository": "${{ env.OPERATOR_NAME }}",
-                      "digest": "${{ env.IMAGE_DIGEST }}"
-                  }
-              ],
-              "ignore_warnings": [
-                  {
-                      "repository": "${{ env.OPERATOR_NAME }}",
-                      "digest": "${{ env.IMAGE_DIGEST }}",
-                      "warning": "is_active"
-                  },
-                  {
-                      "repository": "${{ env.OPERATOR_NAME }}",
-                      "digest": "${{ env.IMAGE_DIGEST }}",
-                      "warning": "current_tag",
-                      "tags": [
-                          "${{ env.RELEASE_VERSION }}",
-                          "latest"
-                      ]
-                  }
-              ]
-          }'
+          
+           curl "https://hub.docker.com/v2/repositories/hazelcast/hazelcast-platform-operator/tags/${{ env.RELEASE_VERSION }}/" -X DELETE -H "Authorization: JWT ${auth_token}"
+           curl "https://hub.docker.com/v2/repositories/hazelcast/hazelcast-platform-operator/tags/latest/" -X DELETE -H "Authorization: JWT ${auth_token}"
 
       - name: Login to Docker Hub
+        if: always() && !contains(needs.publish_docker_image.result, 'skipped')
         uses: docker/login-action@v3
         with:
           username: ${{ env.DOCKERHUB_USERNAME }}
           password: ${{ env.DOCKERHUB_PASSWORD }}
 
       - name: Making Previous Docker Image Tag As 'latest'
+        if: always() && !contains(needs.publish_docker_image.result, 'skipped')
         run: |
+          echo ${{ env.DEVOPS_GITHUB_TOKEN }} | gh auth login --with-token
+          CURRENT_LATEST_TAG=$(gh api -H "Accept: application/vnd.github+json" \
+          /repos/hazelcast/hazelcast-platform-operator/environments/prod/variables/CURRENT_LATEST_TAG | jq -r '.value')
           docker pull docker.io/hazelcast/${OPERATOR_NAME}:${CURRENT_LATEST_TAG}
           make docker-push-latest IMG="docker.io/hazelcast/${OPERATOR_NAME}:${CURRENT_LATEST_TAG}"
+
+      - name: Delete Published and Certified Opehshift Image
+        if: always() && !contains(needs.publish_image_to_redhat.result, 'skipped')
+        run: |
+          source .github/scripts/utils.sh
+          delete_container_image "${{ env.PREFLIGHT_PROJECT_ID }}" "${RELEASE_VERSION}" "${{ env.PFLT_PYXIS_API_TOKEN }}" "5"
+
+      - name: Close PR's in 'certified-operators, community-operators and community-operators-prod' Repo's
+        if: always()
+        run: |
+          BUNDLE_RELEASE_VERSION=$( make print-bundle-version VERSION=${RELEASE_VERSION} )
+          echo ${{ env.DEVOPS_GITHUB_TOKEN }} | gh auth login --with-token
+          for REPO in "redhat-openshift-ecosystem/certified-operators" "k8s-operatorhub/community-operators" "redhat-openshift-ecosystem/community-operators-prod"; do   
+            PR_NUMBER=$(gh pr list --repo $REPO --search "operator ${{ env.OPERATOR_NAME }} (${BUNDLE_RELEASE_VERSION})" --json number | jq -r '.[].number')
+            gh pr close $PR_NUMBER --repo $REPO --delete-branch 2>/dev/null
+          done
+
+      - name: Close PR in 'hazelcast-platform-operator' Repo
+        if: always() && !contains(needs.helm_chart_release.result, 'skipped')
+        run: |
+          echo ${{ env.DEVOPS_GITHUB_TOKEN }} | gh auth login --with-token
+          REPLACED_VERSION=$(echo "$RELEASE_VERSION" | awk -F'.' '{print $1"."$2+1".0"}')
+          HELM_CHART_PR_NUMBER=$(gh pr list --repo hazelcast/hazelcast-platform-operator --search "Update Helm Chart Version to ${REPLACED_VERSION}-snapshot" --json number | jq -r '.[].number')
+          gh pr close $HELM_CHART_PR_NUMBER --repo hazelcast/hazelcast-platform-operator --delete-branch 2>/dev/null
 
       - name: Removing Release Notes and Tag in 'Hazelcast Operator' Repo
         if: always()
@@ -551,48 +526,23 @@ jobs:
           echo ${{ env.DEVOPS_GITHUB_TOKEN }} | gh auth login --with-token
           gh release delete v${RELEASE_VERSION} --cleanup-tag --yes
 
-      - name: Checkout to 'Hazelcast Charts' Repo
-        uses: actions/checkout@v4
-        with:
-          repository: hazelcast/charts
-          token: ${{ env.DEVOPS_GITHUB_TOKEN }}
-
-      - name: Deleting Branch and Tag in 'Hazelcast Charts' Repo
-        run: |
-          set +e
-          TAG_VERSION=v${RELEASE_VERSION}-operator
-          git push origin --delete ${RELEASE_VERSION}
-          git push origin --delete ${TAG_VERSION}
-          set -e
-
       - name: Download a Backup of the Helm Chart Index
+        if: always() && !contains(needs.helm_chart_release.result, 'skipped')
         uses: actions/download-artifact@v3
         with:
           name: index.yaml
-          path: ./index.yaml
 
       - name: Restore the Helm Chart Index
+        if: always() && !contains(needs.helm_chart_release.result, 'skipped')
         run: |
           aws s3 rm s3://hazelcast-charts/hazelcast-platform-operator-${RELEASE_VERSION}.tgz
           aws s3 rm s3://hazelcast-charts/hazelcast-platform-operator-crds-${RELEASE_VERSION}.tgz
-          aws s3 cp ./index.yaml s3://hazelcast-charts
-
-      - name: Close PR's in 'certified-operators, community-operators and community-operators-prod' Repo's
-        run: |
-          echo ${{ env.DEVOPS_GITHUB_TOKEN }} | gh auth login --with-token
-          for REPO in "redhat-openshift-ecosystem/certified-operators" "k8s-operatorhub/community-operators" "redhat-openshift-ecosystem/community-operators-prod"; do   
-            PR_NUMBER=$(gh pr list --repo $REPO --search "operator ${{ env.OPERATOR_NAME }} (${BUNDLE_RELEASE_VERSION})" --json number | jq -r '.[].number')
-            gh pr close $PR_NUMBER --repo $REPO --delete-branch 2>/dev/null
-          done
-
-      - name: Delete Published and Certified Opehshift Image
-        run: |
-          delete_container_image "${{ env.PREFLIGHT_PROJECT_ID }}" "${RELEASE_VERSION}" "${{ env.PFLT_PYXIS_API_TOKEN }}" "5"
+          aws s3 cp $GITHUB_WORKSPACE/index.yaml s3://hazelcast-charts
 
   slack_notify:
     name: Slack Notify
-    needs: ['publish_docker_image', 'publish_image_to_redhat', 'operatorhub_release', 'redhat_certified_operator_release', 'helm_chart_release']
-    if: needs.operatorhub_release.result != 'success' && needs.redhat_certified_operator_release.result != 'success' && needs.helm_chart_release.result != 'success'
+    needs: ['publish_docker_image', 'publish_image_to_redhat', 'operator_bundle_release', 'helm_chart_release', "validate_release", "merge_pr"]
+    if: needs.publish_docker_image.result != 'success' && needs.publish_image_to_redhat.result != 'success' && needs.operator_bundle_release.result != 'success'  && needs.helm_chart_release.result != 'success'
     runs-on: ubuntu-latest
     steps:
       - name: Configure AWS Credentials

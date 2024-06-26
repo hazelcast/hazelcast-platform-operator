@@ -35,12 +35,12 @@ jobs:
             AZURE_CREDENTIALS,CN/AZURE_CREDENTIALS
 
       - name: Azure login
-        uses: azure/login@v1
+        uses: azure/login@v2
         with:
           creds: ${{ env.AZURE_CREDENTIALS }}
 
       - name: Delete AKS cluster
-        uses: azure/CLI@v1
+        uses: azure/CLI@v2
         with:
           azcliversion: 2.31.0
           inlineScript: |
@@ -94,7 +94,7 @@ jobs:
             GKE_SA_KEY,CN/GKE_SA_KEY
 
       - name: Authenticate to GCP
-        uses: 'google-github-actions/auth@v2.1.0'
+        uses: 'google-github-actions/auth@v2.1.3'
         with:
           credentials_json: ${{ env.GKE_SA_KEY }}
 

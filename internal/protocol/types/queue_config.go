@@ -19,6 +19,7 @@ type QueueConfigInput struct {
 	MergePolicy                 string
 	MergeBatchSize              int32
 	PriorityComparatorClassName string `xml:"priority-comparator-class-name"`
+	UserCodeNamespace           string
 }
 
 // Default values are explicitly written for all fields that are not nullable

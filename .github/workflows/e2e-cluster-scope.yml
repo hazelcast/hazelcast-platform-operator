@@ -30,7 +30,7 @@ jobs:
 
       - name: Set Up Docker Buildx
         id: buildx
-        uses: docker/setup-buildx-action@v3.0.0
+        uses: docker/setup-buildx-action@v3.3.0
         with:
           install: true
 
@@ -59,7 +59,7 @@ jobs:
         run: |
           echo "IMG=${{ env.GAR_REGION }}-docker.pkg.dev/${{ env.GAR_PROJECT }}/${{ env.GAR_REPO }}/$(uuidgen):5d" >> $GITHUB_OUTPUT
       - name: Build Image
-        uses: docker/build-push-action@v5.1.0
+        uses: docker/build-push-action@v6.1.0
         with:
           context: .
           builder: ${{ steps.buildx.outputs.name }}
@@ -111,7 +111,7 @@ jobs:
           - role: worker
           EOT
       - name: Create Kind Cluster
-        uses: helm/kind-action@v1.8.0
+        uses: helm/kind-action@v1.10.0
         with:
           config: ./kind-config.yaml
           cluster_name: ${{ env.CLUSTER_NAME }}
@@ -163,10 +163,10 @@ jobs:
           command: |
             kubectl create namespace ${NAMESPACE}
             kubectl config set-context --current --namespace=$NAMESPACE
-            kubectl apply -f https://raw.githubusercontent.com/metallb/metallb/v0.13.7/config/manifests/metallb-native.yaml
+            kubectl apply -f https://raw.githubusercontent.com/metallb/metallb/v0.14.5/config/manifests/metallb-native.yaml
             kubectl wait --for=condition=ready --timeout=60s -n metallb-system pod -l app=metallb
-            HOST_MIN=$(docker network inspect -f '{{json .IPAM.Config}}' ${{ env.CLUSTER_NAME }} | jq -r '.[0].Subnet' |  sed  -n 's/.0.0.16/.255.200/p')
-            HOST_MAX=$(docker network inspect -f '{{json .IPAM.Config}}' ${{ env.CLUSTER_NAME }} | jq -r '.[0].Subnet' |  sed  -n 's/.0.0.16/.255.250/p')
+            HOST_MIN=$(docker network inspect -f '{{json .IPAM.Config}}' ${{ env.CLUSTER_NAME }} | jq -r '.[1].Subnet' |  sed  -n 's/.0.0.16/.255.200/p')
+            HOST_MAX=$(docker network inspect -f '{{json .IPAM.Config}}' ${{ env.CLUSTER_NAME }} | jq -r '.[1].Subnet' |  sed  -n 's/.0.0.16/.255.250/p')
             IP_RANGE=$HOST_MIN-$HOST_MAX
             
             cat <<EOF | kubectl apply -f -
@@ -243,7 +243,7 @@ jobs:
         id: e2e-test
         run: |
           if [ -n "${{ matrix.testSuiteLabel }}" ]; then
-            make test-e2e E2E_TEST_SUITE=${{ matrix.testSuiteLabel }} GO_TEST_FLAGS=-ee=true RELEASE_NAME=$RELEASE_NAME REPORT_SUFFIX=ee_01 WORKFLOW_ID=cluster_scope WATCHED_NAMESPACES=${{ matrix.watchedNS }} NAMESPACE=${{ env.NAMESPACE }}
+            make test-e2e E2E_TEST_LABELS=${{ matrix.testSuiteLabel }} GO_TEST_FLAGS=-ee=true RELEASE_NAME=$RELEASE_NAME REPORT_SUFFIX=ee_01 WORKFLOW_ID=cluster_scope WATCHED_NAMESPACES=${{ matrix.watchedNS }} NAMESPACE=${{ env.NAMESPACE }}
           else
             make test-e2e GO_TEST_FLAGS=-ee=true RELEASE_NAME=$RELEASE_NAME REPORT_SUFFIX=ee_02 WORKFLOW_ID=cluster_scope WATCHED_NAMESPACES=${{ matrix.watchedNS }} NAMESPACE=${{ env.NAMESPACE }}
           fi

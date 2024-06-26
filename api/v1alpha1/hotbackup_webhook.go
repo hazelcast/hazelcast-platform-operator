@@ -5,6 +5,7 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
+	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 )
 
 // log is for logging in this package.
@@ -24,24 +25,24 @@ func (r *HotBackup) SetupWebhookWithManager(mgr ctrl.Manager) error {
 var _ webhook.Validator = &HotBackup{}
 
 // ValidateCreate implements webhook.Validator so a webhook will be registered for the type
-func (r *HotBackup) ValidateCreate() error {
+func (r *HotBackup) ValidateCreate() (admission.Warnings, error) {
 	hotbackuplog.Info("validate create", "name", r.Name)
 
 	// TODO(user): fill in your validation logic upon object creation.
-	return nil
+	return admission.Warnings{}, nil
 }
 
 // ValidateUpdate implements webhook.Validator so a webhook will be registered for the type
-func (r *HotBackup) ValidateUpdate(old runtime.Object) error {
+func (r *HotBackup) ValidateUpdate(old runtime.Object) (admission.Warnings, error) {
 	hotbackuplog.Info("validate update", "name", r.Name)
 
 	// TODO(user): fill in your validation logic upon object update.
-	return nil
+	return admission.Warnings{}, nil
 }
 
 // ValidateDelete implements webhook.Validator so a webhook will be registered for the type
-func (r *HotBackup) ValidateDelete() error {
+func (r *HotBackup) ValidateDelete() (admission.Warnings, error) {
 	hotbackuplog.Info("validate delete", "name", r.Name)
 
-	return ValidateHotBackupIsNotReferencedByHazelcast(r)
+	return admission.Warnings{}, ValidateHotBackupIsNotReferencedByHazelcast(r)
 }

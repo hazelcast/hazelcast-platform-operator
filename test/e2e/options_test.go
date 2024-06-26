@@ -29,5 +29,5 @@ func init() {
 	flag.DurationVar(&interval, "interval", 100*time.Millisecond, "The length of time between checks")
 	flag.BoolVar(&ee, "ee", true, "Flag to define whether Enterprise edition of Hazelcast will be used")
 	flag.IntVar(&shards, "num-shards", 10, "Total number of shards")
-	rand.Seed(time.Now().UnixNano())
+	rand.Seed(time.Now().UnixNano()) //nolint:all
 }

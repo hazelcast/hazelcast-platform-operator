@@ -1,0 +1,9 @@
+apiVersion: hazelcast.com/v1alpha1
+kind: UserCodeNamespace
+metadata:
+  name: ucn-sample
+spec:
+  hazelcastResourceName: hazelcast
+  bucketConfig:
+    secretName: br-secret-gcp
+    bucketURI: "gs://operator-user-code/userCodeNamespace"

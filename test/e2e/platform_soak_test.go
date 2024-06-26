@@ -18,7 +18,7 @@ import (
 	"k8s.io/utils/pointer"
 )
 
-var _ = Describe("Platform Soak Tests", Group("soak"), func() {
+var _ = Describe("Platform Soak Tests", Label("soak"), func() {
 	AfterEach(func() {
 		GinkgoWriter.Printf("Aftereach start time is %v\n", Now().String())
 		if skipCleanup() {
@@ -32,7 +32,7 @@ var _ = Describe("Platform Soak Tests", Group("soak"), func() {
 		GinkgoWriter.Printf("Aftereach end time is %v\n", Now().String())
 	})
 
-	It("should upgrade HZ version after pause/resume with default partition count during 4 hours and keep 45 GB data", Serial, Tag(Slow|EE|AnyCloud), func() {
+	It("should upgrade HZ version after pause/resume with default partition count during 4 hours and keep 45 GB data", Serial, Tag(EE|AnyCloud), func() {
 		setLabelAndCRName("soak-1")
 		var pvcSizeInMb = 14500
 		var pauseBetweenFills = 4 * Minute
@@ -86,7 +86,7 @@ var _ = Describe("Platform Soak Tests", Group("soak"), func() {
 			Limits: map[corev1.ResourceName]resource.Quantity{
 				corev1.ResourceMemory: resource.MustParse(strconv.Itoa(pvcSizeInMb) + "Mi")},
 		}
-		hazelcast.Spec.Persistence.Pvc.RequestStorage = &[]resource.Quantity{resource.MustParse(strconv.Itoa(pvcSizeInMb) + "Mi")}[0]
+		hazelcast.Spec.Persistence.PVC.RequestStorage = &[]resource.Quantity{resource.MustParse(strconv.Itoa(pvcSizeInMb) + "Mi")}[0]
 		hazelcast.Spec.Persistence.ClusterDataRecoveryPolicy = hazelcastcomv1alpha1.MostRecent
 		CreateHazelcastCR(hazelcast)
 		evaluateReadyMembers(hzLookupKey)

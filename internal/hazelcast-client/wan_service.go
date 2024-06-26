@@ -16,15 +16,23 @@ type WanService interface {
 }
 
 type AddBatchPublisherRequest struct {
-	TargetCluster         string
-	Endpoints             string
-	QueueCapacity         int32
-	BatchSize             int32
-	BatchMaxDelayMillis   int32
-	ResponseTimeoutMillis int32
-	AckType               hazelcastv1alpha1.AcknowledgementType
-	QueueFullBehavior     hazelcastv1alpha1.FullBehaviorSetting
+	TargetCluster            string
+	Endpoints                string
+	QueueCapacity            int32
+	BatchSize                int32
+	BatchMaxDelayMillis      int32
+	ResponseTimeoutMillis    int32
+	AckType                  hazelcastv1alpha1.AcknowledgementType
+	QueueFullBehavior        hazelcastv1alpha1.FullBehaviorSetting
+	ConsistencyCheckStrategy ConsistencyCheckStrategy
 }
+
+type ConsistencyCheckStrategy byte
+
+const (
+	None ConsistencyCheckStrategy = iota
+	MerkleTrees
+)
 
 type HzWanService struct {
 	client      Client
@@ -53,6 +61,7 @@ func (ws *HzWanService) AddBatchPublisherConfig(ctx context.Context, request *Ad
 		request.ResponseTimeoutMillis,
 		convertAckType(request.AckType),
 		convertQueueBehavior(request.QueueFullBehavior),
+		byte(request.ConsistencyCheckStrategy),
 	)
 
 	_, err := ws.client.InvokeOnRandomTarget(ctx, req, nil)

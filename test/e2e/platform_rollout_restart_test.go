@@ -16,7 +16,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 )
 
-var _ = Describe("Platform Rollout Restart Tests", Group("rollout_restart"), func() {
+var _ = Describe("Platform Rollout Restart Tests", Label("rollout_restart"), func() {
 	AfterEach(func() {
 		GinkgoWriter.Printf("Aftereach start time is %v\n", Now().String())
 		if skipCleanup() {
@@ -31,7 +31,7 @@ var _ = Describe("Platform Rollout Restart Tests", Group("rollout_restart"), fun
 		GinkgoWriter.Printf("Aftereach end time is %v\n", Now().String())
 	})
 
-	It("should perform rollout restart with 14Gb data", Serial, Tag(Slow|EE|AnyCloud), func() {
+	It("should perform rollout restart with 14Gb data", Serial, Tag(EE|AnyCloud), func() {
 		setLabelAndCRName("hrr-1")
 		var mapSizeInMb = 500
 		var pvcSizeInMb = 14500
@@ -50,13 +50,13 @@ var _ = Describe("Platform Rollout Restart Tests", Group("rollout_restart"), fun
 			Limits: map[corev1.ResourceName]resource.Quantity{
 				corev1.ResourceMemory: resource.MustParse(strconv.Itoa(pvcSizeInMb) + "Mi")},
 		}
-		hazelcast.Spec.Persistence.Pvc.RequestStorage = &[]resource.Quantity{resource.MustParse(strconv.Itoa(pvcSizeInMb) + "Mi")}[0]
+		hazelcast.Spec.Persistence.PVC.RequestStorage = &[]resource.Quantity{resource.MustParse(strconv.Itoa(pvcSizeInMb) + "Mi")}[0]
 
 		CreateHazelcastCR(hazelcast)
 		evaluateReadyMembers(hzLookupKey)
 
-		By("create the map config and put entries")
-		ConcurrentlyCreateAndFillMultipleMapsByMb(ctx, numMaps, mapSizeInMb, hazelcast.Name, hazelcast)
+		By("creating the map config and putting entries")
+		ConcurrentlyCreateAndFillMultipleMapsByMb(numMaps, mapSizeInMb, hazelcast.Name, hazelcast)
 
 		By("making rollout StatefulSet restart")
 		err := RolloutRestart(ctx, hazelcast)

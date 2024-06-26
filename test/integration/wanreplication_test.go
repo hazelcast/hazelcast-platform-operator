@@ -30,7 +30,7 @@ var _ = Describe("WanReplication CR", func() {
 	})
 
 	Context("with default configuration", func() {
-		It("should create successfully", Label("fast"), func() {
+		It("should create successfully", func() {
 			wan := &hazelcastv1alpha1.WanReplication{
 				ObjectMeta: randomObjectMeta(namespace),
 				Spec: hazelcastv1alpha1.WanReplicationSpec{
@@ -57,7 +57,7 @@ var _ = Describe("WanReplication CR", func() {
 		})
 
 		When("applying empty spec", func() {
-			It("should fail to create", Label("fast"), func() {
+			It("should fail to create", func() {
 				wan := &hazelcastv1alpha1.WanReplication{
 					ObjectMeta: randomObjectMeta(namespace),
 				}
@@ -69,7 +69,7 @@ var _ = Describe("WanReplication CR", func() {
 
 	Context("with Endpoints value", func() {
 		When("endpoints are configured without port", func() {
-			It("should set default port to endpoints", Label("fast"), func() {
+			It("should set default port to endpoints", func() {
 				endpoints := "10.0.0.1,10.0.0.2,10.0.0.3"
 				wan := &hazelcastv1alpha1.WanReplication{
 					ObjectMeta: randomObjectMeta(namespace),
@@ -100,7 +100,7 @@ var _ = Describe("WanReplication CR", func() {
 
 	Context("webhook validation", func() {
 		When("updating unmodifiable fields", func() {
-			It("should not be allowed", Label("fast"), func() {
+			It("should not be allowed", func() {
 				spec := hazelcastv1alpha1.WanReplicationSpec{
 					Resources: []hazelcastv1alpha1.ResourceSpec{{
 						Name: "hazelcast",

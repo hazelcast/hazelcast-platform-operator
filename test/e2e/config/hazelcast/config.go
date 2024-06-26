@@ -157,12 +157,45 @@ var (
 				LoggingLevel:         hazelcastcomv1alpha1.LoggingLevelDebug,
 				Persistence: &hazelcastcomv1alpha1.HazelcastPersistenceConfiguration{
 					ClusterDataRecoveryPolicy: hazelcastcomv1alpha1.FullRecovery,
-					Pvc: &hazelcastcomv1alpha1.PersistencePvcConfiguration{
+					PVC: &hazelcastcomv1alpha1.PvcConfiguration{
 						AccessModes:    []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce},
 						RequestStorage: &[]resource.Quantity{resource.MustParse("8Gi")}[0],
 					},
 				},
 			},
+		}
+	}
+
+	CPSubsystem = func(clusterSize int32) hazelcastcomv1alpha1.HazelcastSpec {
+		return hazelcastcomv1alpha1.HazelcastSpec{
+			ClusterSize:          pointer.Int32(clusterSize),
+			Repository:           repo(true),
+			Version:              "5.5.0-SNAPSHOT",
+			LicenseKeySecretName: licenseKey(true),
+			LoggingLevel:         hazelcastcomv1alpha1.LoggingLevelDebug,
+			CPSubsystem: &hazelcastcomv1alpha1.CPSubsystem{
+				PVC: &hazelcastcomv1alpha1.PvcConfiguration{
+					AccessModes:    []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce},
+					RequestStorage: &[]resource.Quantity{resource.MustParse("8Gi")}[0],
+				},
+			},
+		}
+	}
+
+	CPSubsystemPersistence = func(clusterSize int32) hazelcastcomv1alpha1.HazelcastSpec {
+		return hazelcastcomv1alpha1.HazelcastSpec{
+			ClusterSize:          pointer.Int32(clusterSize),
+			Repository:           repo(true),
+			Version:              "5.5.0-SNAPSHOT",
+			LicenseKeySecretName: licenseKey(true),
+			LoggingLevel:         hazelcastcomv1alpha1.LoggingLevelDebug,
+			Persistence: &hazelcastcomv1alpha1.HazelcastPersistenceConfiguration{
+				PVC: &hazelcastcomv1alpha1.PvcConfiguration{
+					AccessModes:    []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce},
+					RequestStorage: &[]resource.Quantity{resource.MustParse("8Gi")}[0],
+				},
+			},
+			CPSubsystem: &hazelcastcomv1alpha1.CPSubsystem{},
 		}
 	}
 
@@ -191,7 +224,7 @@ var (
 				Repository:           repo(ee),
 				Version:              *hazelcastVersion,
 				LicenseKeySecretName: licenseKey(ee),
-				UserCodeDeployment: &hazelcastcomv1alpha1.UserCodeDeploymentConfig{
+				DeprecatedUserCodeDeployment: &hazelcastcomv1alpha1.UserCodeDeploymentConfig{
 					RemoteFileConfiguration: hazelcastcomv1alpha1.RemoteFileConfiguration{
 						BucketConfiguration: &hazelcastcomv1alpha1.BucketConfiguration{
 							SecretName: s,
@@ -301,7 +334,7 @@ var (
 				},
 				Persistence: &hazelcastcomv1alpha1.HazelcastPersistenceConfiguration{
 					ClusterDataRecoveryPolicy: hazelcastcomv1alpha1.FullRecovery,
-					Pvc: &hazelcastcomv1alpha1.PersistencePvcConfiguration{
+					PVC: &hazelcastcomv1alpha1.PvcConfiguration{
 						AccessModes:    []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce},
 						RequestStorage: resource.NewQuantity(9*2^20, resource.BinarySI),
 					},
@@ -333,7 +366,7 @@ var (
 				},
 				Persistence: &hazelcastcomv1alpha1.HazelcastPersistenceConfiguration{
 					ClusterDataRecoveryPolicy: hazelcastcomv1alpha1.FullRecovery,
-					Pvc: &hazelcastcomv1alpha1.PersistencePvcConfiguration{
+					PVC: &hazelcastcomv1alpha1.PvcConfiguration{
 						AccessModes:    []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce},
 						RequestStorage: resource.NewQuantity(9*2^20, resource.BinarySI),
 					},
@@ -357,7 +390,7 @@ var (
 				Repository:           repo(ee),
 				Version:              *hazelcastVersion,
 				LicenseKeySecretName: licenseKey(ee),
-				UserCodeDeployment: &hazelcastcomv1alpha1.UserCodeDeploymentConfig{
+				DeprecatedUserCodeDeployment: &hazelcastcomv1alpha1.UserCodeDeploymentConfig{
 					RemoteFileConfiguration: hazelcastcomv1alpha1.RemoteFileConfiguration{
 						RemoteURLs: urls,
 					},
@@ -461,7 +494,7 @@ var (
 				LicenseKeySecretName: licenseKey(true),
 				Persistence: &hazelcastcomv1alpha1.HazelcastPersistenceConfiguration{
 					ClusterDataRecoveryPolicy: hazelcastcomv1alpha1.FullRecovery,
-					Pvc: &hazelcastcomv1alpha1.PersistencePvcConfiguration{
+					PVC: &hazelcastcomv1alpha1.PvcConfiguration{
 						AccessModes:    []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce},
 						RequestStorage: &[]resource.Quantity{resource.MustParse("8Gi")}[0],
 					},
@@ -608,6 +641,25 @@ var (
 					HazelcastResourceName: hzName,
 				},
 				EventJournal: &hazelcastcomv1alpha1.EventJournal{},
+			},
+		}
+	}
+
+	DefaultTieredStoreMap = func(lk types.NamespacedName, hzName string, deviceName string, lbls map[string]string) *hazelcastcomv1alpha1.Map {
+		return &hazelcastcomv1alpha1.Map{
+			ObjectMeta: v1.ObjectMeta{
+				Name:      lk.Name,
+				Namespace: lk.Namespace,
+				Labels:    lbls,
+			},
+			Spec: hazelcastcomv1alpha1.MapSpec{
+				DataStructureSpec: hazelcastcomv1alpha1.DataStructureSpec{
+					HazelcastResourceName: hzName,
+				},
+				InMemoryFormat: hazelcastcomv1alpha1.InMemoryFormatNative,
+				TieredStore: &hazelcastcomv1alpha1.TieredStore{
+					DiskDeviceName: deviceName,
+				},
 			},
 		}
 	}
@@ -860,6 +912,45 @@ var (
 				corev1.TLSCertKey:       []byte(ExampleCert),
 				corev1.TLSPrivateKeyKey: []byte(ExampleKey),
 			},
+		}
+	}
+
+	HazelcastTieredStorage = func(lk types.NamespacedName, deviceName string, labels map[string]string) *hazelcastcomv1alpha1.Hazelcast {
+		return &hazelcastcomv1alpha1.Hazelcast{
+			ObjectMeta: v1.ObjectMeta{
+				Name:      lk.Name,
+				Namespace: lk.Namespace,
+				Labels:    labels,
+			},
+			Spec: hazelcastcomv1alpha1.HazelcastSpec{
+				ClusterSize:          pointer.Int32(3),
+				Repository:           repo(true),
+				Version:              *hazelcastVersion,
+				LicenseKeySecretName: licenseKey(true),
+				LoggingLevel:         hazelcastcomv1alpha1.LoggingLevelDebug,
+				NativeMemory: &hazelcastcomv1alpha1.NativeMemoryConfiguration{
+					AllocatorType: hazelcastcomv1alpha1.NativeMemoryStandard,
+				},
+				LocalDevices: []hazelcastcomv1alpha1.LocalDeviceConfig{
+					{
+						Name: deviceName,
+						PVC: &hazelcastcomv1alpha1.PvcConfiguration{
+							AccessModes: []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce},
+						},
+					},
+				},
+			},
+		}
+	}
+
+	UserCodeNamespace = func(ucns hazelcastcomv1alpha1.UserCodeNamespaceSpec, lk types.NamespacedName, lbls map[string]string) *hazelcastcomv1alpha1.UserCodeNamespace {
+		return &hazelcastcomv1alpha1.UserCodeNamespace{
+			ObjectMeta: v1.ObjectMeta{
+				Name:      lk.Name,
+				Namespace: lk.Namespace,
+				Labels:    lbls,
+			},
+			Spec: ucns,
 		}
 	}
 )

@@ -40,7 +40,7 @@ var _ = Describe("Map CR", func() {
 	})
 
 	Context("with default configuration", func() {
-		It("should create successfully", Label("fast"), func() {
+		It("should create successfully", func() {
 			m := &hazelcastv1alpha1.Map{
 				ObjectMeta: randomObjectMeta(namespace),
 				Spec: hazelcastv1alpha1.MapSpec{
@@ -70,7 +70,7 @@ var _ = Describe("Map CR", func() {
 		})
 
 		When("applying empty spec", func() {
-			It("should fail to create", Label("fast"), func() {
+			It("should fail to create", func() {
 				m := &hazelcastv1alpha1.Map{
 					ObjectMeta: randomObjectMeta(namespace),
 				}
@@ -83,7 +83,7 @@ var _ = Describe("Map CR", func() {
 
 	Context("with BackupCount value", func() {
 		When("updating BackupCount", func() {
-			It("should fail to update", Label("fast"), func() {
+			It("should fail to update", func() {
 				m := mapOf(hazelcastv1alpha1.MapSpec{
 					DataStructureSpec: hazelcastv1alpha1.DataStructureSpec{
 						HazelcastResourceName: "hazelcast",
@@ -112,7 +112,7 @@ var _ = Describe("Map CR", func() {
 	})
 
 	When("applying spec with backupCount and/or asyncBackupCount", func() {
-		It("should be successfully with both values under 6", Label("fast"), func() {
+		It("should be successfully with both values under 6", func() {
 			m := &hazelcastv1alpha1.Map{
 				ObjectMeta: randomObjectMeta(namespace),
 				Spec: hazelcastv1alpha1.MapSpec{
@@ -126,7 +126,7 @@ var _ = Describe("Map CR", func() {
 			Expect(k8sClient.Create(context.Background(), m)).Should(Succeed())
 		})
 
-		It("should error with backupCount over 6", Label("fast"), func() {
+		It("should error with backupCount over 6", func() {
 			m := &hazelcastv1alpha1.Map{
 				ObjectMeta: randomObjectMeta(namespace),
 				Spec: hazelcastv1alpha1.MapSpec{
@@ -139,7 +139,7 @@ var _ = Describe("Map CR", func() {
 			Expect(k8sClient.Create(context.Background(), m)).ShouldNot(Succeed())
 		})
 
-		It("should error with asyncBackupCount over 6", Label("fast"), func() {
+		It("should error with asyncBackupCount over 6", func() {
 			m := &hazelcastv1alpha1.Map{
 				ObjectMeta: randomObjectMeta(namespace),
 				Spec: hazelcastv1alpha1.MapSpec{
@@ -152,7 +152,7 @@ var _ = Describe("Map CR", func() {
 			Expect(k8sClient.Create(context.Background(), m)).ShouldNot(Succeed())
 		})
 
-		It("should error with sum of two values over 6", Label("fast"), func() {
+		It("should error with sum of two values over 6", func() {
 			m := &hazelcastv1alpha1.Map{
 				ObjectMeta: randomObjectMeta(namespace),
 				Spec: hazelcastv1alpha1.MapSpec{
@@ -168,7 +168,7 @@ var _ = Describe("Map CR", func() {
 	})
 
 	Context("with InMemoryFormat value", func() {
-		It("should create successfully with NativeMemory", Label("fast"), func() {
+		It("should create successfully with NativeMemory", func() {
 			m := &hazelcastv1alpha1.Map{
 				ObjectMeta: randomObjectMeta(namespace),
 				Spec: hazelcastv1alpha1.MapSpec{
@@ -188,7 +188,7 @@ var _ = Describe("Map CR", func() {
 	})
 
 	Context("with NearCache configuration", func() {
-		It("should not fail with empty near cache configuration", Label("fast"), func() {
+		It("should not fail with empty near cache configuration", func() {
 			m := &hazelcastv1alpha1.Map{
 				ObjectMeta: randomObjectMeta(namespace),
 				Spec: hazelcastv1alpha1.MapSpec{
@@ -202,7 +202,7 @@ var _ = Describe("Map CR", func() {
 			Expect(k8sClient.Create(context.Background(), m)).Should(Succeed())
 		})
 
-		It("should create Map CR with near cache configuration", Label("fast"), func() {
+		It("should create Map CR with near cache configuration", func() {
 			m := &hazelcastv1alpha1.Map{
 				ObjectMeta: randomObjectMeta(namespace),
 				Spec: hazelcastv1alpha1.MapSpec{
@@ -254,7 +254,7 @@ var _ = Describe("Map CR", func() {
 	})
 
 	Context("with EventJournal configuration", func() {
-		It("should create Map CR with eventJournal configuration", Label("fast"), func() {
+		It("should create Map CR with eventJournal configuration", func() {
 			m := &hazelcastv1alpha1.Map{
 				ObjectMeta: randomObjectMeta(namespace),
 				Spec: hazelcastv1alpha1.MapSpec{
@@ -278,7 +278,7 @@ var _ = Describe("Map CR", func() {
 			Expect(ms.EventJournal.TimeToLiveSeconds).To(Equal(int32(30)))
 		})
 
-		It("should fail to update", Label("fast"), func() {
+		It("should fail to update", func() {
 			m := mapOf(hazelcastv1alpha1.MapSpec{
 				DataStructureSpec: hazelcastv1alpha1.DataStructureSpec{
 					HazelcastResourceName: "hazelcast",

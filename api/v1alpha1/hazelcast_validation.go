@@ -9,9 +9,11 @@ import (
 	"sort"
 	"strings"
 
+	"gopkg.in/yaml.v3"
 	corev1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/utils/pointer"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/hazelcast/hazelcast-platform-operator/internal/kubeclient"
@@ -34,12 +36,12 @@ type hazelcastValidator struct {
 	fieldValidator
 }
 
-func NewHazelcastValidator(o client.Object) hazelcastValidator {
+func newHazelcastValidator(o client.Object) hazelcastValidator {
 	return hazelcastValidator{NewFieldValidator(o)}
 }
 
 func ValidateHazelcastSpec(h *Hazelcast) error {
-	v := NewHazelcastValidator(h)
+	v := newHazelcastValidator(h)
 	v.validateSpecCurrent(h)
 	v.validateSpecUpdate(h)
 	return v.Err()
@@ -58,6 +60,8 @@ func (v *hazelcastValidator) validateSpecCurrent(h *Hazelcast) {
 	v.validateCustomConfig(h)
 	v.validateNativeMemory(h)
 	v.validateSQL(h)
+	v.validateTieredStorage(h)
+	v.validateCPSubsystem(h)
 }
 
 func (v *hazelcastValidator) validateSpecUpdate(h *Hazelcast) {
@@ -73,6 +77,10 @@ func (v *hazelcastValidator) validateSpecUpdate(h *Hazelcast) {
 	}
 
 	v.validateNotUpdatableHazelcastFields(&h.Spec, &parsed)
+
+	if h.Spec.CPSubsystem.IsEnabled() && isScaledNotPaused(&h.Spec, &parsed) && !isRevertedToOldSize(h) {
+		v.Forbidden(Path("spec", "clusterSize"), "dynamic scaling not permitted when CP is enabled")
+	}
 }
 
 func (v *hazelcastValidator) validateMetadata(h *Hazelcast) {
@@ -122,8 +130,19 @@ func (v *hazelcastValidator) validateCustomConfig(h *Hazelcast) {
 		var cm corev1.ConfigMap
 		err := kubeclient.Get(context.Background(), cmName, &cm)
 		if kerrors.IsNotFound(err) {
-			// we care only about not found error
 			v.NotFound(Path("spec", "customConfigCmName"), "ConfigMap for Hazelcast custom configs not found")
+			return
+		}
+
+		// skip if the validation if the error is not nil
+		if err != nil {
+			return
+		}
+
+		if config, ok := cm.Data[n.HazelcastCustomConfigKey]; !ok {
+			v.NotFound(Path("spec", "customConfigCmName"), fmt.Sprintf("ConfigMap for Hazelcast custom configs must contain '%s' key", n.HazelcastCustomConfigKey))
+		} else if err := yaml.Unmarshal([]byte(config), make(map[string]interface{})); err != nil {
+			v.NotFound(Path("spec", "customConfigCmName"), "ConfigMap for Hazelcast custom configs is not a valid yaml")
 		}
 	}
 }
@@ -200,16 +219,31 @@ func (v *hazelcastValidator) validatePersistence(h *Hazelcast) {
 		return
 	}
 
-	if p.Pvc == nil {
+	if p.PVC == nil {
 		v.Required(Path("spec", "persistence", "pvc"), "must be set when persistence is enabled")
 	} else {
-		if p.Pvc.AccessModes == nil {
+		if p.PVC.AccessModes == nil {
 			v.Required(Path("spec", "persistence", "pvc", "accessModes"), "must be set when persistence is enabled")
 		}
 	}
 
 	if p.StartupAction == PartialStart && p.ClusterDataRecoveryPolicy == FullRecovery {
 		v.Forbidden(Path("spec", "persistence", "startupAction"), "PartialStart can be used only with Partial clusterDataRecoveryPolicy")
+	}
+
+	if p.IsRestoreEnabled() && p.Restore.HotBackupResourceName != "" {
+		// make sure hot-backup exists
+		hbName := types.NamespacedName{
+			Name:      p.Restore.HotBackupResourceName,
+			Namespace: h.Namespace,
+		}
+
+		var hb HotBackup
+		err := kubeclient.Get(context.Background(), hbName, &hb)
+		if kerrors.IsNotFound(err) {
+			// we care only about not found error
+			v.NotFound(Path("spec", "persistence", "restore", "hotBackupResourceName"), fmt.Sprintf("There is not hot backup found with name %s", p.Restore.HotBackupResourceName))
+		}
 	}
 }
 
@@ -345,6 +379,7 @@ func (v *hazelcastValidator) validateNotUpdatableHazelcastFields(current *Hazelc
 
 	v.validateNotUpdatableHzPersistenceFields(current.Persistence, last.Persistence)
 	v.validateNotUpdatableSQLFields(current.SQL, last.SQL)
+	v.validateNotUpdatableCPFields(current.CPSubsystem, last.CPSubsystem)
 }
 
 func (v *hazelcastValidator) validateNotUpdatableHzPersistenceFields(current, last *HazelcastPersistenceConfiguration) {
@@ -360,11 +395,29 @@ func (v *hazelcastValidator) validateNotUpdatableHzPersistenceFields(current, la
 		v.Forbidden(Path("spec", "persistence"), "field cannot be disabled after creation")
 		return
 	}
-	if !reflect.DeepEqual(current.Pvc, last.Pvc) {
+	if !reflect.DeepEqual(current.PVC, last.PVC) {
 		v.Forbidden(Path("spec", "persistence", "pvc"), "field cannot be updated")
 	}
-	if current.Restore != last.Restore {
+	if !reflect.DeepEqual(current.Restore, last.Restore) {
 		v.Forbidden(Path("spec", "persistence", "restore"), "field cannot be updated")
+	}
+}
+
+func (v *hazelcastValidator) validateNotUpdatableCPFields(current, last *CPSubsystem) {
+	if current == nil && last == nil {
+		return
+	}
+
+	if current == nil && last != nil {
+		v.Forbidden(Path("spec", "cpSubsystem"), "field cannot be enabled after creation")
+		return
+	}
+	if current != nil && last == nil {
+		v.Forbidden(Path("spec", "cpSubsystem"), "field cannot be disabled after creation")
+		return
+	}
+	if !reflect.DeepEqual(current.PVC, last.PVC) {
+		v.Forbidden(Path("spec", "cpSubsystem", "pvc"), "field cannot be updated")
 	}
 }
 
@@ -426,4 +479,73 @@ func (v *hazelcastValidator) validateSQL(h *Hazelcast) {
 	if h.Spec.SQL.CatalogPersistenceEnabled && !h.Spec.Persistence.IsEnabled() {
 		v.Forbidden(Path("spec", "sql", "catalogPersistence"), "catalogPersistence requires Hazelcast persistence enabled")
 	}
+}
+
+func (v *hazelcastValidator) validateTieredStorage(h *Hazelcast) {
+	// skip validation if LocalDevice is not set
+	if !h.Spec.IsTieredStorageEnabled() {
+		return
+	}
+	lds := h.Spec.LocalDevices
+
+	if h.Spec.GetLicenseKeySecretName() == "" {
+		v.Required(Path("spec", "localDevices"), "Hazelcast Tiered Storage requires enterprise version")
+	}
+
+	if !h.Spec.NativeMemory.IsEnabled() {
+		v.Required(Path("spec", "nativeMemory"), "Native Memory must be enabled at Hazelcast when Tiered Storage is enabled")
+	}
+	for _, ld := range lds {
+		v.validateLocalDevice(ld)
+	}
+}
+
+func (v *hazelcastValidator) validateLocalDevice(ld LocalDeviceConfig) {
+	if ld.PVC == nil {
+		v.Required(Path("spec", "localDevices", "pvc"), "must be set when LocalDevice is defined")
+		return
+	}
+	if ld.PVC.AccessModes == nil {
+		v.Required(Path("spec", "localDevices", "pvc", "accessModes"), "must be set when LocalDevice is defined")
+	}
+}
+
+func (v *hazelcastValidator) validateCPSubsystem(h *Hazelcast) {
+	if h.Spec.CPSubsystem == nil {
+		return
+	}
+
+	cp := h.Spec.CPSubsystem
+	memberSize := pointer.Int32Deref(h.Spec.ClusterSize, 3)
+	if memberSize != 0 && memberSize != 3 && memberSize != 5 && memberSize != 7 {
+		v.Invalid(Path("spec", "clusterSize"), h.Spec.ClusterSize, "cluster with CP Subsystem enabled can have 3, 5, or 7 members")
+	}
+
+	if cp.PVC == nil && (!h.Spec.Persistence.IsEnabled() || h.Spec.Persistence.PVC == nil) {
+		v.Required(Path("spec", "cpSubsystem", "pvc"), "PVC should be configured")
+	}
+	v.validateSessionTTLSeconds(h.Spec.CPSubsystem)
+}
+
+func (v *hazelcastValidator) validateSessionTTLSeconds(cp *CPSubsystem) {
+	ttl := pointer.Int32Deref(cp.SessionTTLSeconds, 300)
+	heartbeat := pointer.Int32Deref(cp.SessionHeartbeatIntervalSeconds, 5)
+	autoremoval := pointer.Int32Deref(cp.MissingCpMemberAutoRemovalSeconds, 14400)
+	if ttl <= heartbeat {
+		v.Invalid(Path("spec", "cpSubsystem", "sessionTTLSeconds"), ttl, "must be greater than sessionHeartbeatIntervalSeconds")
+	}
+	if autoremoval != 0 && ttl > autoremoval {
+		v.Invalid(Path("spec", "cpSubsystem", "sessionTTLSeconds"), ttl, "must be smaller than or equal to missingCpMemberAutoRemovalSeconds")
+	}
+}
+
+func isScaledNotPaused(current *HazelcastSpec, last *HazelcastSpec) bool {
+	newSize := pointer.Int32Deref(current.ClusterSize, 3)
+	oldSize := pointer.Int32Deref(last.ClusterSize, 3)
+	return newSize != 0 && oldSize != 0 && newSize != oldSize
+}
+
+func isRevertedToOldSize(h *Hazelcast) bool {
+	newSize := pointer.Int32Deref(h.Spec.ClusterSize, 3)
+	return newSize == h.Status.ClusterSize
 }

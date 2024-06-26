@@ -3,8 +3,7 @@ apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    controller-gen.kubebuilder.io/version: v0.10.0
-  creationTimestamp: null
+    controller-gen.kubebuilder.io/version: v0.13.0
   name: wanreplications.hazelcast.com
 spec:
   group: hazelcast.com
@@ -138,6 +137,10 @@ spec:
                   type: object
                 minItems: 1
                 type: array
+              syncConsistencyCheckStrategy:
+                description: SyncConsistencyCheckStrategy is the strategy for checking
+                  the consistency of data between replicas.
+                type: string
               targetClusterName:
                 description: ClusterName is the clusterName field of the target Hazelcast
                   resource.

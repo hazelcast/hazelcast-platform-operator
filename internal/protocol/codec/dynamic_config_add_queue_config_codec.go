@@ -18,6 +18,7 @@ package codec
 
 import (
 	proto "github.com/hazelcast/hazelcast-go-client"
+
 	"github.com/hazelcast/hazelcast-platform-operator/internal/protocol/types"
 )
 
@@ -59,6 +60,7 @@ func EncodeDynamicConfigAddQueueConfigRequest(input *types.QueueConfigInput) *pr
 	EncodeNullableForQueueStoreConfigHolder(clientMessage, input.QueueStoreConfig)
 	EncodeString(clientMessage, input.MergePolicy)
 	EncodeNullableForString(clientMessage, input.PriorityComparatorClassName)
+	EncodeNullableForString(clientMessage, input.UserCodeNamespace)
 
 	return clientMessage
 }

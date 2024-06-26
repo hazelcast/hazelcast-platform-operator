@@ -50,7 +50,7 @@ var _ = Describe("Management-Center", Group("mc"), func() {
 	}
 
 	Context("ManagementCenter creation", func() {
-		It("should create ManagementCenter resources", Tag(Fast|Any), func() {
+		It("should create ManagementCenter resources", Tag(Kind|Any), func() {
 			setLabelAndCRName("mc-1")
 			mc := mcconfig.Default(mcLookupKey, ee, labels)
 			mc.Spec.Resources = &corev1.ResourceRequirements{
@@ -83,7 +83,7 @@ var _ = Describe("Management-Center", Group("mc"), func() {
 			})
 		})
 
-		It("should create ManagementCenter resources and no PVC", Tag(Fast|Any), func() {
+		It("should create ManagementCenter resources and no PVC", Tag(Kind|Any), func() {
 			setLabelAndCRName("mc-2")
 			mc := mcconfig.PersistenceDisabled(mcLookupKey, ee, labels)
 			mc.Spec.Resources = &corev1.ResourceRequirements{
@@ -114,7 +114,7 @@ var _ = Describe("Management-Center", Group("mc"), func() {
 			Expect(mc.Status.Message).Should(Not(BeEmpty()))
 		}
 
-		It("should be reflected to Management CR status", Tag(Fast|Any), func() {
+		It("should be reflected to Management CR status", Tag(Kind|Any), func() {
 			setLabelAndCRName("mc-3")
 			createWithoutCheck(mcconfig.Faulty(mcLookupKey, ee, labels))
 			assertStatusEventually(hazelcastcomv1alpha1.McFailed)
@@ -122,7 +122,7 @@ var _ = Describe("Management-Center", Group("mc"), func() {
 	})
 
 	Context("ManagementCenter CR with Route", func() {
-		It("should be able to access route in Openshift env.", Tag(Fast|AnyLicense|OCP), func() {
+		It("should be able to access route in Openshift env.", Tag(AnyLicense|OCP), func() {
 			setLabelAndCRName("mc-4")
 			mc := mcconfig.RouteEnabled(mcLookupKey, ee, labels)
 			create(mc)

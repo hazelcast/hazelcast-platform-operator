@@ -334,6 +334,14 @@ func DecodeUUID(buffer []byte, offset int32) clientTypes.UUID {
 	return clientTypes.NewUUIDWith(mostSignificant, leastSignificant)
 }
 
+func EncodeNullableForByteArray(message *proto.ClientMessage, data []byte) {
+	if len(data) == 0 {
+		message.AddFrame(proto.NullFrame.Copy())
+	} else {
+		EncodeByteArray(message, data)
+	}
+}
+
 func EncodeByteArray(message *proto.ClientMessage, value []byte) {
 	message.AddFrame(proto.NewFrame(value))
 }

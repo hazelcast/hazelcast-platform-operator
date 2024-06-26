@@ -13,11 +13,10 @@ import (
 	. "github.com/onsi/gomega"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
-	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/utils/pointer"
 )
 
-var _ = Describe("Platform Rolling UpgradeTests", Group("rolling_upgrade"), func() {
+var _ = Describe("Platform Rolling UpgradeTests", Label("rolling_upgrade"), func() {
 	AfterEach(func() {
 		GinkgoWriter.Printf("Aftereach start time is %v\n", Now().String())
 		if skipCleanup() {
@@ -32,7 +31,7 @@ var _ = Describe("Platform Rolling UpgradeTests", Group("rolling_upgrade"), func
 		GinkgoWriter.Printf("Aftereach end time is %v\n", Now().String())
 	})
 
-	It("should upgrade HZ version after pause/resume with 7999 partition count", Serial, Tag(Slow|EE|AnyCloud), func() {
+	It("should upgrade HZ version after pause/resume with 7999 partition count", Serial, Tag(EE|AnyCloud), func() {
 		setLabelAndCRName("hra-1")
 		var mapSizeInMb = 500
 		var pvcSizeInMb = 14500
@@ -84,15 +83,14 @@ var _ = Describe("Platform Rolling UpgradeTests", Group("rolling_upgrade"), func
 			Limits: map[corev1.ResourceName]resource.Quantity{
 				corev1.ResourceMemory: resource.MustParse(strconv.Itoa(pvcSizeInMb) + "Mi")},
 		}
-		hazelcast.Spec.Persistence.Pvc.RequestStorage = &[]resource.Quantity{resource.MustParse(strconv.Itoa(pvcSizeInMb) + "Mi")}[0]
+		hazelcast.Spec.Persistence.PVC.RequestStorage = &[]resource.Quantity{resource.MustParse(strconv.Itoa(pvcSizeInMb) + "Mi")}[0]
 		hazelcast.Spec.Persistence.ClusterDataRecoveryPolicy = hazelcastcomv1alpha1.MostRecent
 
 		CreateHazelcastCR(hazelcast)
 		evaluateReadyMembers(hzLookupKey)
 
-		By("create the map config and put the entries")
-
-		ConcurrentlyCreateAndFillMultipleMapsByMb(ctx, numMaps, mapSizeInMb, hazelcast.Name, hazelcast)
+		By("creating the map config and putting entries")
+		ConcurrentlyCreateAndFillMultipleMapsByMb(numMaps, mapSizeInMb, hazelcast.Name, hazelcast)
 
 		By("pause Hazelcast")
 		UpdateHazelcastCR(hazelcast, func(hazelcast *hazelcastcomv1alpha1.Hazelcast) *hazelcastcomv1alpha1.Hazelcast {
@@ -124,9 +122,7 @@ var _ = Describe("Platform Rolling UpgradeTests", Group("rolling_upgrade"), func
 
 		By("checking map size after pause and resume")
 		for i := 0; i < numMaps; i++ {
-			m := hazelcastconfig.DefaultMap(types.NamespacedName{Name: fmt.Sprintf("map-%d-%s", i, hazelcast.Name), Namespace: hazelcast.Namespace}, hazelcast.Name, labels)
-			m.Spec.HazelcastResourceName = hazelcast.Name
-			WaitForMapSize(ctx, hzLookupKey, m.MapName(), expectedMapSize, 5*Minute)
+			WaitForMapSize(context.Background(), hzLookupKey, fmt.Sprintf("map-%d-%s", i, hazelcast.Name), expectedMapSize, 10*Minute)
 		}
 	})
 })

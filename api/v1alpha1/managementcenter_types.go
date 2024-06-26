@@ -16,7 +16,7 @@ type ManagementCenterSpec struct {
 	Repository string `json:"repository,omitempty"`
 
 	// Version of Management Center.
-	// +kubebuilder:default:="5.3.3"
+	// +kubebuilder:default:="5.4.1"
 	// +optional
 	Version string `json:"version,omitempty"`
 
@@ -152,7 +152,6 @@ type HazelcastClusterConfig struct {
 	Address string `json:"address"`
 
 	// TLS client configuration.
-	// +kubebuilder:default:={}
 	// +optional
 	TLS *TLS `json:"tls,omitempty"`
 }

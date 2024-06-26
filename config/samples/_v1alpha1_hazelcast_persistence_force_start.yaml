@@ -7,7 +7,6 @@ spec:
   repository: 'docker.io/hazelcast/hazelcast-enterprise'
   licenseKeySecretName: hazelcast-license-key
   persistence:
-    baseDir: "/data/hot-restart/"
     clusterDataRecoveryPolicy: "FullRecoveryOnly"
     pvc:
       accessModes: ["ReadWriteOnce"]

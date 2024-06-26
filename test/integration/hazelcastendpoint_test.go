@@ -153,7 +153,7 @@ var _ = Describe("HazelcastEndpoint CR", func() {
 	})
 
 	Context("Hazelcast which doesn't expose any external endpoints", func() {
-		It("should not create HazelcastEndpoints", Label("fast"), func() {
+		It("should not create HazelcastEndpoints", func() {
 			hz := &hazelcastv1alpha1.Hazelcast{
 				ObjectMeta: randomObjectMeta(namespace),
 				Spec:       test.HazelcastSpec(defaultHazelcastSpecValues(), ee),
@@ -168,7 +168,7 @@ var _ = Describe("HazelcastEndpoint CR", func() {
 
 	Context("Hazelcast that exposes external endpoints", func() {
 		When("creating Hazelcast with expose externally enabled", func() {
-			It("should create HazelcastEndpoint with Discovery type when Hazelcast is exposed via Unisocket and LoadBalancer", Label("fast"), func() {
+			It("should create HazelcastEndpoint with Discovery type when Hazelcast is exposed via Unisocket and LoadBalancer", func() {
 				hz := &hazelcastv1alpha1.Hazelcast{
 					ObjectMeta: randomObjectMeta(namespace),
 					Spec:       test.HazelcastSpec(defaultHazelcastSpecValues(), ee),
@@ -189,7 +189,7 @@ var _ = Describe("HazelcastEndpoint CR", func() {
 				expectAddressesInHazelcastEndpointsMatchWithServices(hzEndpoints, services)
 			})
 
-			It("should create HazelcastEndpoint with Discovery type when Hazelcast is exposed via Unisocket and NodePort", Label("fast"), func() {
+			It("should create HazelcastEndpoint with Discovery type when Hazelcast is exposed via Unisocket and NodePort", func() {
 				hz := &hazelcastv1alpha1.Hazelcast{
 					ObjectMeta: randomObjectMeta(namespace),
 					Spec:       test.HazelcastSpec(defaultHazelcastSpecValues(), ee),
@@ -210,7 +210,7 @@ var _ = Describe("HazelcastEndpoint CR", func() {
 				expectHazelcastEndpointHasNodeAddress(ctx, hzEndpoints, 10*time.Second)
 			})
 
-			It("should create HazelcastEndpoint with Discovery type when Hazelcast is exposed via Smart", Label("fast"), func() {
+			It("should create HazelcastEndpoint with Discovery type when Hazelcast is exposed via Smart", func() {
 				hz := &hazelcastv1alpha1.Hazelcast{
 					ObjectMeta: randomObjectMeta(namespace),
 					Spec:       test.HazelcastSpec(defaultHazelcastSpecValues(), ee),
@@ -232,7 +232,7 @@ var _ = Describe("HazelcastEndpoint CR", func() {
 				expectAddressesInHazelcastEndpointsMatchWithServices(hzEndpoints, services)
 			})
 
-			It("should create HazelcastEndpoint with Discovery and Member type when per member is exposed using LoadBalancer", Label("fast"), func() {
+			It("should create HazelcastEndpoint with Discovery and Member type when per member is exposed using LoadBalancer", func() {
 				hz := &hazelcastv1alpha1.Hazelcast{
 					ObjectMeta: randomObjectMeta(namespace),
 					Spec:       test.HazelcastSpec(defaultHazelcastSpecValues(), ee),
@@ -254,7 +254,7 @@ var _ = Describe("HazelcastEndpoint CR", func() {
 				expectAddressesInHazelcastEndpointsMatchWithServices(hzEndpoints, services)
 			})
 
-			It("should create HazelcastEndpoint with Discovery and Member type when per member is exposed using NodePort", Label("fast"), func() {
+			It("should create HazelcastEndpoint with Discovery and Member type when per member is exposed using NodePort", func() {
 				hz := &hazelcastv1alpha1.Hazelcast{
 					ObjectMeta: randomObjectMeta(namespace),
 					Spec:       test.HazelcastSpec(defaultHazelcastSpecValues(), ee),
@@ -278,7 +278,7 @@ var _ = Describe("HazelcastEndpoint CR", func() {
 		})
 
 		When("creating Hazelcast with WAN", func() {
-			It("should create HazelcastEndpoint with WAN type", Label("fast"), func() {
+			It("should create HazelcastEndpoint with WAN type", func() {
 				hz := &hazelcastv1alpha1.Hazelcast{
 					ObjectMeta: randomObjectMeta(namespace),
 					Spec:       test.HazelcastSpec(defaultHazelcastSpecValues(), ee),
@@ -321,7 +321,7 @@ var _ = Describe("HazelcastEndpoint CR", func() {
 	})
 
 	When("Hazelcast is updated in a way that the exposeExternally is disabled", func() {
-		It("should delete the leftover resources", Label("fast"), func() {
+		It("should delete the leftover resources", func() {
 			hz := &hazelcastv1alpha1.Hazelcast{
 				ObjectMeta: randomObjectMeta(namespace),
 				Spec:       test.HazelcastSpec(defaultHazelcastSpecValues(), ee),
@@ -353,7 +353,7 @@ var _ = Describe("HazelcastEndpoint CR", func() {
 	})
 
 	When("HazelcastEndpoint spec is updated", func() {
-		It("should fail", Label("fast"), func() {
+		It("should fail", func() {
 			hz := &hazelcastv1alpha1.Hazelcast{
 				ObjectMeta: randomObjectMeta(namespace),
 				Spec:       test.HazelcastSpec(defaultHazelcastSpecValues(), ee),

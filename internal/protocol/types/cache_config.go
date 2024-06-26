@@ -35,6 +35,7 @@ type CacheConfigInput struct {
 	HotRestartConfig                  HotRestartConfig
 	MerkleTreeConfig                  MerkleTreeConfig
 	DataPersistenceConfig             DataPersistenceConfig
+	UserCodeNamespace                 string
 }
 
 // Default values are explicitly written for all fields that are not nullable

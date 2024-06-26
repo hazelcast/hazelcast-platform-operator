@@ -6,13 +6,13 @@ on:
       - labeled
     branches:
       - main
-      - 'release/**'
+      - "release/**"
     paths-ignore:
       - "**.md"
   pull_request:
     branches:
       - main
-      - 'release/**'
+      - "release/**"
     paths-ignore:
       - "**.md"
 
@@ -45,7 +45,7 @@ jobs:
           go-version: ${{ env.GO_VERSION }}
 
       - name: Run golangci-lint
-        uses: golangci/golangci-lint-action@v3.7.0
+        uses: golangci/golangci-lint-action@v6.0.1
         if: ${{ !cancelled() }}
         with:
           args: --timeout 5m --build-tags hazelcastinternal
@@ -111,6 +111,28 @@ jobs:
       - name: Run integration tests (EE)
         run: make GO_TEST_FLAGS="-ee=true" test-it
 
+  check_breaking_changes:
+    name: Check breaking changes
+    runs-on: ubuntu-latest
+    permissions: {}
+    if: ( !cancelled() && github.event_name == 'pull_request' )
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+
+      - name: Check breaking changes between stable and latest-snapshot version
+        working-directory: tools/version-diff-tool
+        run: |
+          helm repo add hazelcast https://hazelcast-charts.s3.amazonaws.com && helm repo update
+          STABLE_VERSION=$(curl -s https://artifacthub.io/api/v1/packages/helm/hazelcast/hazelcast-platform-operator | jq -r '.available_versions | map(select(.version | contains("snapshot") | not)) | .[0].version')
+          LATEST_SNAPSHOT="../../helm-charts/hazelcast-platform-operator/charts/hazelcast-platform-operator-crds"
+          RESULT=$(go run main.go -base $STABLE_VERSION -revision latest-snapshot -revision-repo-url "$LATEST_SNAPSHOT" -ignore request-property-max-set,request-property-min-set)
+          echo "$RESULT" | grep -q "0 breaking changes" || { echo "$RESULT"; exit 1; }
+
   get-image:
     name: Get Image
     runs-on: ubuntu-latest
@@ -124,7 +146,7 @@ jobs:
 
       - name: Set Up Docker Buildx
         id: buildx
-        uses: docker/setup-buildx-action@v3.0.0
+        uses: docker/setup-buildx-action@v3.3.0
         with:
           install: true
 
@@ -154,7 +176,7 @@ jobs:
           echo "IMG=${{ env.GAR_REGION }}-docker.pkg.dev/${{ env.GAR_PROJECT }}/${{ env.GAR_REPO }}/$(uuidgen):5d" >> $GITHUB_OUTPUT
 
       - name: Build Image
-        uses: docker/build-push-action@v5.1.0
+        uses: docker/build-push-action@v6.1.0
         with:
           context: .
           builder: ${{ steps.buildx.outputs.name }}
@@ -174,8 +196,9 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        node_number: ["01","02","03","04","05","06","07","08","09","10"]
-        edition: ["os","ee"]
+        node_number:
+          ["01", "02", "03", "04", "05", "06", "07", "08", "09", "10"]
+        edition: ["os", "ee"]
     if: >-
       ( !cancelled()
       && ((github.event_name == 'pull_request_target'
@@ -223,7 +246,7 @@ jobs:
           EOT
 
       - name: Create Kind Cluster
-        uses: helm/kind-action@v1.8.0
+        uses: helm/kind-action@v1.10.0
         with:
           config: ./kind-config.yaml
           cluster_name: ${{ env.CLUSTER_NAME }}
@@ -275,10 +298,10 @@ jobs:
           command: |
             kubectl create namespace ${NAMESPACE}
             kubectl config set-context --current --namespace=$NAMESPACE
-            kubectl apply -f https://raw.githubusercontent.com/metallb/metallb/v0.13.7/config/manifests/metallb-native.yaml
+            kubectl apply -f https://raw.githubusercontent.com/metallb/metallb/v0.14.5/config/manifests/metallb-native.yaml
             kubectl wait --for=condition=ready --timeout=60s -n metallb-system pod -l app=metallb
-            HOST_MIN=$(docker network inspect -f '{{json .IPAM.Config}}' ${{ env.CLUSTER_NAME }} | jq -r '.[0].Subnet' |  sed  -n 's/.0.0.16/.255.200/p')
-            HOST_MAX=$(docker network inspect -f '{{json .IPAM.Config}}' ${{ env.CLUSTER_NAME }} | jq -r '.[0].Subnet' |  sed  -n 's/.0.0.16/.255.250/p')
+            HOST_MIN=$(docker network inspect -f '{{json .IPAM.Config}}' ${{ env.CLUSTER_NAME }} | jq -r '.[1].Subnet' |  sed  -n 's/.0.0.16/.255.200/p')
+            HOST_MAX=$(docker network inspect -f '{{json .IPAM.Config}}' ${{ env.CLUSTER_NAME }} | jq -r '.[1].Subnet' |  sed  -n 's/.0.0.16/.255.250/p')
             IP_RANGE=$HOST_MIN-$HOST_MAX
 
             cat <<EOF | kubectl apply -f -

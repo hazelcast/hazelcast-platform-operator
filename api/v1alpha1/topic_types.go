@@ -31,6 +31,11 @@ type TopicSpec struct {
 	// +kubebuilder:validation:MinLength:=1
 	// +required
 	HazelcastResourceName string `json:"hazelcastResourceName"`
+
+	// Name of the User Code Namespace applied to this instance
+	// +kubebuilder:validation:MinLength:=1
+	// +optional
+	UserCodeNamespace string `json:"userCodeNamespace,omitempty"`
 }
 
 // TopicStatus defines the observed state of Topic

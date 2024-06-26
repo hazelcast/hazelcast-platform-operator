@@ -13,6 +13,8 @@ type ExecutorServiceConfig struct {
 	StatisticsEnabled bool
 	// nullable
 	SplitBrainProtectionName string
+	// nullable
+	UserCodeNamespace string
 }
 
 type DurableExecutorServiceConfig struct {
@@ -23,6 +25,8 @@ type DurableExecutorServiceConfig struct {
 	StatisticsEnabled bool
 	// nullable
 	SplitBrainProtectionName string
+	// nullable
+	UserCodeNamespace string
 }
 
 type ScheduledExecutorServiceConfig struct {
@@ -36,6 +40,8 @@ type ScheduledExecutorServiceConfig struct {
 	MergeBatchSize    int32
 	// nullable
 	SplitBrainProtectionName string
+	// nullable
+	UserCodeNamespace string
 }
 
 func DefaultAddExecutorServiceInput() *ExecutorServiceConfig {

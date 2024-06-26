@@ -34,7 +34,7 @@ jobs:
       - name: Create EKS cluster
         id: create-cluster
         run: |-
-          CLUSTER_NAME="operator-e2e-test-${GITHUB_SHA::8}-${{ github.run_number }}"
+          CLUSTER_NAME="operator-e2e-test-eks-${GITHUB_SHA::8}-${{ github.run_number }}"
           echo "CLUSTER_NAME=${CLUSTER_NAME}" >> $GITHUB_ENV
           echo "CLUSTER_NAME=${CLUSTER_NAME}" >> $GITHUB_OUTPUT
           eksctl create cluster \
@@ -59,21 +59,28 @@ jobs:
             --cluster "${CLUSTER_NAME}" \
             --region=${AWS_REGION}
 
-      - name: Configure SecurityGroup of Nodes
-        run: |-
-          SECURITY_GROUP_ID=$(aws eks describe-cluster --region=$AWS_REGION --name=$CLUSTER_NAME --query=cluster.resourcesVpcConfig.clusterSecurityGroupId --output=text --no-cli-pager)
+      - name: Create IAM Service Account
+        run: |
+          ROLE_NAME="cn-test-iam-service-account-${{ github.run_number }}"
 
-          echo "SecurityGroupID: $SECURITY_GROUP_ID"
+          eksctl create iamserviceaccount \
+            --name aws-iam-sa \
+            --namespace test-operator-os \
+            --cluster ${CLUSTER_NAME} \
+            --role-name ${ROLE_NAME}-os \
+            --attach-policy-arn arn:aws:iam::aws:policy/AmazonS3FullAccess \
+            --approve
 
-          aws ec2 authorize-security-group-ingress \
-            --region=${AWS_REGION} \
-            --group-id=${SECURITY_GROUP_ID} \
-            --cidr=0.0.0.0/0 \
-            --protocol=tcp \
-            --port=30000-32767
+          eksctl create iamserviceaccount \
+            --name aws-iam-sa \
+            --namespace test-operator-ee \
+            --cluster ${CLUSTER_NAME} \
+            --role-name ${ROLE_NAME}-ee \
+            --attach-policy-arn arn:aws:iam::aws:policy/AmazonS3FullAccess \
+            --approve
 
   grafana-setup:
-    needs: [ prepare-env ]
+    needs: [prepare-env]
     uses: ./.github/workflows/grafana-agent.yaml
     secrets: inherit
     with:
@@ -94,7 +101,7 @@ jobs:
 
       - name: Set Up Docker Buildx
         id: buildx
-        uses: docker/setup-buildx-action@v3.0.0
+        uses: docker/setup-buildx-action@v3.3.0
         with:
           install: true
 
@@ -124,7 +131,7 @@ jobs:
           echo "IMG=${{ env.GAR_REGION }}-docker.pkg.dev/${{ env.GAR_PROJECT }}/${{ env.GAR_REPO }}/$(uuidgen):5d" >> $GITHUB_OUTPUT
 
       - name: Build Image
-        uses: docker/build-push-action@v5.1.0
+        uses: docker/build-push-action@v6.1.0
         with:
           context: .
           builder: ${{ steps.buildx.outputs.name }}
@@ -167,6 +174,22 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ env.AWS_REGION }}
 
+      - name: Get GH Public IP
+        id: ip
+        uses: haythem/public-ip@v1.3
+
+      - name: Configure SecurityGroup of Nodes
+        run: |-
+          SECURITY_GROUP_ID=$(aws eks describe-cluster --region=${{ env.AWS_REGION }} --name=${{ needs.prepare-env.outputs.CLUSTER_NAME }} --query=cluster.resourcesVpcConfig.clusterSecurityGroupId --output=text --no-cli-pager)
+          echo "SecurityGroupID: $SECURITY_GROUP_ID"
+
+          aws ec2 authorize-security-group-ingress \
+            --region=${AWS_REGION} \
+            --group-id=${SECURITY_GROUP_ID} \
+            --cidr=${{ steps.ip.outputs.ipv4 }}/32 \
+            --protocol=tcp \
+            --port=30000-32767
+
       - name: Get Secrets
         uses: aws-actions/aws-secretsmanager-get-secrets@v2
         with:
@@ -184,7 +207,7 @@ jobs:
 
       - name: Update kubeconfig
         run: |-
-          CLUSTER_NAME="operator-e2e-test-${GITHUB_SHA::8}-${{ github.run_number }}"
+          CLUSTER_NAME="operator-e2e-test-eks-${GITHUB_SHA::8}-${{ github.run_number }}"
           aws eks update-kubeconfig --name "${CLUSTER_NAME}"
 
       - name: Authenticate to GAR
@@ -194,9 +217,17 @@ jobs:
           username: _json_key
           password: ${{ env.GKE_SA_KEY }}
 
+      - name: Install CRD's
+        uses: nick-fields/retry@v3
+        with:
+          timeout_minutes: 1
+          max_attempts: 2
+          retry_on: error
+          command: |
+            make install-crds
+
       - name: Deploy Operator to EKS
         run: |
-          make install-crds
           kubectl create namespace ${NAMESPACE}
           kubectl config set-context --current --namespace=${NAMESPACE}
 
@@ -233,6 +264,11 @@ jobs:
           esac
           make test-e2e GO_TEST_FLAGS=${GO_TEST_FLAGS} NAMESPACE=${NAMESPACE} RELEASE_NAME=${RELEASE_NAME} REPORT_SUFFIX=${{ matrix.edition }}_01 WORKFLOW_ID=eks
 
+      - name: Check if the operator pod has not restarted
+        run: |
+          source .github/scripts/utils.sh
+          assert_operator_pod_not_restarted ${NAMESPACE}
+
       - name: Clean up after Tests
         if: always()
         run: |
@@ -241,7 +277,7 @@ jobs:
           wait_for_elb_deleted $DELETE_EKS_STACK_TIMEOUT_IN_MINS
 
       - name: Upload Test Report
-        if: always()
+        if: always() && github.event_name != 'workflow_dispatch'
         uses: actions/upload-artifact@v3
         with:
           name: test-report-eks
@@ -250,7 +286,7 @@ jobs:
   update-test-run-status-badge:
     runs-on: ubuntu-latest
     needs: eks-e2e-tests
-    if: always() && github.event_name == 'workflow_dispatch'
+    if: always() && github.event_name != 'workflow_dispatch'
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -276,7 +312,7 @@ jobs:
 
   report-generation:
     needs: ["prepare-env", "eks-e2e-tests"]
-    if: always() && (needs.eks-e2e-tests.result == 'success' || needs.eks-e2e-tests.result == 'failure')
+    if: always() && (needs.eks-e2e-tests.result == 'success' || needs.eks-e2e-tests.result == 'failure') && github.event_name != 'workflow_dispatch'
     uses: ./.github/workflows/generate-test-report.yaml
     secrets: inherit
     with:
@@ -318,10 +354,12 @@ jobs:
 
       - name: Delete EKS cluster
         run: |-
-          CLUSTER_NAME="operator-e2e-test-${GITHUB_SHA::8}-${{ github.run_number }}"
-          source .github/scripts/utils.sh
-          wait_for_eks_stack_deleted eksctl-$CLUSTER_NAME $DELETE_EKS_STACK_TIMEOUT_IN_MINS
-          clean_open_id_connect_providers ${{ env.AWS_REGION }} $CLUSTER_NAME
+          CLUSTER_NAME=${{ needs.prepare-env.outputs.CLUSTER_NAME }}
+          REGION=${{ env.AWS_REGION }}
+          eksctl delete cluster \
+            --region=${REGION} \
+            --name=${CLUSTER_NAME} \
+            --wait
 
   slack_notify:
     name: Slack Notify

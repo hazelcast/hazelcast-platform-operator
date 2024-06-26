@@ -44,7 +44,7 @@ var _ = Describe("CronHotBackup CR", func() {
 	})
 
 	Context("with default configuration", func() {
-		It("should create successfully", Label("fast"), func() {
+		It("should create successfully", func() {
 			chb := &hazelcastv1alpha1.CronHotBackup{
 				ObjectMeta: randomObjectMeta(namespace),
 				Spec: hazelcastv1alpha1.CronHotBackupSpec{
@@ -64,7 +64,7 @@ var _ = Describe("CronHotBackup CR", func() {
 		})
 
 		When("applying empty spec", func() {
-			It("should fail to create", Label("fast"), func() {
+			It("should fail to create", func() {
 				chb := &hazelcastv1alpha1.CronHotBackup{
 					ObjectMeta: randomObjectMeta(namespace),
 				}
@@ -74,7 +74,7 @@ var _ = Describe("CronHotBackup CR", func() {
 			})
 		})
 
-		It("should handle HotBackup resource correctly", Label("fast"), func() {
+		It("should handle HotBackup resource correctly", func() {
 			chb := &hazelcastv1alpha1.CronHotBackup{
 				ObjectMeta: randomObjectMeta(namespace),
 				Spec: hazelcastv1alpha1.CronHotBackupSpec{
@@ -119,7 +119,7 @@ var _ = Describe("CronHotBackup CR", func() {
 		})
 
 		When("giving labels and annotations to HotBackup Template", func() {
-			It("should create successfully with those labels", Label("fast"), func() {
+			It("should create successfully with those labels", func() {
 				ans := map[string]string{
 					"annotation1": "val",
 					"annotation2": "val2",

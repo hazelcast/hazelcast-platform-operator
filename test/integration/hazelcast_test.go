@@ -9,7 +9,6 @@ import (
 	"strings"
 
 	"github.com/aws/smithy-go/ptr"
-	"github.com/hazelcast/hazelcast-platform-operator/controllers/hazelcast"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"gopkg.in/yaml.v3"
@@ -22,6 +21,8 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/utils/pointer"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+
+	"github.com/hazelcast/hazelcast-platform-operator/internal/controller/hazelcast"
 
 	hazelcastv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
 	"github.com/hazelcast/hazelcast-platform-operator/internal/config"
@@ -153,7 +154,7 @@ var _ = Describe("Hazelcast CR", func() {
 	})
 
 	Context("with default configuration", func() {
-		It("should handle CR and sub resources correctly", Label("fast"), func() {
+		It("should handle CR and sub resources correctly", func() {
 			hz := &hazelcastv1alpha1.Hazelcast{
 				ObjectMeta: randomObjectMeta(namespace),
 				Spec:       test.HazelcastSpec(defaultHazelcastSpecValues(), ee),
@@ -211,7 +212,7 @@ var _ = Describe("Hazelcast CR", func() {
 				ImagePullPolicy: n.HazelcastImagePullPolicy,
 			}
 
-			It("should create CR with default values", Label("fast"), func() {
+			It("should create CR with default values", func() {
 				hz := &hazelcastv1alpha1.Hazelcast{
 					ObjectMeta: randomObjectMeta(namespace),
 				}
@@ -220,7 +221,7 @@ var _ = Describe("Hazelcast CR", func() {
 				ensureSpecEquals(fetchedCR, emptyHzSpecValues)
 			})
 
-			It("should update the CR with the default values", Label("fast"), func() {
+			It("should update the CR with the default values", func() {
 				hz := &hazelcastv1alpha1.Hazelcast{
 					ObjectMeta: randomObjectMeta(namespace),
 					Spec: hazelcastv1alpha1.HazelcastSpec{
@@ -243,7 +244,7 @@ var _ = Describe("Hazelcast CR", func() {
 			})
 		})
 
-		It(fmt.Sprintf("should fail to set cluster size to more than %d", n.ClusterSizeLimit), Label("fast"), func() {
+		It(fmt.Sprintf("should fail to set cluster size to more than %d", n.ClusterSizeLimit), func() {
 			spec := test.HazelcastSpec(defaultHazelcastSpecValues(), ee)
 			requestedClusterSize := int32(n.ClusterSizeLimit + 1)
 			spec.ClusterSize = &requestedClusterSize
@@ -257,7 +258,7 @@ var _ = Describe("Hazelcast CR", func() {
 				Should(MatchError(ContainSubstring("Invalid value: 301: may not be greater than 300")))
 		})
 
-		It("should fail if CR name is invalid", Label("fast"), func() {
+		It("should fail if CR name is invalid", func() {
 			hz := &hazelcastv1alpha1.Hazelcast{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "1hz",
@@ -271,7 +272,7 @@ var _ = Describe("Hazelcast CR", func() {
 	})
 
 	Context("with ExposeExternally configuration", func() {
-		It("should create Hazelcast cluster exposed for unisocket client", Label("fast"), func() {
+		It("should create Hazelcast cluster exposed for unisocket client", func() {
 			spec := test.HazelcastSpec(defaultHazelcastSpecValues(), ee)
 			spec.ExposeExternally = &hazelcastv1alpha1.ExposeExternallyConfiguration{
 				Type:                 hazelcastv1alpha1.ExposeExternallyTypeUnisocket,
@@ -295,7 +296,7 @@ var _ = Describe("Hazelcast CR", func() {
 			Expect(service.Spec.Type).Should(Equal(corev1.ServiceTypeNodePort))
 		})
 
-		It("should create Hazelcast cluster exposed for smart client", Label("fast"), func() {
+		It("should create Hazelcast cluster exposed for smart client", func() {
 			spec := test.HazelcastSpec(defaultHazelcastSpecValues(), ee)
 			spec.ExposeExternally = &hazelcastv1alpha1.ExposeExternallyConfiguration{
 				Type:                 hazelcastv1alpha1.ExposeExternallyTypeSmart,
@@ -328,7 +329,7 @@ var _ = Describe("Hazelcast CR", func() {
 			}
 		})
 
-		It("should scale Hazelcast cluster exposed for smart client", Label("fast"), func() {
+		It("should scale Hazelcast cluster exposed for smart client", func() {
 			By("creating the cluster of size 3")
 			spec := test.HazelcastSpec(defaultHazelcastSpecValues(), ee)
 			spec.ClusterSize = &[]int32{3}[0]
@@ -361,7 +362,7 @@ var _ = Describe("Hazelcast CR", func() {
 			fetchServices(fetchedCR, 2)
 		})
 
-		It("should allow updating expose externally configuration", Label("fast"), func() {
+		It("should allow updating expose externally configuration", func() {
 			By("creating the cluster with smart client")
 			spec := test.HazelcastSpec(defaultHazelcastSpecValues(), ee)
 			spec.ClusterSize = &[]int32{3}[0]
@@ -415,7 +416,7 @@ var _ = Describe("Hazelcast CR", func() {
 			Expect(serviceList.Items[0].Spec.Type).Should(Equal(corev1.ServiceTypeClusterIP))
 		})
 
-		It("should fail to set MemberAccess for unisocket", Label("fast"), func() {
+		It("should fail to set MemberAccess for unisocket", func() {
 			spec := test.HazelcastSpec(defaultHazelcastSpecValues(), ee)
 			spec.ExposeExternally = &hazelcastv1alpha1.ExposeExternallyConfiguration{
 				Type:         hazelcastv1alpha1.ExposeExternallyTypeUnisocket,
@@ -432,7 +433,7 @@ var _ = Describe("Hazelcast CR", func() {
 	})
 
 	Context("with Properties value", func() {
-		It("should pass the values to ConfigMap", Label("fast"), func() {
+		It("should pass the values to ConfigMap", func() {
 			spec := test.HazelcastSpec(defaultHazelcastSpecValues(), ee)
 			sampleProperties := map[string]string{
 				"hazelcast.slow.operation.detector.threshold.millis":           "4000",
@@ -470,7 +471,7 @@ var _ = Describe("Hazelcast CR", func() {
 
 	Context("with Scheduling configuration", func() {
 		When("NodeSelector is given", func() {
-			It("should pass the values to StatefulSet spec", Label("fast"), func() {
+			It("should pass the values to StatefulSet spec", func() {
 				spec := test.HazelcastSpec(defaultHazelcastSpecValues(), ee)
 				spec.Scheduling = &hazelcastv1alpha1.SchedulingConfiguration{
 					NodeSelector: map[string]string{
@@ -491,7 +492,7 @@ var _ = Describe("Hazelcast CR", func() {
 		})
 
 		When("Affinity is given", func() {
-			It("should pass the values to StatefulSet spec", Label("fast"), func() {
+			It("should pass the values to StatefulSet spec", func() {
 				spec := test.HazelcastSpec(defaultHazelcastSpecValues(), ee)
 				spec.Scheduling = &hazelcastv1alpha1.SchedulingConfiguration{
 					Affinity: &corev1.Affinity{
@@ -542,7 +543,7 @@ var _ = Describe("Hazelcast CR", func() {
 		})
 
 		When("Toleration is given", func() {
-			It("should pass the values to StatefulSet spec", Label("fast"), func() {
+			It("should pass the values to StatefulSet spec", func() {
 				spec := test.HazelcastSpec(defaultHazelcastSpecValues(), ee)
 				spec.Scheduling = &hazelcastv1alpha1.SchedulingConfiguration{
 					Tolerations: []corev1.Toleration{
@@ -568,7 +569,7 @@ var _ = Describe("Hazelcast CR", func() {
 
 	Context("with Image configuration", func() {
 		When("ImagePullSecrets are defined", func() {
-			It("should pass the values to StatefulSet spec", Label("fast"), func() {
+			It("should pass the values to StatefulSet spec", func() {
 				pullSecrets := []corev1.LocalObjectReference{
 					{Name: "secret1"},
 					{Name: "secret2"},
@@ -590,7 +591,7 @@ var _ = Describe("Hazelcast CR", func() {
 
 	Context("with HighAvailability configuration", func() {
 		When("HighAvailabilityMode is configured as NODE", func() {
-			It("should create topologySpreadConstraints", Label("fast"), func() {
+			It("should create topologySpreadConstraints", func() {
 				s := test.HazelcastSpec(defaultHazelcastSpecValues(), ee)
 				s.HighAvailabilityMode = "NODE"
 
@@ -618,7 +619,7 @@ var _ = Describe("Hazelcast CR", func() {
 		})
 
 		When("HighAvailabilityMode is configured as ZONE", func() {
-			It("should create topologySpreadConstraints", Label("fast"), func() {
+			It("should create topologySpreadConstraints", func() {
 				s := test.HazelcastSpec(defaultHazelcastSpecValues(), ee)
 				s.HighAvailabilityMode = "ZONE"
 
@@ -646,7 +647,7 @@ var _ = Describe("Hazelcast CR", func() {
 		})
 
 		When("HighAvailabilityMode is configured with the scheduling", func() {
-			It("should create both of them", Label("fast"), func() {
+			It("should create both of them", func() {
 				s := test.HazelcastSpec(defaultHazelcastSpecValues(), ee)
 				s.HighAvailabilityMode = "ZONE"
 				s.Scheduling = &hazelcastv1alpha1.SchedulingConfiguration{
@@ -694,7 +695,7 @@ var _ = Describe("Hazelcast CR", func() {
 			})
 		})
 
-		It("should fail to update", Label("fast"), func() {
+		It("should fail to update", func() {
 			zoneHASpec := test.HazelcastSpec(defaultHazelcastSpecValues(), ee)
 			zoneHASpec.HighAvailabilityMode = "ZONE"
 
@@ -724,10 +725,10 @@ var _ = Describe("Hazelcast CR", func() {
 	})
 
 	Context("with Persistence configuration", func() {
-		It("should create with default values", Label("fast"), func() {
+		It("should create with default values", func() {
 			spec := test.HazelcastSpec(defaultHazelcastSpecValues(), ee)
 			spec.Persistence = &hazelcastv1alpha1.HazelcastPersistenceConfiguration{
-				Pvc: &hazelcastv1alpha1.PersistencePvcConfiguration{
+				PVC: &hazelcastv1alpha1.PvcConfiguration{
 					AccessModes: []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce},
 				},
 			}
@@ -744,16 +745,16 @@ var _ = Describe("Hazelcast CR", func() {
 			By("checking the Persistence CR configuration", func() {
 				Expect(fetchedCR.Spec.Persistence.ClusterDataRecoveryPolicy).
 					Should(Equal(hazelcastv1alpha1.FullRecovery))
-				Expect(fetchedCR.Spec.Persistence.Pvc.AccessModes).Should(ConsistOf(corev1.ReadWriteOnce))
-				Expect(*fetchedCR.Spec.Persistence.Pvc.RequestStorage).Should(Equal(resource.MustParse("8Gi")))
+				Expect(fetchedCR.Spec.Persistence.PVC.AccessModes).Should(ConsistOf(corev1.ReadWriteOnce))
+				Expect(*fetchedCR.Spec.Persistence.PVC.RequestStorage).Should(Equal(resource.MustParse("8Gi")))
 			})
 		})
 
-		It("should create volumeClaimTemplates", Label("fast"), func() {
+		It("should create volumeClaimTemplates", func() {
 			s := test.HazelcastSpec(defaultHazelcastSpecValues(), ee)
 			s.Persistence = &hazelcastv1alpha1.HazelcastPersistenceConfiguration{
 				ClusterDataRecoveryPolicy: hazelcastv1alpha1.FullRecovery,
-				Pvc: &hazelcastv1alpha1.PersistencePvcConfiguration{
+				PVC: &hazelcastv1alpha1.PvcConfiguration{
 					AccessModes:      []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce},
 					RequestStorage:   &[]resource.Quantity{resource.MustParse("8Gi")}[0],
 					StorageClassName: &[]string{"standard"}[0],
@@ -771,9 +772,9 @@ var _ = Describe("Hazelcast CR", func() {
 			By("checking the Persistence CR configuration", func() {
 				Expect(fetchedCR.Spec.Persistence.ClusterDataRecoveryPolicy).
 					Should(Equal(hazelcastv1alpha1.FullRecovery))
-				Expect(fetchedCR.Spec.Persistence.Pvc.AccessModes).Should(ConsistOf(corev1.ReadWriteOnce))
-				Expect(*fetchedCR.Spec.Persistence.Pvc.RequestStorage).Should(Equal(resource.MustParse("8Gi")))
-				Expect(*fetchedCR.Spec.Persistence.Pvc.StorageClassName).Should(Equal("standard"))
+				Expect(fetchedCR.Spec.Persistence.PVC.AccessModes).Should(ConsistOf(corev1.ReadWriteOnce))
+				Expect(*fetchedCR.Spec.Persistence.PVC.RequestStorage).Should(Equal(resource.MustParse("8Gi")))
+				Expect(*fetchedCR.Spec.Persistence.PVC.StorageClassName).Should(Equal("standard"))
 			})
 
 			Eventually(func() []corev1.PersistentVolumeClaim {
@@ -784,24 +785,24 @@ var _ = Describe("Hazelcast CR", func() {
 					return pvc.Spec
 				}, Equal(
 					corev1.PersistentVolumeClaimSpec{
-						AccessModes: fetchedCR.Spec.Persistence.Pvc.AccessModes,
+						AccessModes: fetchedCR.Spec.Persistence.PVC.AccessModes,
 						Resources: corev1.ResourceRequirements{
 							Requests: corev1.ResourceList{
-								corev1.ResourceStorage: *fetchedCR.Spec.Persistence.Pvc.RequestStorage,
+								corev1.ResourceStorage: *fetchedCR.Spec.Persistence.PVC.RequestStorage,
 							},
 						},
-						StorageClassName: fetchedCR.Spec.Persistence.Pvc.StorageClassName,
+						StorageClassName: fetchedCR.Spec.Persistence.PVC.StorageClassName,
 						VolumeMode:       &[]corev1.PersistentVolumeMode{corev1.PersistentVolumeFilesystem}[0],
 					},
 				))),
 			)
 		})
 
-		It("should add RBAC PolicyRule for watch StatefulSets", Label("fast"), func() {
+		It("should add RBAC PolicyRule for watch StatefulSets", func() {
 			s := test.HazelcastSpec(defaultHazelcastSpecValues(), ee)
 			s.Persistence = &hazelcastv1alpha1.HazelcastPersistenceConfiguration{
 				ClusterDataRecoveryPolicy: hazelcastv1alpha1.FullRecovery,
-				Pvc: &hazelcastv1alpha1.PersistencePvcConfiguration{
+				PVC: &hazelcastv1alpha1.PvcConfiguration{
 					AccessModes:      []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce},
 					RequestStorage:   &[]resource.Quantity{resource.MustParse("8Gi")}[0],
 					StorageClassName: &[]string{"standard"}[0],
@@ -829,12 +830,12 @@ var _ = Describe("Hazelcast CR", func() {
 			})
 		})
 
-		It("should not create PartialStart with FullRecovery", Label("fast"), func() {
+		It("should not create PartialStart with FullRecovery", func() {
 			spec := test.HazelcastSpec(defaultHazelcastSpecValues(), ee)
 			spec.Persistence = &hazelcastv1alpha1.HazelcastPersistenceConfiguration{
 				ClusterDataRecoveryPolicy: hazelcastv1alpha1.FullRecovery,
 				StartupAction:             hazelcastv1alpha1.PartialStart,
-				Pvc: &hazelcastv1alpha1.PersistencePvcConfiguration{
+				PVC: &hazelcastv1alpha1.PvcConfiguration{
 					AccessModes: []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce},
 				},
 			}
@@ -848,9 +849,11 @@ var _ = Describe("Hazelcast CR", func() {
 				Should(MatchError(ContainSubstring("PartialStart can be used only with Partial clusterDataRecoveryPolicy")))
 		})
 
-		It("should not create if pvc is not specified", Label("fast"), func() {
+		It("should not create if pvc is not specified", func() {
 			spec := test.HazelcastSpec(defaultHazelcastSpecValues(), ee)
-			spec.Persistence = &hazelcastv1alpha1.HazelcastPersistenceConfiguration{}
+			spec.Persistence = &hazelcastv1alpha1.HazelcastPersistenceConfiguration{
+				ClusterDataRecoveryPolicy: hazelcastv1alpha1.FullRecovery,
+			}
 
 			hz := &hazelcastv1alpha1.Hazelcast{
 				ObjectMeta: randomObjectMeta(namespace),
@@ -861,10 +864,10 @@ var _ = Describe("Hazelcast CR", func() {
 				Should(MatchError(ContainSubstring("spec.persistence.pvc: Required value: must be set when persistence is enabled")))
 		})
 
-		It("should not create if pvc accessModes is not specified", Label("fast"), func() {
+		It("should not create if pvc accessModes is not specified", func() {
 			spec := test.HazelcastSpec(defaultHazelcastSpecValues(), ee)
 			spec.Persistence = &hazelcastv1alpha1.HazelcastPersistenceConfiguration{
-				Pvc: &hazelcastv1alpha1.PersistencePvcConfiguration{
+				PVC: &hazelcastv1alpha1.PvcConfiguration{
 					RequestStorage: &[]resource.Quantity{resource.MustParse("8Gi")}[0],
 				},
 			}
@@ -881,7 +884,7 @@ var _ = Describe("Hazelcast CR", func() {
 
 	Context("with JVM configuration", func() {
 		When("Memory is configured", func() {
-			It("should set memory with percentages", Label("fast"), func() {
+			It("should set memory with percentages", func() {
 				spec := test.HazelcastSpec(defaultHazelcastSpecValues(), ee)
 				p := pointer.String("10")
 				spec.JVM = &hazelcastv1alpha1.JVMConfiguration{
@@ -904,7 +907,7 @@ var _ = Describe("Hazelcast CR", func() {
 				Expect(*fetchedCR.Spec.JVM.Memory.MaxRAMPercentage).Should(Equal(*p))
 			})
 
-			It("should set GC params", Label("fast"), func() {
+			It("should set GC params", func() {
 				spec := test.HazelcastSpec(defaultHazelcastSpecValues(), ee)
 				s := hazelcastv1alpha1.GCTypeSerial
 				spec.JVM = &hazelcastv1alpha1.JVMConfiguration{
@@ -929,7 +932,7 @@ var _ = Describe("Hazelcast CR", func() {
 		When("incorrect configuration", func() {
 			expectedErrStr := `%s is already set up in JVM config"`
 
-			It(fmt.Sprintf("should return error if %s configured twice", hazelcastv1alpha1.InitialRamPerArg), Label("fast"), func() {
+			It(fmt.Sprintf("should return error if %s configured twice", hazelcastv1alpha1.InitialRamPerArg), func() {
 				spec := test.HazelcastSpec(defaultHazelcastSpecValues(), ee)
 				spec.JVM = &hazelcastv1alpha1.JVMConfiguration{
 					Memory: &hazelcastv1alpha1.JVMMemoryConfiguration{
@@ -947,7 +950,7 @@ var _ = Describe("Hazelcast CR", func() {
 					Should(MatchError(ContainSubstring(fmt.Sprintf(expectedErrStr, hazelcastv1alpha1.InitialRamPerArg))))
 			})
 
-			It(fmt.Sprintf("should return error if %s configured twice", hazelcastv1alpha1.MinRamPerArg), Label("fast"), func() {
+			It(fmt.Sprintf("should return error if %s configured twice", hazelcastv1alpha1.MinRamPerArg), func() {
 				spec := test.HazelcastSpec(defaultHazelcastSpecValues(), ee)
 				spec.JVM = &hazelcastv1alpha1.JVMConfiguration{
 					Memory: &hazelcastv1alpha1.JVMMemoryConfiguration{
@@ -965,7 +968,7 @@ var _ = Describe("Hazelcast CR", func() {
 					Should(MatchError(ContainSubstring(fmt.Sprintf(expectedErrStr, hazelcastv1alpha1.MinRamPerArg))))
 			})
 
-			It(fmt.Sprintf("should return error if %s configured twice", hazelcastv1alpha1.MaxRamPerArg), Label("fast"), func() {
+			It(fmt.Sprintf("should return error if %s configured twice", hazelcastv1alpha1.MaxRamPerArg), func() {
 				spec := test.HazelcastSpec(defaultHazelcastSpecValues(), ee)
 				spec.JVM = &hazelcastv1alpha1.JVMConfiguration{
 					Memory: &hazelcastv1alpha1.JVMMemoryConfiguration{
@@ -983,7 +986,7 @@ var _ = Describe("Hazelcast CR", func() {
 					Should(MatchError(ContainSubstring(fmt.Sprintf(expectedErrStr, hazelcastv1alpha1.MaxRamPerArg))))
 			})
 
-			It(fmt.Sprintf("should return error if %s configured twice", hazelcastv1alpha1.GCLoggingArg), Label("fast"), func() {
+			It(fmt.Sprintf("should return error if %s configured twice", hazelcastv1alpha1.GCLoggingArg), func() {
 				spec := test.HazelcastSpec(defaultHazelcastSpecValues(), ee)
 				spec.JVM = &hazelcastv1alpha1.JVMConfiguration{
 					GC: &hazelcastv1alpha1.JVMGCConfiguration{
@@ -1001,7 +1004,7 @@ var _ = Describe("Hazelcast CR", func() {
 					Should(MatchError(ContainSubstring(fmt.Sprintf(expectedErrStr, hazelcastv1alpha1.GCLoggingArg))))
 			})
 
-			It(fmt.Sprintf("should return error if %s configured twice", hazelcastv1alpha1.SerialGCArg), Label("fast"), func() {
+			It(fmt.Sprintf("should return error if %s configured twice", hazelcastv1alpha1.SerialGCArg), func() {
 				spec := test.HazelcastSpec(defaultHazelcastSpecValues(), ee)
 				c := hazelcastv1alpha1.GCTypeSerial
 				spec.JVM = &hazelcastv1alpha1.JVMConfiguration{
@@ -1021,7 +1024,7 @@ var _ = Describe("Hazelcast CR", func() {
 					Should(MatchError(ContainSubstring(fmt.Sprintf(expectedErrStr, hazelcastv1alpha1.SerialGCArg))))
 			})
 
-			It(fmt.Sprintf("should return error if %s configured twice", hazelcastv1alpha1.ParallelGCArg), Label("fast"), func() {
+			It(fmt.Sprintf("should return error if %s configured twice", hazelcastv1alpha1.ParallelGCArg), func() {
 				spec := test.HazelcastSpec(defaultHazelcastSpecValues(), ee)
 				c := hazelcastv1alpha1.GCTypeParallel
 				spec.JVM = &hazelcastv1alpha1.JVMConfiguration{
@@ -1039,7 +1042,7 @@ var _ = Describe("Hazelcast CR", func() {
 					Should(MatchError(ContainSubstring(fmt.Sprintf(expectedErrStr, hazelcastv1alpha1.ParallelGCArg))))
 			})
 
-			It(fmt.Sprintf("should return error if %s configured twice", hazelcastv1alpha1.G1GCArg), Label("fast"), func() {
+			It(fmt.Sprintf("should return error if %s configured twice", hazelcastv1alpha1.G1GCArg), func() {
 				spec := test.HazelcastSpec(defaultHazelcastSpecValues(), ee)
 				c := hazelcastv1alpha1.GCTypeG1
 				spec.JVM = &hazelcastv1alpha1.JVMConfiguration{
@@ -1058,11 +1061,130 @@ var _ = Describe("Hazelcast CR", func() {
 			})
 		})
 
+		When("JVM arg is not configured", func() {
+			It("should set the default values for JAVA_OPTS", func() {
+				spec := test.HazelcastSpec(defaultHazelcastSpecValues(), ee)
+
+				hz := &hazelcastv1alpha1.Hazelcast{
+					ObjectMeta: randomObjectMeta(namespace),
+					Spec:       spec,
+				}
+
+				create(hz)
+				assertHzStatusIsPending(hz)
+				ss := getStatefulSet(hz)
+
+				By("Checking if Hazelcast Container has the correct JAVA_OPTS")
+				b := strings.Builder{}
+				for k, v := range hazelcast.DefaultJavaOptions {
+					b.WriteString(fmt.Sprintf(" %s=%s", k, v))
+				}
+				expectedJavaOpts := b.String()
+				javaOpts := ""
+				for _, env := range ss.Spec.Template.Spec.Containers[0].Env {
+					if env.Name == hazelcast.JavaOpts {
+						javaOpts = env.Value
+					}
+				}
+				Expect(javaOpts).To(ContainSubstring(expectedJavaOpts))
+			})
+		})
+
+		When("JVM args is configured", func() {
+			It("should override the default values for JAVA_OPTS", func() {
+				spec := test.HazelcastSpec(defaultHazelcastSpecValues(), ee)
+
+				configuredDefaults := map[string]struct{}{"-Dhazelcast.stale.join.prevention.duration.seconds": {}}
+				spec.JVM = &hazelcastv1alpha1.JVMConfiguration{
+					Args: []string{"-XX:MaxGCPauseMillis=200", "-Dhazelcast.stale.join.prevention.duration.seconds=40"},
+				}
+				hz := &hazelcastv1alpha1.Hazelcast{
+					ObjectMeta: randomObjectMeta(namespace),
+					Spec:       spec,
+				}
+
+				create(hz)
+				assertHzStatusIsPending(hz)
+				ss := getStatefulSet(hz)
+
+				By("Checking if Hazelcast Container has the correct JAVA_OPTS")
+				b := strings.Builder{}
+				for _, arg := range spec.JVM.Args {
+					b.WriteString(fmt.Sprintf(" %s", arg))
+				}
+				for k, v := range hazelcast.DefaultJavaOptions {
+					_, ok := configuredDefaults[k]
+					if !ok {
+						b.WriteString(fmt.Sprintf(" %s=%s", k, v))
+					}
+				}
+				expectedJavaOpts := b.String()
+				javaOpts := ""
+				for _, env := range ss.Spec.Template.Spec.Containers[0].Env {
+					if env.Name == hazelcast.JavaOpts {
+						javaOpts = env.Value
+					}
+				}
+
+				Expect(javaOpts).To(ContainSubstring(expectedJavaOpts))
+			})
+		})
+	})
+
+	Context("with env variables", func() {
+		When("configured", func() {
+			It("should set them correctly", func() {
+				spec := test.HazelcastSpec(defaultHazelcastSpecValues(), ee)
+				spec.Env = []corev1.EnvVar{
+					{
+						Name:  "ENV",
+						Value: "VAL",
+					},
+				}
+				hz := &hazelcastv1alpha1.Hazelcast{
+					ObjectMeta: randomObjectMeta(namespace),
+					Spec:       spec,
+				}
+
+				create(hz)
+				fetchedCR := assertHzStatusIsPending(hz)
+
+				Expect(fetchedCR.Spec.Env[0].Name).Should(Equal("ENV"))
+				Expect(fetchedCR.Spec.Env[0].Value).Should(Equal("VAL"))
+
+				ss := getStatefulSet(hz)
+
+				var envs []string
+				for _, e := range ss.Spec.Template.Spec.Containers[0].Env {
+					envs = append(envs, e.Name)
+				}
+				Expect(envs).Should(ContainElement("ENV"))
+			})
+		})
+		When("it is configured with env vars starting with HZ_", func() {
+			It("should not set them", func() {
+				spec := test.HazelcastSpec(defaultHazelcastSpecValues(), ee)
+				spec.Env = []corev1.EnvVar{
+					{
+						Name:  "HZ_ENV",
+						Value: "VAL",
+					},
+				}
+				hz := &hazelcastv1alpha1.Hazelcast{
+					ObjectMeta: randomObjectMeta(namespace),
+					Spec:       spec,
+				}
+
+				err := k8sClient.Create(context.Background(), hz)
+				Expect(err).ShouldNot(BeNil())
+				Expect(err.Error()).Should(ContainSubstring("Environment variables cannot start with 'HZ_'. Use customConfigCmName to configure Hazelcast."))
+			})
+		})
 	})
 
 	Context("with Resources parameters", func() {
 		When("resources are given", func() {
-			It("should be set to Containers' spec", Label("fast"), func() {
+			It("should be set to Containers' spec", func() {
 				spec := test.HazelcastSpec(defaultHazelcastSpecValues(), ee)
 				spec.Resources = &corev1.ResourceRequirements{
 					Limits: map[corev1.ResourceName]resource.Quantity{
@@ -1113,11 +1235,11 @@ var _ = Describe("Hazelcast CR", func() {
 
 	Context("with SidecarAgent configuration", func() {
 		When("Sidecar Agent is configured with Persistence", func() {
-			It("should be deployed as a sidecar container", Label("fast"), func() {
+			It("should be deployed as a sidecar container", func() {
 				spec := test.HazelcastSpec(defaultHazelcastSpecValues(), ee)
 				spec.Persistence = &hazelcastv1alpha1.HazelcastPersistenceConfiguration{
 					ClusterDataRecoveryPolicy: hazelcastv1alpha1.FullRecovery,
-					Pvc: &hazelcastv1alpha1.PersistencePvcConfiguration{
+					PVC: &hazelcastv1alpha1.PvcConfiguration{
 						AccessModes:      []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce},
 						RequestStorage:   &[]resource.Quantity{resource.MustParse("8Gi")}[0],
 						StorageClassName: &[]string{"standard"}[0],
@@ -1189,7 +1311,7 @@ var _ = Describe("Hazelcast CR", func() {
 		}
 
 		When("updating", func() {
-			It("should forward changes to StatefulSet", Label("fast"), func() {
+			It("should forward changes to StatefulSet", func() {
 				hz := &hazelcastv1alpha1.Hazelcast{
 					ObjectMeta: randomObjectMeta(namespace),
 					Spec:       firstSpec,
@@ -1250,7 +1372,7 @@ var _ = Describe("Hazelcast CR", func() {
 
 	Context("with UserCodeDeployment configuration", func() {
 		When("two Configmaps are given in userCode field", func() {
-			It("should put correct fields in StatefulSet", Label("fast"), func() {
+			It("should put correct fields in StatefulSet", func() {
 				cms := []string{
 					"cm1",
 					"cm2",
@@ -1259,7 +1381,7 @@ var _ = Describe("Hazelcast CR", func() {
 				hz := &hazelcastv1alpha1.Hazelcast{
 					ObjectMeta: randomObjectMeta(namespace),
 					Spec: hazelcastv1alpha1.HazelcastSpec{
-						UserCodeDeployment: &hazelcastv1alpha1.UserCodeDeploymentConfig{
+						DeprecatedUserCodeDeployment: &hazelcastv1alpha1.UserCodeDeploymentConfig{
 							RemoteFileConfiguration: hazelcastv1alpha1.RemoteFileConfiguration{
 								ConfigMaps: cms,
 							},
@@ -1319,7 +1441,7 @@ var _ = Describe("Hazelcast CR", func() {
 
 	Context("LicenseKey", func() {
 		When("is given with OS repo", func() {
-			It("should mutate EE repo", Label("fast"), func() {
+			It("should mutate EE repo", func() {
 				hz := &hazelcastv1alpha1.Hazelcast{
 					ObjectMeta: randomObjectMeta(namespace),
 					Spec: hazelcastv1alpha1.HazelcastSpec{
@@ -1338,7 +1460,7 @@ var _ = Describe("Hazelcast CR", func() {
 			})
 		})
 		When("is not given with EE repo", func() {
-			It("should fail", Label("fast"), func() {
+			It("should fail", func() {
 				if !ee {
 					Skip("This test will only run in EE configuration")
 				}
@@ -1357,7 +1479,7 @@ var _ = Describe("Hazelcast CR", func() {
 
 	Context("with AdvancedNetwork configuration", func() {
 		When("full configuration", func() {
-			It("should create AdvancedNetwork configuration", Label("fast"), func() {
+			It("should create AdvancedNetwork configuration", func() {
 				spec := test.HazelcastSpec(defaultHazelcastSpecValues(), ee)
 				spec.AdvancedNetwork = &hazelcastv1alpha1.AdvancedNetwork{
 					MemberServerSocketEndpointConfig: hazelcastv1alpha1.ServerSocketEndpointConfig{
@@ -1477,7 +1599,7 @@ var _ = Describe("Hazelcast CR", func() {
 		})
 
 		When("default configuration", func() {
-			It("should create default Advanced Network configuration", Label("fast"), func() {
+			It("should create default Advanced Network configuration", func() {
 				spec := test.HazelcastSpec(defaultHazelcastSpecValues(), ee)
 				hz := &hazelcastv1alpha1.Hazelcast{
 					ObjectMeta: randomObjectMeta(namespace),
@@ -1548,7 +1670,7 @@ var _ = Describe("Hazelcast CR", func() {
 			})
 		})
 
-		It("should fail to overlap WAN ports with each other", Label("fast"), func() {
+		It("should fail to overlap WAN ports with each other", func() {
 			spec := test.HazelcastSpec(defaultHazelcastSpecValues(), ee)
 			spec.AdvancedNetwork = &hazelcastv1alpha1.AdvancedNetwork{
 				WAN: []hazelcastv1alpha1.WANConfig{
@@ -1572,7 +1694,7 @@ var _ = Describe("Hazelcast CR", func() {
 				ContainSubstring("spec.advancedNetwork.wan: Invalid value: \"5001-5003\": wan ports overlapping with 5002-5004")))
 		})
 
-		It("should fail to overlap WAN ports with other sockets", Label("fast"), func() {
+		It("should fail to overlap WAN ports with other sockets", func() {
 			spec := test.HazelcastSpec(defaultHazelcastSpecValues(), ee)
 			spec.AdvancedNetwork = &hazelcastv1alpha1.AdvancedNetwork{
 				WAN: []hazelcastv1alpha1.WANConfig{
@@ -1592,7 +1714,7 @@ var _ = Describe("Hazelcast CR", func() {
 				Should(MatchError(ContainSubstring("spec.advancedNetwork.wan[0]: Invalid value: \"5702-5704\": wan ports conflicting with one of 5701,5702,8081")))
 		})
 
-		It("should fail to set ServiceType to non-existing type value", Label("fast"), func() {
+		It("should fail to set ServiceType to non-existing type value", func() {
 			spec := test.HazelcastSpec(defaultHazelcastSpecValues(), ee)
 			spec.AdvancedNetwork = &hazelcastv1alpha1.AdvancedNetwork{
 				WAN: []hazelcastv1alpha1.WANConfig{
@@ -1616,7 +1738,7 @@ var _ = Describe("Hazelcast CR", func() {
 
 	Context("with NativeMemory configuration", func() {
 		When("Native Memory property is configured", func() {
-			It("should be enabled", Label("fast"), func() {
+			It("should be enabled", func() {
 				if !ee {
 					Skip("This test will only run in EE configuration")
 				}
@@ -1643,7 +1765,7 @@ var _ = Describe("Hazelcast CR", func() {
 					return config.Hazelcast.NativeMemory.Enabled
 				}, timeout, interval).Should(BeTrue())
 			})
-			It("should error when not using enterprise version", Label("fast"), func() {
+			It("should error when not using enterprise version", func() {
 				if ee {
 					Skip("This test will only run in OS configuration")
 				}
@@ -1660,7 +1782,7 @@ var _ = Describe("Hazelcast CR", func() {
 				Expect(k8sClient.Create(context.Background(), hz)).Should(HaveOccurred())
 			})
 
-			It("should fail if NativeMemory.AllocatorType is not POOLED when persistence is enabled", Label("fast"), func() {
+			It("should fail if NativeMemory.AllocatorType is not POOLED when persistence is enabled", func() {
 				if !ee {
 					Skip("This test will only run in EE configuration")
 				}
@@ -1668,7 +1790,12 @@ var _ = Describe("Hazelcast CR", func() {
 				spec.NativeMemory = &hazelcastv1alpha1.NativeMemoryConfiguration{
 					AllocatorType: hazelcastv1alpha1.NativeMemoryStandard,
 				}
-				spec.Persistence = &hazelcastv1alpha1.HazelcastPersistenceConfiguration{}
+				spec.Persistence = &hazelcastv1alpha1.HazelcastPersistenceConfiguration{
+					ClusterDataRecoveryPolicy: hazelcastv1alpha1.FullRecovery,
+					PVC: &hazelcastv1alpha1.PvcConfiguration{
+						AccessModes: []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce},
+					},
+				}
 				hz := &hazelcastv1alpha1.Hazelcast{
 					ObjectMeta: randomObjectMeta(namespace),
 					Spec:       spec,
@@ -1681,7 +1808,7 @@ var _ = Describe("Hazelcast CR", func() {
 
 	Context("with ManagementCenter configuration", func() {
 		When("Management Center property is configured", func() {
-			It("should be enabled", Label("fast"), func() {
+			It("should be enabled", func() {
 				spec := test.HazelcastSpec(defaultHazelcastSpecValues(), ee)
 				spec.ManagementCenterConfig = &hazelcastv1alpha1.ManagementCenterConfig{
 					ScriptingEnabled:  true,
@@ -1713,7 +1840,7 @@ var _ = Describe("Hazelcast CR", func() {
 
 	Context("with RBAC Permission updates", func() {
 		When("RBAC permissions are overridden by a client", func() {
-			It("should override changes with operator ones", Label("fast"), func() {
+			It("should override changes with operator ones", func() {
 				hz := &hazelcastv1alpha1.Hazelcast{
 					ObjectMeta: randomObjectMeta(namespace),
 					Spec:       test.HazelcastSpec(defaultHazelcastSpecValues(), ee),
@@ -1749,7 +1876,7 @@ var _ = Describe("Hazelcast CR", func() {
 
 	Context("with TLS configuration", func() {
 		When("TLS property is configured", func() {
-			It("should be enabled when secret is valid", Label("fast"), func() {
+			It("should be enabled when secret is valid", func() {
 				if !ee {
 					Skip("This test will only run in EE configuration")
 				}
@@ -1790,14 +1917,15 @@ var _ = Describe("Hazelcast CR", func() {
 				}, timeout, interval).Should(BeTrue())
 			})
 
-			It("should error when secretName is empty", Label("fast"), func() {
+			It("should error when secretName is empty", func() {
 				if !ee {
 					Skip("This test will only run in EE configuration")
 				}
 
 				spec := test.HazelcastSpec(defaultHazelcastSpecValues(), ee)
 				spec.TLS = &hazelcastv1alpha1.TLS{
-					SecretName: "",
+					SecretName:           "",
+					MutualAuthentication: hazelcastv1alpha1.MutualAuthenticationRequired,
 				}
 				hz := &hazelcastv1alpha1.Hazelcast{
 					ObjectMeta: randomObjectMeta(namespace),
@@ -1807,7 +1935,7 @@ var _ = Describe("Hazelcast CR", func() {
 				Expect(k8sClient.Create(context.Background(), hz)).Should(HaveOccurred())
 			})
 
-			It("should error when secretName does not exist", Label("fast"), func() {
+			It("should error when secretName does not exist", func() {
 				if !ee {
 					Skip("This test will only run in EE configuration")
 				}
@@ -1824,7 +1952,7 @@ var _ = Describe("Hazelcast CR", func() {
 				Expect(k8sClient.Create(context.Background(), hz)).Should(HaveOccurred())
 			})
 
-			It("should error when not using enterprise version", Label("fast"), func() {
+			It("should error when not using enterprise version", func() {
 				if ee {
 					Skip("This test will only run in OS configuration")
 				}
@@ -1844,7 +1972,7 @@ var _ = Describe("Hazelcast CR", func() {
 	})
 
 	Context("Hazelcast Validation Multiple Errors", func() {
-		It("should return multiple errors", Label("fast"), func() {
+		It("should return multiple errors", func() {
 			spec := test.HazelcastSpec(defaultHazelcastSpecValues(), ee)
 			spec.ExposeExternally = &hazelcastv1alpha1.ExposeExternallyConfiguration{
 				Type:                 hazelcastv1alpha1.ExposeExternallyTypeUnisocket,
@@ -1883,9 +2011,31 @@ var _ = Describe("Hazelcast CR", func() {
 		})
 	})
 
+	Context("Hazelcast Persistence Restore Validation", func() {
+		It("should return hot backup cannot be found error", func() {
+			spec := test.HazelcastSpec(defaultHazelcastSpecValues(), ee)
+			spec.Persistence = &hazelcastv1alpha1.HazelcastPersistenceConfiguration{
+				PVC: &hazelcastv1alpha1.PvcConfiguration{
+					AccessModes:    []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce},
+					RequestStorage: resource.NewQuantity(9*2^20, resource.BinarySI),
+				},
+				Restore: hazelcastv1alpha1.RestoreConfiguration{
+					HotBackupResourceName: "notexist",
+				},
+			}
+			hz := &hazelcastv1alpha1.Hazelcast{
+				ObjectMeta: randomObjectMeta(namespace),
+				Spec:       spec,
+			}
+			err := k8sClient.Create(context.Background(), hz)
+			Expect(err).Should(MatchError(
+				ContainSubstring("There is not hot backup found with name notexist")))
+		})
+	})
+
 	Context("with JetEngine configuration", func() {
 		When("fully configured", func() {
-			It("should create jet engine configuration", Label("fast"), func() {
+			It("should create jet engine configuration", func() {
 				spec := test.HazelcastSpec(defaultHazelcastSpecValues(), ee)
 				spec.JetEngineConfiguration = &hazelcastv1alpha1.JetEngineConfiguration{
 					Enabled:               ptr.Bool(true),
@@ -1944,7 +2094,7 @@ var _ = Describe("Hazelcast CR", func() {
 		})
 
 		When("Jet is not configured", func() {
-			It("should be enabled by default", Label("fast"), func() {
+			It("should be enabled by default", func() {
 				spec := test.HazelcastSpec(defaultHazelcastSpecValues(), ee)
 				hz := &hazelcastv1alpha1.Hazelcast{
 					ObjectMeta: randomObjectMeta(namespace),
@@ -1967,7 +2117,7 @@ var _ = Describe("Hazelcast CR", func() {
 			})
 		})
 
-		It("should validate backup count", Label("fast"), func() {
+		It("should validate backup count", func() {
 			spec := test.HazelcastSpec(defaultHazelcastSpecValues(), ee)
 			spec.JetEngineConfiguration = &hazelcastv1alpha1.JetEngineConfiguration{
 				Enabled: pointer.Bool(true),
@@ -1985,7 +2135,7 @@ var _ = Describe("Hazelcast CR", func() {
 		})
 
 		When("LosslessRestart is enabled", func() {
-			It("should fail if persistence is not enabled", Label("fast"), func() {
+			It("should fail if persistence is not enabled", func() {
 				spec := test.HazelcastSpec(defaultHazelcastSpecValues(), ee)
 				spec.JetEngineConfiguration = &hazelcastv1alpha1.JetEngineConfiguration{
 					Enabled: pointer.Bool(true),
@@ -2003,11 +2153,11 @@ var _ = Describe("Hazelcast CR", func() {
 					Should(MatchError(ContainSubstring("can be enabled only if persistence enabled")))
 			})
 
-			It("should be created successfully if persistence is enabled", Label("fast"), func() {
+			It("should be created successfully if persistence is enabled", func() {
 				spec := test.HazelcastSpec(defaultHazelcastSpecValues(), ee)
 				spec.Persistence = &hazelcastv1alpha1.HazelcastPersistenceConfiguration{
 					ClusterDataRecoveryPolicy: hazelcastv1alpha1.FullRecovery,
-					Pvc: &hazelcastv1alpha1.PersistencePvcConfiguration{
+					PVC: &hazelcastv1alpha1.PvcConfiguration{
 						AccessModes:    []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce},
 						RequestStorage: resource.NewQuantity(9*2^20, resource.BinarySI),
 					},
@@ -2031,7 +2181,7 @@ var _ = Describe("Hazelcast CR", func() {
 		})
 
 		When("bucketConfig is configured", func() {
-			It("should error when secret doesn't exist with the given bucket secretName", Label("fast"), func() {
+			It("should error when secret doesn't exist with the given bucket secretName", func() {
 				spec := test.HazelcastSpec(defaultHazelcastSpecValues(), ee)
 				spec.JetEngineConfiguration = &hazelcastv1alpha1.JetEngineConfiguration{
 					Enabled: ptr.Bool(true),
@@ -2053,7 +2203,7 @@ var _ = Describe("Hazelcast CR", func() {
 		})
 
 		When("ConfigMaps are given", func() {
-			It("should put correct fields in StatefulSet", Label("fast"), func() {
+			It("should put correct fields in StatefulSet", func() {
 				cms := []string{
 					"cm1",
 					"cm2",
@@ -2105,7 +2255,7 @@ var _ = Describe("Hazelcast CR", func() {
 		})
 
 		When("SQL catalogPersistence is enabled", func() {
-			It("should fail if Hazelcast persistence is not enabled", Label("fast"), func() {
+			It("should fail if Hazelcast persistence is not enabled", func() {
 				spec := test.HazelcastSpec(defaultHazelcastSpecValues(), ee)
 				spec.SQL = &hazelcastv1alpha1.SQL{
 					CatalogPersistenceEnabled: true,
@@ -2120,11 +2270,11 @@ var _ = Describe("Hazelcast CR", func() {
 					Should(MatchError(ContainSubstring("catalogPersistence requires Hazelcast persistence enabled")))
 			})
 
-			It("should be created successfully if Hazelcast persistence is enabled", Label("fast"), func() {
+			It("should be created successfully if Hazelcast persistence is enabled", func() {
 				spec := test.HazelcastSpec(defaultHazelcastSpecValues(), ee)
 				spec.Persistence = &hazelcastv1alpha1.HazelcastPersistenceConfiguration{
 					ClusterDataRecoveryPolicy: hazelcastv1alpha1.FullRecovery,
-					Pvc: &hazelcastv1alpha1.PersistencePvcConfiguration{
+					PVC: &hazelcastv1alpha1.PvcConfiguration{
 						AccessModes:    []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce},
 						RequestStorage: resource.NewQuantity(9*2^20, resource.BinarySI),
 					},
@@ -2143,11 +2293,11 @@ var _ = Describe("Hazelcast CR", func() {
 				Expect(hz.Spec.SQL.CatalogPersistenceEnabled).Should(BeTrue())
 			})
 
-			It("should fail to disable catalogPersistence", Label("fast"), func() {
+			It("should fail to disable catalogPersistence", func() {
 				spec := test.HazelcastSpec(defaultHazelcastSpecValues(), ee)
 				spec.Persistence = &hazelcastv1alpha1.HazelcastPersistenceConfiguration{
 					ClusterDataRecoveryPolicy: hazelcastv1alpha1.FullRecovery,
-					Pvc: &hazelcastv1alpha1.PersistencePvcConfiguration{
+					PVC: &hazelcastv1alpha1.PvcConfiguration{
 						AccessModes:    []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce},
 						RequestStorage: resource.NewQuantity(9*2^20, resource.BinarySI),
 					},
@@ -2176,7 +2326,7 @@ var _ = Describe("Hazelcast CR", func() {
 	})
 
 	Context("with labels and annotations", func() {
-		It("should set labels and annotations to sub-resources", Label("fast"), func() {
+		It("should set labels and annotations to sub-resources", func() {
 			spec := test.HazelcastSpec(defaultHazelcastSpecValues(), ee)
 			spec.Annotations = map[string]string{
 				"annotation-example": "hazelcast",
@@ -2237,6 +2387,317 @@ var _ = Describe("Hazelcast CR", func() {
 				Expect(r.GetLabels()).To(Not(HaveKeyWithValue(n.ApplicationInstanceNameLabel, "user")), name)
 				Expect(r.GetLabels()).To(Not(HaveKeyWithValue(n.ApplicationManagedByLabel, "user")), name)
 			}
+		})
+	})
+
+	Context("with Tiered Storage configuration", func() {
+		When("LocalDevices is configured", func() {
+			spec := test.HazelcastSpec(defaultHazelcastSpecValues(), ee)
+			nativeMemory := &hazelcastv1alpha1.NativeMemoryConfiguration{
+				AllocatorType: hazelcastv1alpha1.NativeMemoryPooled,
+			}
+			spec.NativeMemory = nativeMemory
+			localDevices := []hazelcastv1alpha1.LocalDeviceConfig{{
+				Name: "local-device-test",
+				PVC: &hazelcastv1alpha1.PvcConfiguration{
+					AccessModes: []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce},
+				},
+			}}
+			spec.LocalDevices = localDevices
+
+			It("should fail when not using enterprise version", Label("fast"), func() {
+				if ee {
+					Skip("This test will only run in OS configuration")
+				}
+
+				hz := &hazelcastv1alpha1.Hazelcast{
+					ObjectMeta: randomObjectMeta(namespace),
+					Spec:       spec,
+				}
+
+				Expect(k8sClient.Create(context.Background(), hz)).
+					Should(MatchError(ContainSubstring("Required value: Hazelcast Tiered Storage requires enterprise version")))
+			})
+
+			It("should fail if NativeMemory is not enabled when Tiered Storage is enabled", Label("fast"), func() {
+				if !ee {
+					Skip("This test will only run in EE configuration")
+				}
+				spec.NativeMemory = nil
+				hz := &hazelcastv1alpha1.Hazelcast{
+					ObjectMeta: randomObjectMeta(namespace),
+					Spec:       spec,
+				}
+
+				Expect(k8sClient.Create(context.Background(), hz)).
+					Should(MatchError(ContainSubstring("Required value: Native Memory must be enabled at Hazelcast when Tiered Storage is enabled")))
+			})
+
+			It("should fail if pvc is not specified", Label("fast"), func() {
+				if !ee {
+					Skip("This test will only run in EE configuration")
+				}
+
+				spec.LocalDevices = []hazelcastv1alpha1.LocalDeviceConfig{{
+					Name: "local-device-test",
+				}}
+
+				hz := &hazelcastv1alpha1.Hazelcast{
+					ObjectMeta: randomObjectMeta(namespace),
+					Spec:       spec,
+				}
+
+				Expect(k8sClient.Create(context.Background(), hz)).
+					Should(MatchError(ContainSubstring("spec.localDevices.pvc: Required value: must be set when LocalDevice is defined")))
+			})
+
+			It("should create with default values", Label("fast"), func() {
+				if !ee {
+					Skip("This test will only run in EE configuration")
+				}
+				spec.NativeMemory = nativeMemory
+				spec.LocalDevices = localDevices
+				hz := &hazelcastv1alpha1.Hazelcast{
+					ObjectMeta: randomObjectMeta(namespace),
+					Spec:       spec,
+				}
+				create(hz)
+				fetchedCR := assertHzStatusIsPending(hz)
+				test.CheckHazelcastCR(fetchedCR, defaultHazelcastSpecValues(), ee)
+
+				By("checking the Local Device configuration", func() {
+					localDevice := fetchedCR.Spec.LocalDevices[0]
+					Expect(localDevice.Name).Should(Equal("local-device-test"))
+					Expect(localDevice.BlockSize).Should(Equal(pointer.Int32(4096)))
+					Expect(localDevice.ReadIOThreadCount).Should(Equal(pointer.Int32(4)))
+					Expect(localDevice.WriteIOThreadCount).Should(Equal(pointer.Int32(4)))
+					Expect(localDevice.PVC.AccessModes).Should(ConsistOf(corev1.ReadWriteOnce))
+					Expect(*localDevice.PVC.RequestStorage).Should(Equal(resource.MustParse("8Gi")))
+				})
+
+				expectedLocalDeviceConfig := config.LocalDevice{
+					BaseDir: path.Join(n.TieredStorageBaseDir, "local-device-test"),
+					Capacity: config.Size{
+						Value: 8589934592,
+						Unit:  "BYTES",
+					},
+					BlockSize:          pointer.Int32(4096),
+					ReadIOThreadCount:  pointer.Int32(4),
+					WriteIOThreadCount: pointer.Int32(4),
+				}
+
+				Eventually(func() config.LocalDevice {
+					cfg := getSecret(hz)
+					a := &config.HazelcastWrapper{}
+
+					if err := yaml.Unmarshal(cfg.Data["hazelcast.yaml"], a); err != nil {
+						return config.LocalDevice{}
+					}
+
+					return a.Hazelcast.LocalDevice["local-device-test"]
+				}, timeout, interval).Should(Equal(expectedLocalDeviceConfig))
+			})
+
+			It("should create volumeClaimTemplates", Label("fast"), func() {
+				if !ee {
+					Skip("This test will only run in EE configuration")
+				}
+
+				spec.LocalDevices = []hazelcastv1alpha1.LocalDeviceConfig{{
+					Name:               "local-device-test",
+					BlockSize:          pointer.Int32(2048),
+					ReadIOThreadCount:  pointer.Int32(2),
+					WriteIOThreadCount: pointer.Int32(2),
+					PVC: &hazelcastv1alpha1.PvcConfiguration{
+						AccessModes:      []corev1.PersistentVolumeAccessMode{corev1.ReadWriteMany},
+						RequestStorage:   &[]resource.Quantity{resource.MustParse("128G")}[0],
+						StorageClassName: &[]string{"standard"}[0],
+					},
+				}}
+				hz := &hazelcastv1alpha1.Hazelcast{
+					ObjectMeta: randomObjectMeta(namespace),
+					Spec:       spec,
+				}
+
+				create(hz)
+				fetchedCR := assertHzStatusIsPending(hz)
+				test.CheckHazelcastCR(fetchedCR, defaultHazelcastSpecValues(), ee)
+
+				By("checking the Local Device configuration", func() {
+					localDevice := fetchedCR.Spec.LocalDevices[0]
+					Expect(localDevice.Name).Should(Equal("local-device-test"))
+					Expect(localDevice.BlockSize).Should(Equal(pointer.Int32(2048)))
+					Expect(localDevice.ReadIOThreadCount).Should(Equal(pointer.Int32(2)))
+					Expect(localDevice.WriteIOThreadCount).Should(Equal(pointer.Int32(2)))
+					Expect(localDevice.PVC.AccessModes).Should(ConsistOf(corev1.ReadWriteMany))
+					Expect(*localDevice.PVC.RequestStorage).Should(Equal(resource.MustParse("128G")))
+					Expect(*localDevice.PVC.StorageClassName).Should(Equal("standard"))
+
+				})
+				Eventually(func() []corev1.PersistentVolumeClaim {
+					ss := getStatefulSet(hz)
+					return ss.Spec.VolumeClaimTemplates
+				}, timeout, interval).Should(
+					ConsistOf(WithTransform(func(pvc corev1.PersistentVolumeClaim) corev1.PersistentVolumeClaimSpec {
+						return pvc.Spec
+					}, Equal(
+						corev1.PersistentVolumeClaimSpec{
+							AccessModes: fetchedCR.Spec.LocalDevices[0].PVC.AccessModes,
+							Resources: corev1.ResourceRequirements{
+								Requests: corev1.ResourceList{
+									corev1.ResourceStorage: *fetchedCR.Spec.LocalDevices[0].PVC.RequestStorage,
+								},
+							},
+							StorageClassName: fetchedCR.Spec.LocalDevices[0].PVC.StorageClassName,
+							VolumeMode:       &[]corev1.PersistentVolumeMode{corev1.PersistentVolumeFilesystem}[0],
+						},
+					))),
+				)
+			})
+		})
+	})
+
+	Context("CP subsystem", func() {
+		It("should configure CP subsystem with PVC", func() {
+			hz := &hazelcastv1alpha1.Hazelcast{
+				ObjectMeta: randomObjectMeta(namespace),
+				Spec: hazelcastv1alpha1.HazelcastSpec{
+					ClusterSize: pointer.Int32(5),
+					CPSubsystem: &hazelcastv1alpha1.CPSubsystem{
+						PVC: &hazelcastv1alpha1.PvcConfiguration{
+							AccessModes: []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce},
+						},
+					},
+				},
+			}
+			create(hz)
+			assertHzStatusIsPending(hz)
+			fetchedSts := &v1.StatefulSet{}
+			assertExists(lookupKey(hz), fetchedSts)
+
+			Expect(fetchedSts.Spec.VolumeClaimTemplates).Should(test.ContainVolumeClaimTemplate(n.CPPersistenceVolumeName))
+			hzContainer := fetchedSts.Spec.Template.Spec.Containers[0]
+			Expect(hzContainer.VolumeMounts).Should(test.ContainVolumeMount(n.CPPersistenceVolumeName, n.CPBaseDir))
+
+			Eventually(func() config.CPSubsystem {
+				cfg := getSecret(hz)
+				a := &config.HazelcastWrapper{}
+
+				if err := yaml.Unmarshal(cfg.Data["hazelcast.yaml"], a); err != nil {
+					return config.CPSubsystem{}
+				}
+
+				return a.Hazelcast.CPSubsystem
+			}, timeout, interval).Should(Equal(config.CPSubsystem{
+				CPMemberCount:      5,
+				GroupSize:          pointer.Int32(5),
+				BaseDir:            n.CPBaseDir,
+				PersistenceEnabled: true,
+			}))
+		})
+		It("should configure CP subsystem with Persistence PVC", func() {
+			hz := &hazelcastv1alpha1.Hazelcast{
+				ObjectMeta: randomObjectMeta(namespace),
+				Spec: hazelcastv1alpha1.HazelcastSpec{
+					ClusterSize: pointer.Int32(5),
+					Persistence: &hazelcastv1alpha1.HazelcastPersistenceConfiguration{
+						PVC: &hazelcastv1alpha1.PvcConfiguration{
+							AccessModes: []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce},
+						},
+					},
+					CPSubsystem: &hazelcastv1alpha1.CPSubsystem{},
+				},
+			}
+			create(hz)
+			assertHzStatusIsPending(hz)
+			fetchedSts := &v1.StatefulSet{}
+			assertExists(lookupKey(hz), fetchedSts)
+
+			Expect(fetchedSts.Spec.VolumeClaimTemplates).Should(test.ContainVolumeClaimTemplate(n.PVCName))
+			hzContainer := fetchedSts.Spec.Template.Spec.Containers[0]
+			Expect(hzContainer.VolumeMounts).Should(test.ContainVolumeMount(n.PVCName, n.PersistenceMountPath))
+			Expect(hzContainer.VolumeMounts).Should(Not(test.ContainVolumeMount(n.CPPersistenceVolumeName, n.CPBaseDir)))
+
+			Eventually(func() config.CPSubsystem {
+				cfg := getSecret(hz)
+				a := &config.HazelcastWrapper{}
+
+				if err := yaml.Unmarshal(cfg.Data["hazelcast.yaml"], a); err != nil {
+					return config.CPSubsystem{}
+				}
+
+				return a.Hazelcast.CPSubsystem
+			}, timeout, interval).Should(Equal(config.CPSubsystem{
+				CPMemberCount:      5,
+				GroupSize:          pointer.Int32(5),
+				BaseDir:            n.PersistenceMountPath + n.CPDirSuffix,
+				PersistenceEnabled: true,
+			}))
+		})
+	})
+
+	Context("with CP Subsystem configuration", func() {
+		It("should not allow no PVC configuration", func() {
+			spec := test.HazelcastSpec(defaultHazelcastSpecValues(), ee)
+			spec.CPSubsystem = &hazelcastv1alpha1.CPSubsystem{}
+			hz := &hazelcastv1alpha1.Hazelcast{
+				ObjectMeta: randomObjectMeta(namespace),
+				Spec:       spec,
+			}
+
+			Expect(k8sClient.Create(context.Background(), hz)).
+				Should(MatchError(ContainSubstring("PVC should be configured")))
+		})
+		It("DataLoadTimeoutSeconds cannot be zero", func() {
+			spec := test.HazelcastSpec(defaultHazelcastSpecValues(), ee)
+			spec.CPSubsystem = &hazelcastv1alpha1.CPSubsystem{
+				DataLoadTimeoutSeconds: pointer.Int32(0),
+			}
+			hz := &hazelcastv1alpha1.Hazelcast{
+				ObjectMeta: randomObjectMeta(namespace),
+				Spec:       spec,
+			}
+			Expect(k8sClient.Create(context.Background(), hz)).
+				Should(MatchError(ContainSubstring("spec.cpSubsystem.dataLoadTimeoutSeconds in body should be greater than or equal to 1")))
+		})
+		It("Session TTL must be greater than session heartbeat interval", func() {
+			spec := test.HazelcastSpec(defaultHazelcastSpecValues(), ee)
+			spec.CPSubsystem = &hazelcastv1alpha1.CPSubsystem{
+				SessionTTLSeconds:               pointer.Int32(3),
+				SessionHeartbeatIntervalSeconds: pointer.Int32(5),
+			}
+			hz := &hazelcastv1alpha1.Hazelcast{
+				ObjectMeta: randomObjectMeta(namespace),
+				Spec:       spec,
+			}
+			Expect(k8sClient.Create(context.Background(), hz)).
+				Should(MatchError(ContainSubstring("must be greater than sessionHeartbeatIntervalSeconds")))
+		})
+
+		It("Session TTL must be smaller than or equal to missing CP member auto-removal seconds", func() {
+			spec := test.HazelcastSpec(defaultHazelcastSpecValues(), ee)
+			spec.CPSubsystem = &hazelcastv1alpha1.CPSubsystem{
+				SessionTTLSeconds:                 pointer.Int32(10),
+				MissingCpMemberAutoRemovalSeconds: pointer.Int32(5),
+			}
+			hz := &hazelcastv1alpha1.Hazelcast{
+				ObjectMeta: randomObjectMeta(namespace),
+				Spec:       spec,
+			}
+			Expect(k8sClient.Create(context.Background(), hz)).
+				Should(MatchError(ContainSubstring("must be smaller than or equal to missingCpMemberAutoRemovalSeconds")))
+		})
+
+		It("Should not allow member count less than 3", func() {
+			spec := test.HazelcastSpec(defaultHazelcastSpecValues(), ee)
+			spec.ClusterSize = pointer.Int32(2)
+			spec.CPSubsystem = &hazelcastv1alpha1.CPSubsystem{}
+			hz := &hazelcastv1alpha1.Hazelcast{
+				ObjectMeta: randomObjectMeta(namespace),
+				Spec:       spec,
+			}
+			Expect(k8sClient.Create(context.Background(), hz)).
+				Should(MatchError(ContainSubstring("cluster with CP Subsystem enabled can have 3, 5, or 7 members")))
 		})
 	})
 })

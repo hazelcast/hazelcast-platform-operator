@@ -5,6 +5,7 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
+	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 )
 
 // log is for logging in this package.
@@ -21,19 +22,19 @@ func (r *Cache) SetupWebhookWithManager(mgr ctrl.Manager) error {
 var _ webhook.Validator = &Cache{}
 
 // ValidateCreate implements webhook.Validator so a webhook will be registered for the type
-func (c *Cache) ValidateCreate() error {
+func (c *Cache) ValidateCreate() (admission.Warnings, error) {
 	cachelog.Info("validate create", "name", c.Name)
-	return c.ValidateSpecCreate()
+	return admission.Warnings{}, c.ValidateSpecCreate()
 }
 
 // ValidateUpdate implements webhook.Validator so a webhook will be registered for the type
-func (c *Cache) ValidateUpdate(runtime.Object) error {
+func (c *Cache) ValidateUpdate(runtime.Object) (admission.Warnings, error) {
 	cachelog.Info("validate update", "name", c.Name)
-	return c.ValidateSpecUpdate()
+	return admission.Warnings{}, c.ValidateSpecUpdate()
 }
 
 // ValidateDelete implements webhook.Validator so a webhook will be registered for the type
-func (c *Cache) ValidateDelete() error {
+func (c *Cache) ValidateDelete() (admission.Warnings, error) {
 	cachelog.Info("validate delete", "name", c.Name)
-	return nil
+	return admission.Warnings{}, nil
 }

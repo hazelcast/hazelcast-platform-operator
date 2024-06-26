@@ -46,4 +46,5 @@ type CacheConfigHolder struct {
 	CachePartitionLostListenerConfigs []ListenerConfigHolder
 	MerkleTreeConfig                  MerkleTreeConfig
 	DataPersistenceConfig             DataPersistenceConfig
+	UserCodeNamespace                 string
 }

@@ -42,7 +42,7 @@ const (
 
 	OperatorName         = "hazelcast-platform-operator"
 	Hazelcast            = "hazelcast"
-	HazelcastPortName    = "hazelcast-port"
+	HazelcastPortName    = "hazelcast"
 	HazelcastStorageName = Hazelcast + "-storage"
 	HazelcastMountPath   = "/data/hazelcast"
 	TmpDirVolName        = "tmp-vol"
@@ -56,14 +56,21 @@ const (
 	// MancenterStorageName storage name for MC
 	MancenterStorageName = Mancenter + "-storage"
 
-	// PersistenceVolumeName is the name the Persistence Volume Claim used in Persistence configuration.
-	PersistenceVolumeName       = "hot-restart-persistence"
+	// PVCName is the name the Persistence Volume Claim used in Persistence configuration.
+	PVCName                     = "persistence"
+	CPPersistenceVolumeName     = "cp-subsystem-persistence"
 	UserCodeBucketVolumeName    = "user-code-bucket"
+	UCNVolumeName               = "user-code-namespace"
 	JetJobJarsVolumeName        = "jet-job-jars-bucket"
 	JetConfigMapNamePrefix      = "jet-cm-"
 	UserCodeURLVolumeName       = "user-code-url"
 	UserCodeConfigMapNamePrefix = "user-code-cm-"
-	BaseDir                     = "/data/hot-restart"
+	PersistenceMountPath        = "/data/persistence"
+	BaseDir                     = PersistenceMountPath + "/base-dir"
+	BackupDir                   = "/hot-backup"
+	TieredStorageBaseDir        = "/data/tiered-storage"
+	CPDirSuffix                 = "/cp-data"
+	CPBaseDir                   = "/data" + CPDirSuffix
 
 	SidecarAgent        = "sidecar-agent"
 	BackupAgentPortName = "backup-agent-port"
@@ -74,6 +81,11 @@ const (
 	UserCodeURLAgent    = "ucd-url-agent"
 	JetBucketAgent      = "jet-bucket-agent"
 	JetUrlAgent         = "jet-url-agent"
+	InitAgent           = "init-agent"
+	AgentSuffix         = "-agent"
+	AgentConfigMap      = "agent-config-volume"
+	AgentConfigDir      = "/opt/data/config/"
+	AgentConfigFile     = "config.yaml"
 
 	MTLSCertSecretName = "hazelcast-agent-cert"
 	MTLSCertPath       = "/var/run/secrets/hazelcast"
@@ -82,10 +94,12 @@ const (
 	UserCodeURLPath       = "/opt/hazelcast/userCode/urls"
 	UserCodeConfigMapPath = "/opt/hazelcast/userCode/cm"
 	JetJobJarsPath        = "/opt/hazelcast/jetJobJars"
+	UCNBucketPath         = "/opt/hazelcast/ucn/bucket"
 )
 
-// Annotations
-const HazelcastCustomConfigOverwrite = "hazelcast.com/custom-config-overwrite"
+const HazelcastCustomConfigOverwriteAnnotation = "hazelcast.com/custom-config-overwrite"
+
+const HazelcastCustomConfigKey = "hazelcast"
 
 // Hazelcast default configurations
 const (
@@ -100,7 +114,7 @@ const (
 	// HazelcastEERepo image repository for Hazelcast EE
 	HazelcastEERepo = "docker.io/hazelcast/hazelcast-enterprise"
 	// HazelcastVersion version of Hazelcast image
-	HazelcastVersion = "5.3.5"
+	HazelcastVersion = "5.5.0-SNAPSHOT"
 	// HazelcastImagePullPolicy pull policy for Hazelcast Platform image
 	HazelcastImagePullPolicy = corev1.PullIfNotPresent
 )
@@ -110,7 +124,7 @@ const (
 	// MCRepo image repository for Management Center
 	MCRepo = "docker.io/hazelcast/management-center"
 	// MCVersion version of Management Center image
-	MCVersion = "5.3.3"
+	MCVersion = "5.4.1"
 	// MCImagePullPolicy pull policy for Management Center image
 	MCImagePullPolicy = corev1.PullIfNotPresent
 )

@@ -15,7 +15,7 @@ get_image()
     fi
 
     local FILTER="filter=deleted==false;${PUBLISHED_FILTER};repositories.tags.name==${VERSION}"
-    local INCLUDE="include=total,data.repositories.tags.name,data.scan_status,data._id"
+    local INCLUDE="include=total,data.repositories.tags.name,data._id,data.container_grades.status"
 
     local RESPONSE=$( \
         curl --silent \
@@ -186,57 +186,6 @@ delete_container_image()
     --compressed
 }
 
-# The function waits until all EKS stacks will be deleted. Takes 2 arguments - cluster name and timeout.
-wait_for_eks_stack_deleted()
-{
-    local CLUSTER_NAME=$1
-    local TIMEOUT_IN_MINS=$2
-    local NOF_RETRIES=$(( $TIMEOUT_IN_MINS * 3 ))
-    LIST_OF_STACKS=$(aws cloudformation describe-stacks --no-paginate --query \
-          'Stacks[?StackName!=`null`]|[?contains(StackName, `'$CLUSTER_NAME'-nodegroup`) == `true` || contains(StackName, `'$CLUSTER_NAME'-addon`) == `true` || contains(StackName, `'$CLUSTER_NAME'-cluster`) == `true`].StackName' | jq -r '.[]')
-    for STACK_NAME in $LIST_OF_STACKS; do
-           aws cloudformation delete-stack \
-           --stack-name $STACK_NAME \
-           --cli-read-timeout 900 \
-           --cli-connect-timeout 900
-        for i in `seq 1 ${NOF_RETRIES}`; do
-            STACK_STATUS=$(aws cloudformation list-stacks \
-            --stack-status-filter DELETE_COMPLETE \
-            --no-paginate \
-            --query 'StackSummaries[?StackName!=`null`]|[?contains(StackName, `'$STACK_NAME'`) == `true`].StackName' | jq -r '.|length')
-            if [[ $STACK_STATUS -eq 1 ]]; then
-                echo "Stack '$STACK_NAME' is deleted"
-                break
-            else
-                echo "Stack '$STACK_NAME' is still being deleting, waiting..."
-            fi
-            if [[ $i == $NOF_RETRIES ]]; then
-                echo "Timeout! Stack deleting could not be finished"
-                return 42
-            fi
-            sleep 20
-        done
-    done
-}
-
-# The function delete/dissociate the identity provider
-clean_open_id_connect_providers()
-{
-    local AWS_REGION=$1
-    local CLUSTER_NAME=$2
-    LIST_ARNS=$(aws iam list-open-id-connect-providers | jq -r '[.OpenIDConnectProviderList[] | select( .Arn | contains("'${AWS_REGION}'"))]')
-    TOTAL_ARNS=$(echo $LIST_ARNS | jq -r 'length')
-    for ((i=0;i<$TOTAL_ARNS;i++));
-        do
-        PROVIDER_ARN=$(echo $LIST_ARNS | jq -r '.['$i'].Arn')
-        size=$(aws iam list-open-id-connect-provider-tags --open-id-connect-provider-arn $PROVIDER_ARN | jq -e '[(.Tags[]| select(.Key=="alpha.eksctl.io/cluster-name" and (.Value | contains("'$CLUSTER_NAME'")))|.Value)]|length')
-            if [[ $size -eq 1 ]];then
-                echo "Deleting open-id-connect-provider with ARN '$PROVIDER_ARN' and cluster name: '$CLUSTER_NAME'"
-                aws iam delete-open-id-connect-provider --open-id-connect-provider-arn $PROVIDER_ARN
-            fi
-    done
-}
-
 # The function waits until all Elastic Load Balancers attached to EC2 instances (under the current Kubernetes context) are deleted. Takes a single argument - timeout.
 wait_for_elb_deleted()
 {
@@ -375,12 +324,8 @@ merge_xml_test_reports() {
   local files_by_edition=()
   local edition
   for file in $(ls ${GITHUB_WORKSPACE}/allure-results/$WORKFLOW_ID/test_report_*); do
-      if [[ $WORKFLOW_ID == "multi" ]]; then
-         edition=$(basename "$file" | awk -F "_" '{print $3"_"$4"_"$5}')
-      else
          edition=$(basename "$file" | awk -F "_" '{print $3}')
-      fi
-         files_by_edition+=("$edition $file")
+         files_by_edition+=("$edition")
   done
   groups=$(printf "%s\n" "${files_by_edition[@]}" | awk '{print $1}' | sort -u)
 
@@ -394,9 +339,12 @@ merge_xml_test_reports() {
           # insert extracted test cases into parent_test_report_file
           printf '%s\n' '0?<\/testcase>?a' $TEST_CASES . x | ex $PARENT_TEST_REPORT_FILE
       done
-      #remove 'SynchronizedBeforeSuite' and 'AfterSuite' xml tags from the final report
+      #remove 'SynchronizedBeforeSuite' and 'AfterSuite' and other unnecessary xml tags from the final report
       cat <<<$(xmlstarlet ed -d '//testcase[@name="[SynchronizedBeforeSuite]" and @status="passed"]' $PARENT_TEST_REPORT_FILE) >$PARENT_TEST_REPORT_FILE
       cat <<<$(xmlstarlet ed -d '//testcase[@name="[AfterSuite]" and @status="passed"]' $PARENT_TEST_REPORT_FILE) >$PARENT_TEST_REPORT_FILE
+      cat <<<$(xmlstarlet ed -d '//system-out' $PARENT_TEST_REPORT_FILE) > $PARENT_TEST_REPORT_FILE
+      sed -i 's/system-err/system-out/g' $PARENT_TEST_REPORT_FILE
+      sed -i '/^.*END STEP:.*$/d; /Exit \[It\]/d; /AfterEach/d; /Aftereach/d' $PARENT_TEST_REPORT_FILE
 
       # for each test name verify status
       for TEST_NAME in $(xmlstarlet sel -t -v "//testcase/@name" $PARENT_TEST_REPORT_FILE); do
@@ -434,28 +382,24 @@ update_test_files()
       local WORKFLOW_ID=$1
       local CLUSTER_NAME=$2
       local REPOSITORY_OWNER=$3
-      cd allure-history/$WORKFLOW_ID/${GITHUB_RUN_NUMBER}/data/test-cases
-      local GRAFANA_BASE_URL="https://hazelcastoperator.grafana.net"
       local BEGIN_TIME=$(date +%s000 -d "- 3 hours")
       local END_TIME=$(date +%s000 -d "+ 1 hours")
+      cd allure-history/$WORKFLOW_ID/${GITHUB_RUN_NUMBER}/data/test-cases
+      local GRAFANA_BASE_URL="https://hazelcastoperator.grafana.net"
       for i in $(ls); do
-          cat <<< $(jq -e 'del(.testStage.steps[] | select(has("name") and (.name | select(contains("CR_ID")|not)) and (.name | select(contains("Text")|not))))
-                               |.testStage.steps[].name |= sub("&{Text:";"")
-                               |.testStage.steps[].name |= sub("}";"")
-                               |walk(if type == "object" and .steps then . | .time={"duration": .name} else . end)
-                               |.testStage.steps[].name |= sub(" Duration.*";"")
-                               |.testStage.steps[].time.duration |= sub(".*Duration:";"")
-                               |.testStage.steps[].time.duration |= (if contains("CR_ID") then . elif contains("ms") then split("ms") | .[0]|tonumber elif contains("m") then split("m") | ((.[0]|tonumber)*60+(.[1]|.|= sub("s";"")|tonumber))*1000 elif contains("s") then split("s") | .[0]|tonumber*1000 else . end)
+          cat <<< $(jq -e 'del(.testStage.steps[] | select(has("name") and (.name | startswith("STEP:")|not) and (.name | contains("CR_ID") | not)))
+                               |.testStage.steps[].name |= (sub("STEP: "; "") | sub(" - /home.*$"; "")
+                               | if . == "" then . else ((.[0:1] | ascii_upcase) + .[1:]) end)
                                |.testStage.steps[]+={status: "passed"}
                                |(if .status=="failed" then .+={links: [.statusTrace|split("\n")
                                |to_entries
                                |walk(if type == "object" and (.value | select(contains("hazelcast-platform-operator/hazelcast-platform-operator"))) then . else . end)
                                |del(.[].key)
-                               |.[].value|=sub("\\t";"")
-                               |.[].value|=sub("\\+0.*";"")
                                |.[].value|=sub(" ";"")
                                |.[].value|= sub("/home/runner/work/hazelcast-platform-operator/hazelcast-platform-operator";"https://github.com/'${REPOSITORY_OWNER}'/hazelcast-platform-operator/blob/main")
                                |.[].value|= sub(".go:";".go#L")
+                               |.[].value|=sub("In\\[It\\] at: ";"")
+                               |.[].value|= sub(" @.*$"; "")
                                |unique
                                |to_entries[]
                                |.+={name: ("ERROR_LINE"+ "_" + (.key|tonumber+1|tostring))}
@@ -464,14 +408,14 @@ update_test_files()
                                |.+={type: "issue"}]}
                                |.testStage.steps[-1]+={status: "failed"} else . end)' $i) > $i
 
-         local NUMBER_OF_TEST_RUNS=$(jq -r '[(.testStage.steps |to_entries[]| select(.value.name | select(contains("setting the label and CR with name"))))] | length' $i)
+         local NUMBER_OF_TEST_RUNS=$(jq -r '[(.testStage.steps |to_entries[]| select(.value.name | select(contains("Setting the label and CR with name"))))] | length' $i)
          if [[ ${NUMBER_OF_TEST_RUNS} -gt 1 ]]; then
-               local START_INDEX_OF_LAST_RETRY=$(jq -r '[(.testStage.steps |to_entries[]| select(.value.name | select(contains("setting the label and CR with name"))))][-1].key-1' $i)
+               local START_INDEX_OF_LAST_RETRY=$(jq -r '[(.testStage.steps |to_entries[]| select(.value.name | select(contains("Setting the label and CR with name"))))][-1].key' $i)
                cat <<< $(jq -e 'del(.testStage.steps[0:'${START_INDEX_OF_LAST_RETRY}'])' $i) > $i
          fi
          local TEST_STATUS=$(jq -r '.status' $i)
          if [[ ${TEST_STATUS} != "skipped" ]]; then
-            cat <<< $(jq -e '.extra.tags={"tag": .testStage.steps[].name | select(contains("CR_ID")) | sub("CR_ID:"; "")}|del(.testStage.steps[] | select(.name | select(contains("CR_ID"))))' $i) > $i
+            cat <<< $(jq -e '.extra.tags={"tag": .testStage.steps[].name | select(contains("CR_ID")) | sub("CR_ID:"; "")| sub(" .*$"; "")}|del(.testStage.steps[] | select(.name | select(contains("CR_ID"))))' $i) > $i
             local CR_ID=$(jq -r '.extra.tags.tag' $i)
             local LINK=$(echo $GRAFANA_BASE_URL\/d\/-Lz9w3p4z\/all-logs\?orgId=1\&var-cluster="$CLUSTER_NAME"\&var-cr_id="$CR_ID"\&var-text=\&from="$BEGIN_TIME"\&to="$END_TIME")
             cat <<< $(jq -e '.links|= [{"name":"LOGS","url":"'"$LINK"'",type: "tms"}] + .' $i) > $i
@@ -654,4 +598,45 @@ wait_condition_pod_ready() {
   # If the loop completes without finding a successful exit status, return a non-zero exit status
   echo "The pods labeled with '$pod_label' in '$namespace' namespace are not ready yet"
   return 1
+}
+
+get_operator_pod_name(){
+    namespace=$1
+    podName=$(kubectl get pod --selector='app.kubernetes.io/name=hazelcast-platform-operator' --namespace=$namespace -o=jsonpath='{.items[*].metadata.name}')
+    if [ -z "$podName" ]; then
+        echo "operator pod not found in '$namespace' namespace"
+        return 1
+    fi
+    echo $podName | grep -q " "
+    if [ $? -eq 0 ]; then
+        echo "there are multiple operator pods in the namespace '$namespace'"
+        return 1
+    fi
+    echo $podName
+}
+
+get_pod_restart_count(){
+    namespace=$1
+    podName=$2
+    kubectl get pod $podName --namespace=$namespace -o=jsonpath='{.status.containerStatuses[0].restartCount}'
+}
+
+assert_operator_pod_not_restarted(){
+    namespace=$1
+    operatorPod=$(get_operator_pod_name $namespace)
+    echo "operator pod name: $operatorPod"
+    if [ $? -ne 0 ]; then
+        echo $operatorPod
+        return 1
+    fi
+    restartCount=$(get_pod_restart_count $namespace $operatorPod)
+    if [ $? -ne 0 ]; then
+        echo $restartCount
+        return 1
+    fi
+    echo "restart count: $restartCount"
+    if [[ $restartCount -ne 0 ]]; then
+        echo "restart count is not zero"
+        return 1
+    fi
 }
