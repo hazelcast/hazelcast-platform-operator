@@ -10,7 +10,7 @@ require (
 	github.com/google/go-cmp v0.5.9
 	github.com/google/uuid v1.3.0
 	github.com/hazelcast/hazelcast-go-client v1.4.1
-	github.com/hazelcast/platform-operator-agent v0.1.28
+	github.com/hazelcast/platform-operator-agent v0.1.29
 	github.com/onsi/ginkgo/v2 v2.11.0
 	github.com/onsi/gomega v1.27.10
 	github.com/openshift/api v0.0.0-20220715133027-dab5b363ebd1
