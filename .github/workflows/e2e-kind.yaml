@@ -248,7 +248,5 @@ jobs:
         run: |
           source .github/scripts/utils.sh
           operator_pod_name=$(get_operator_pod_name ${NAMESPACE})
-          kubectl get pod $operator_pod_name --namespace=${NAMESPACE} -oyaml
-          kubectl events --namespace=${NAMESPACE}
           kubectl logs $operator_pod_name --namespace=${NAMESPACE} --previous
           assert_operator_pod_not_restarted ${NAMESPACE}
