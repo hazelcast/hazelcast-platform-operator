@@ -222,13 +222,6 @@ func (hr *fakeHttpClientRegistry) GetOrCreate(ctx context.Context, kubeClient cl
 	return hr.Create(ctx, kubeClient, ns)
 }
 
-func (hr *fakeHttpClientRegistry) Get(ns string) (*http.Client, bool) {
-	if v, ok := hr.clients.Load(types.NamespacedName{Name: n.MTLSCertSecretName, Namespace: ns}); ok {
-		return v.(*http.Client), ok
-	}
-	return nil, false
-}
-
 func (hr *fakeHttpClientRegistry) Delete(ns string) {
 	hr.clients.Delete(types.NamespacedName{Name: n.MTLSCertSecretName, Namespace: ns})
 }
