@@ -287,7 +287,7 @@ func (r *HotBackupReconciler) startBackup(ctx context.Context, backupName types.
 	if !ok {
 		returnErr := errors.New("failed to get MTLS client")
 		return r.updateStatus(ctx, backupName, recoptions.Error(returnErr),
-			withHotBackupFailedState(err.Error()))
+			withHotBackupFailedState(returnErr.Error()))
 	}
 
 	var uploads []*upload.Upload
