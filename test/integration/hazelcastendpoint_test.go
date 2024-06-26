@@ -290,19 +290,19 @@ var _ = Describe("HazelcastEndpoint CR", func() {
 							Name:        "florida",
 							Port:        5710,
 							PortCount:   3,
-							ServiceType: corev1.ServiceTypeLoadBalancer,
+							ServiceType: hazelcastv1alpha1.WANServiceTypeLoadBalancer,
 						},
 						{
 							Name:        "ottawa",
 							Port:        5714,
 							PortCount:   5,
-							ServiceType: corev1.ServiceTypeLoadBalancer,
+							ServiceType: hazelcastv1alpha1.WANServiceTypeLoadBalancer,
 						},
 						{
 							Name:        "oslo",
 							Port:        5719,
 							PortCount:   9,
-							ServiceType: corev1.ServiceTypeClusterIP,
+							ServiceType: hazelcastv1alpha1.WANServiceTypeClusterIP,
 						},
 					},
 				}

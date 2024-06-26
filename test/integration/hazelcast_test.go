@@ -1492,7 +1492,7 @@ var _ = Describe("Hazelcast CR", func() {
 						{
 							Port:        5710,
 							PortCount:   5,
-							ServiceType: corev1.ServiceTypeClusterIP,
+							ServiceType: hazelcastv1alpha1.WANServiceTypeClusterIP,
 							Name:        "tokyo",
 						},
 						{
@@ -1721,7 +1721,7 @@ var _ = Describe("Hazelcast CR", func() {
 					{
 						Port:        5702,
 						PortCount:   3,
-						ServiceType: corev1.ServiceTypeExternalName,
+						ServiceType: hazelcastv1alpha1.WANServiceType(corev1.ServiceTypeExternalName),
 					},
 				},
 			}

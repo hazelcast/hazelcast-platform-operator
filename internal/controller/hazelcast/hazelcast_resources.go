@@ -17,7 +17,7 @@ import (
 	"github.com/go-logr/logr"
 	proto "github.com/hazelcast/hazelcast-go-client"
 	"github.com/hazelcast/platform-operator-agent/init/compound"
-	"github.com/hazelcast/platform-operator-agent/init/jar_download_bucket"
+	downloadbucket "github.com/hazelcast/platform-operator-agent/init/jar_download_bucket"
 	"github.com/pavlo-v-chernykh/keystore-go/v4"
 	"golang.org/x/mod/semver"
 	"golang.org/x/sync/errgroup"
@@ -414,49 +414,30 @@ func (r *HazelcastReconciler) reconcileWANServices(ctx context.Context, h *hazel
 		return nil
 	}
 	for _, w := range h.Spec.AdvancedNetwork.WAN {
-		service := &corev1.Service{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:        h.Name + "-" + w.Name,
-				Namespace:   h.Namespace,
-				Labels:      labels(h),
-				Annotations: h.Spec.Annotations,
-			},
-			Spec: corev1.ServiceSpec{
-				Selector: util.Labels(h),
-			},
+		if !w.ServiceType.IsCorev1Service() {
+			continue
 		}
+
+		service := wanConfigService(w, h)
 
 		err := controllerutil.SetControllerReference(h, service, r.Scheme)
 		if err != nil {
 			return err
 		}
 
-		var i uint
-		var ports []corev1.ServicePort
-		for i = 0; i < w.PortCount; i++ {
-			ports = append(ports,
-				corev1.ServicePort{
-					Name:        fmt.Sprintf("%s%s-%d", n.WanPortNamePrefix, w.Name, i),
-					Protocol:    corev1.ProtocolTCP,
-					Port:        int32(w.Port + i),
-					TargetPort:  intstr.FromInt(int(w.Port + i)),
-					AppProtocol: pointer.String("tcp"),
-				})
-		}
-
 		opResult, err := util.CreateOrUpdate(ctx, r.Client, service, func() error {
 			switch w.ServiceType {
-			case corev1.ServiceTypeLoadBalancer, corev1.ServiceTypeNodePort:
+			case hazelcastv1alpha1.WANServiceTypeLoadBalancer, hazelcastv1alpha1.WANServiceTypeNodePort:
 				service.Labels[n.ServiceEndpointTypeLabelName] = n.ServiceEndpointTypeWANLabelValue
-			case corev1.ServiceTypeClusterIP:
+			case hazelcastv1alpha1.WANServiceTypeClusterIP:
 				delete(service.Labels, n.ServiceEndpointTypeLabelName)
 			}
 
-			service.Spec.Ports = util.EnrichServiceNodePorts(ports, service.Spec.Ports)
+			service.Spec.Ports = util.EnrichServiceNodePorts(wanConfigServicePorts(w), service.Spec.Ports)
 			if w.ServiceType == "" {
 				service.Spec.Type = v1.ServiceTypeLoadBalancer
 			} else {
-				service.Spec.Type = w.ServiceType
+				service.Spec.Type = corev1.ServiceType(w.ServiceType)
 			}
 			return nil
 		})
@@ -469,6 +450,38 @@ func (r *HazelcastReconciler) reconcileWANServices(ctx context.Context, h *hazel
 	}
 
 	return nil
+}
+
+func wanConfigService(w hazelcastv1alpha1.WANConfig, h *hazelcastv1alpha1.Hazelcast) *corev1.Service {
+	service := &corev1.Service{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:        h.Name + "-" + w.Name,
+			Namespace:   h.Namespace,
+			Labels:      labels(h),
+			Annotations: h.Spec.Annotations,
+		},
+		Spec: corev1.ServiceSpec{
+			Selector: util.Labels(h),
+			Ports:    wanConfigServicePorts(w),
+		},
+	}
+	return service
+}
+
+func wanConfigServicePorts(w hazelcastv1alpha1.WANConfig) []corev1.ServicePort {
+	var i uint
+	var ports []corev1.ServicePort
+	for i = 0; i < w.PortCount; i++ {
+		ports = append(ports,
+			corev1.ServicePort{
+				Name:        fmt.Sprintf("%s%s-%d", n.WanPortNamePrefix, w.Name, i),
+				Protocol:    corev1.ProtocolTCP,
+				Port:        int32(w.Port + i),
+				TargetPort:  intstr.FromInt(int(w.Port + i)),
+				AppProtocol: pointer.String("tcp"),
+			})
+	}
+	return ports
 }
 
 func serviceType(h *hazelcastv1alpha1.Hazelcast) v1.ServiceType {
@@ -484,7 +497,6 @@ func (r *HazelcastReconciler) reconcileServicePerPod(ctx context.Context, h *haz
 		return nil
 	}
 
-	isAddWANPort := h.Spec.AdvancedNetwork == nil || len(h.Spec.AdvancedNetwork.WAN) == 0
 	for i := 0; i < int(*h.Spec.ClusterSize); i++ {
 		service := &corev1.Service{
 			ObjectMeta: metav1.ObjectMeta{
@@ -512,7 +524,7 @@ func (r *HazelcastReconciler) reconcileServicePerPod(ctx context.Context, h *haz
 				delete(service.Labels, n.ServiceEndpointTypeLabelName)
 			}
 
-			service.Spec.Ports = util.EnrichServiceNodePorts(servicePerPodPort(isAddWANPort), service.Spec.Ports)
+			service.Spec.Ports = util.EnrichServiceNodePorts(servicePerPodPort(h.Spec.AdvancedNetwork), service.Spec.Ports)
 			service.Spec.Type = h.Spec.ExposeExternally.MemberAccessServiceType()
 
 			return nil
@@ -770,14 +782,22 @@ func servicePerPodLabels(h *hazelcastv1alpha1.Hazelcast) map[string]string {
 	return ls
 }
 
-func servicePerPodPort(isAddWANPort bool) []v1.ServicePort {
-	p := []corev1.ServicePort{
+func servicePerPodPort(an *hazelcastv1alpha1.AdvancedNetwork) []v1.ServicePort {
+	ports := []corev1.ServicePort{
 		clientPort(),
 	}
-	if isAddWANPort {
-		p = append(p, defaultWANPort())
+
+	if an != nil && len(an.WAN) > 0 {
+		for _, w := range an.WAN {
+			if w.ServiceType == hazelcastv1alpha1.WANServiceTypeWithExposeExternally {
+				ports = append(ports, wanConfigServicePorts(w)...)
+			}
+		}
+	} else {
+		ports = append(ports, defaultWANPort())
 	}
-	return p
+
+	return ports
 }
 
 func hazelcastPort(isAddWANPort bool) []v1.ServicePort {
