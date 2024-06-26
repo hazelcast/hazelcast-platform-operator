@@ -98,7 +98,7 @@ type HazelcastSpec struct {
 	Persistence *HazelcastPersistenceConfiguration `json:"persistence,omitempty"`
 
 	// B&R Agent configurations
-	// +kubebuilder:default:={repository: "docker.io/hazelcast/platform-operator-agent", version: "0.1.27"}
+	// +kubebuilder:default:={repository: "docker.io/hazelcast/platform-operator-agent", version: "0.1.28"}
 	Agent AgentConfiguration `json:"agent,omitempty"`
 
 	// Jet Engine configuration
@@ -192,6 +192,11 @@ type HazelcastSpec struct {
 	// UserCodeNamespaces provide a container for Java classpath resources, such as user code and accompanying artifacts like property files
 	// +optional
 	UserCodeNamespaces *UserCodeNamespacesConfig `json:"userCodeNamespaces,omitempty"`
+
+	// Env configuration of environment variables
+	// +optional
+	// +kubebuilder:validation:XValidation:message="Environment variables cannot start with 'HZ_'. Use customConfigCmName to configure Hazelcast.",rule="self.all(env, env.name.startsWith('HZ_') == false)"
+	Env []corev1.EnvVar `json:"env,omitempty"`
 }
 
 func (s *HazelcastSpec) GetLicenseKeySecretName() string {
@@ -684,7 +689,7 @@ type AgentConfiguration struct {
 	Repository string `json:"repository,omitempty"`
 
 	// Version of Hazelcast Platform Operator Agent.
-	// +kubebuilder:default:="0.1.27"
+	// +kubebuilder:default:="0.1.28"
 	// +optional
 	Version string `json:"version,omitempty"`
 
