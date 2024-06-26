@@ -176,7 +176,9 @@ jobs:
 
       - name: Get GH Public IP
         id: ip
-        uses: haythem/public-ip@v1.3
+        run: |
+          response=$(curl -s canhazip.com)
+          echo "ipv4=$response" >> "$GITHUB_OUTPUT"
 
       - name: Configure SecurityGroup of Nodes
         run: |-
