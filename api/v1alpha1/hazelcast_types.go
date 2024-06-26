@@ -1161,10 +1161,6 @@ type WANConfig struct {
 	Name string `json:"name,omitempty"`
 }
 
-// todo: updatable
-// todo: hzep
-// todo: validation
-
 // WANServiceType describes the service type where the wan ports are exposed
 // +kubebuilder:validation:Enum=ClusterIP;NodePort;LoadBalancer;WithExposeExternally
 type WANServiceType string

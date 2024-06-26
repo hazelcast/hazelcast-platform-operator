@@ -257,7 +257,16 @@ func (v *hazelcastValidator) validateAdvancedNetwork(h *Hazelcast) {
 		return
 	}
 
+	v.validateWANServiceTypes(h)
 	v.validateWANPorts(h)
+}
+
+func (v *hazelcastValidator) validateWANServiceTypes(h *Hazelcast) {
+	for i, w := range h.Spec.AdvancedNetwork.WAN {
+		if w.ServiceType == WANServiceTypeWithExposeExternally && h.Spec.ExposeExternally == nil {
+			v.Forbidden(Path("spec", "advancedNetwork", fmt.Sprintf("wan[%d]", i), ""), fmt.Sprintf("%s can be used when expose externally is enabled", WANServiceTypeWithExposeExternally))
+		}
+	}
 }
 
 func (v *hazelcastValidator) validateWANPorts(h *Hazelcast) {
