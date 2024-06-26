@@ -589,6 +589,73 @@ var _ = Describe("Hazelcast CR", func() {
 		})
 	})
 
+	Context("with Lite Member configuration", func() {
+		When("liteMemberCount is greater than clusterSize", func() {
+			It("should fail", func() {
+				spec := test.HazelcastSpec(defaultHazelcastSpecValues(), ee)
+				cs := int32(3)
+				lm := int32(4)
+				spec.ClusterSize = &cs
+				spec.LiteMemberCount = &lm
+
+				hz := &hazelcastv1alpha1.Hazelcast{
+					ObjectMeta: randomObjectMeta(namespace),
+					Spec:       spec,
+				}
+
+				Expect(k8sClient.Create(context.Background(), hz)).
+					Should(MatchError(ContainSubstring("may not be greater than or equal to clusterSize")))
+			})
+		})
+
+		When("liteMemberCount is updated", func() {
+			It("should fail", func() {
+				By("creating the cluster of size 3 with 1 lite member")
+				spec := test.HazelcastSpec(defaultHazelcastSpecValues(), ee)
+				spec.ClusterSize = &[]int32{3}[0]
+				spec.LiteMemberCount = &[]int32{1}[0]
+				hzSpec, _ := json.Marshal(&spec)
+
+				hz := &hazelcastv1alpha1.Hazelcast{
+					ObjectMeta: randomObjectMeta(namespace, n.LastSuccessfulSpecAnnotation, string(hzSpec)),
+					Spec:       spec,
+				}
+
+				create(hz)
+				hz = assertHzStatusIsPending(hz)
+
+				By("updating the number of lite members to 2")
+				hz.Spec.LiteMemberCount = &[]int32{2}[0]
+
+				Expect(k8sClient.Update(context.Background(), hz)).
+					Should(MatchError(ContainSubstring("field cannot be updated")))
+			})
+		})
+
+		When("clusterSize is updated with a lower than or equal to lite member", func() {
+			It("should fail", func() {
+				spec := test.HazelcastSpec(defaultHazelcastSpecValues(), ee)
+				spec.ClusterSize = &[]int32{3}[0]
+				spec.LiteMemberCount = &[]int32{2}[0]
+				hzSpec, _ := json.Marshal(&spec)
+
+				hz := &hazelcastv1alpha1.Hazelcast{
+					ObjectMeta: randomObjectMeta(namespace, n.LastSuccessfulSpecAnnotation, string(hzSpec)),
+					Spec:       spec,
+				}
+
+				create(hz)
+				hz = assertHzStatusIsPending(hz)
+
+				By("updating the cluster size to 2")
+				hz.Spec.ClusterSize = &[]int32{2}[0]
+
+				Expect(k8sClient.Update(context.Background(), hz)).
+					Should(MatchError(ContainSubstring("cannot be lower or equal to liteMemberCount")))
+			})
+		})
+	})
+
 	Context("with HighAvailability configuration", func() {
 		When("HighAvailabilityMode is configured as NODE", func() {
 			It("should create topologySpreadConstraints", func() {

@@ -51,6 +51,7 @@ var _ = Describe("Hazelcast CR with Persistence feature enabled", Group("backup_
 
 		By("creating cluster from backup")
 		restoredHz := hazelcastconfig.HazelcastRestore(hazelcast, restoreConfig(hotBackup, useBucketConfig))
+		restoredHz.Spec.LiteMemberCount = &[]int32{1}[0]
 		CreateHazelcastCR(restoredHz)
 		evaluateReadyMembers(hzLookupKey)
 
@@ -110,6 +111,7 @@ var _ = Describe("Hazelcast CR with Persistence feature enabled", Group("backup_
 			clusterSize := int32(1)
 			hazelcast := hazelcastconfig.HazelcastPersistencePVC(hzLookupKey, clusterSize, labels)
 			hazelcast.Spec.Persistence.ClusterDataRecoveryPolicy = hazelcastcomv1alpha1.MostRecent
+			hazelcast.Spec.LiteMemberCount = &[]int32{0}[0]
 
 			By("creating HotBackup CR")
 			hotBackup := hazelcastconfig.HotBackup(hbLookupKey, hazelcast.Name, labels)
@@ -140,6 +142,7 @@ var _ = Describe("Hazelcast CR with Persistence feature enabled", Group("backup_
 				DiscoveryServiceType: corev1.ServiceTypeLoadBalancer,
 				MemberAccess:         hazelcastcomv1alpha1.MemberAccessLoadBalancer,
 			}
+			hazelcast.Spec.LiteMemberCount = &[]int32{0}[0]
 			hazelcast.Spec.Resources = &corev1.ResourceRequirements{
 				Limits: map[corev1.ResourceName]resource.Quantity{
 					corev1.ResourceMemory: resource.MustParse(strconv.Itoa(pvcSizeInMb) + "Mi")},
@@ -215,6 +218,7 @@ var _ = Describe("Hazelcast CR with Persistence feature enabled", Group("backup_
 			By("creating cluster with external backup enabled")
 			hazelcast := hazelcastconfig.HazelcastPersistencePVC(hzLookupKey, clusterSize, labels)
 			hazelcast.Spec.Persistence.PVC.RequestStorage = &[]resource.Quantity{resource.MustParse(strconv.Itoa(pvcSizeInMb) + "Mi")}[0]
+			hazelcast.Spec.LiteMemberCount = &[]int32{0}[0]
 
 			CreateHazelcastCR(hazelcast)
 			evaluateReadyMembers(hzLookupKey)
@@ -661,6 +665,7 @@ var _ = Describe("Hazelcast CR with Persistence feature enabled", Group("backup_
 				},
 			}
 			restoredHz := hazelcastconfig.HazelcastRestore(hazelcast, fromLocal)
+			restoredHz.Spec.LiteMemberCount = &[]int32{1}[0]
 			CreateHazelcastCR(restoredHz)
 			evaluateReadyMembers(hzLookupKey)
 

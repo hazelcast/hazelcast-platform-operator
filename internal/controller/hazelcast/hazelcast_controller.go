@@ -203,6 +203,11 @@ func (r *HazelcastReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 		return r.update(ctx, h, recoptions.Error(err), withHzFailedPhase(err.Error()))
 	}
 
+	err = r.reconcileLiteMemberCount(ctx, h, logger)
+	if err != nil {
+		return r.update(ctx, h, recoptions.Error(err), withHzFailedPhase(err.Error()))
+	}
+
 	err = r.reconcileMTLSSecret(ctx, h)
 	if err != nil {
 		return r.update(ctx, h, recoptions.Error(err), withHzFailedPhase(err.Error()))

@@ -886,6 +886,36 @@ func (r *HazelcastReconciler) reconcileAgentConfig(ctx context.Context, h *hazel
 	})
 }
 
+func (r *HazelcastReconciler) reconcileLiteMemberCount(ctx context.Context, h *hazelcastv1alpha1.Hazelcast, logger logr.Logger) error {
+	if !h.Spec.IsLiteMemberEnabled() {
+		return nil
+	}
+	cm := &corev1.ConfigMap{
+		ObjectMeta: metadata(h),
+		Data:       make(map[string]string),
+	}
+	cm.Name = cm.Name + n.LiteSuffix
+	err := controllerutil.SetControllerReference(h, cm, r.Scheme)
+	if err != nil {
+		return fmt.Errorf("failed to set owner reference on LiteConfigMap: %w", err)
+	}
+	return retry.RetryOnConflict(retry.DefaultRetry, func() error {
+		result, err := controllerutil.CreateOrUpdate(ctx, r.Client, cm, func() error {
+			for i := 0; i < int(*h.Spec.LiteMemberCount); i++ {
+				cm.Data[fmt.Sprintf("%s-%d-lite", h.Name, i)] = "true"
+			}
+			for i := *h.Spec.LiteMemberCount; i < *h.Spec.ClusterSize; i++ {
+				cm.Data[fmt.Sprintf("%s-%d-lite", h.Name, i)] = "false"
+			}
+			return nil
+		})
+		if result != controllerutil.OperationResultNone {
+			logger.Info("Operation result", "ConfigMap", h.Name, "result", result)
+		}
+		return err
+	})
+}
+
 func (r *HazelcastReconciler) reconcileSecret(ctx context.Context, h *hazelcastv1alpha1.Hazelcast, logger logr.Logger) error {
 	scrt := &corev1.Secret{
 		ObjectMeta: metadata(h),
@@ -2173,6 +2203,10 @@ func (r *HazelcastReconciler) reconcileStatefulset(ctx context.Context, h *hazel
 		},
 	}
 
+	if h.Spec.IsLiteMemberEnabled() {
+		sts.Spec.Template.Spec.Containers[0].Command = []string{"/bin/sh", "-c", "export HZ_LITEMEMBER_ENABLED=$$(printenv $(POD_NAME)-lite)  && bin/hz start"}
+	}
+
 	pvcName := n.PVCName
 	if h.Spec.Persistence.RestoreFromLocalBackup() {
 		pvcName = string(h.Spec.Persistence.Restore.LocalConfiguration.PVCNamePrefix)
@@ -2203,6 +2237,7 @@ func (r *HazelcastReconciler) reconcileStatefulset(ctx context.Context, h *hazel
 		sts.Spec.Template.Spec.ImagePullSecrets = h.Spec.ImagePullSecrets
 		sts.Spec.Template.Spec.Containers[0].Image = h.DockerImage()
 		sts.Spec.Template.Spec.Containers[0].Env = env(h)
+		sts.Spec.Template.Spec.Containers[0].EnvFrom = envFrom(h)
 		sts.Spec.Template.Spec.Containers[0].ImagePullPolicy = h.Spec.ImagePullPolicy
 		if h.Spec.Resources != nil {
 			sts.Spec.Template.Spec.Containers[0].Resources = *h.Spec.Resources
@@ -2641,6 +2676,13 @@ func ucnBucketVolumeMount() v1.VolumeMount {
 	}
 }
 
+func liteVolumeMount() v1.VolumeMount {
+	return v1.VolumeMount{
+		Name:      n.LiteConfigMap,
+		MountPath: n.LiteConfigPath,
+	}
+}
+
 func ucdBucketAgentVolumeMount() v1.VolumeMount {
 	return v1.VolumeMount{
 		Name:      n.UserCodeBucketVolumeName,
@@ -2751,6 +2793,20 @@ func volumes(h *hazelcastv1alpha1.Hazelcast) []v1.Volume {
 		})
 	}
 
+	if h.Spec.IsLiteMemberEnabled() {
+		vols = append(vols, corev1.Volume{
+			Name: n.LiteConfigMap,
+			VolumeSource: v1.VolumeSource{
+				ConfigMap: &v1.ConfigMapVolumeSource{
+					LocalObjectReference: v1.LocalObjectReference{
+						Name: h.Name + n.LiteSuffix,
+					},
+					DefaultMode: pointer.Int32(420),
+				},
+			},
+		})
+	}
+
 	return vols
 }
 
@@ -2847,6 +2903,10 @@ func hzContainerVolumeMounts(h *hazelcastv1alpha1.Hazelcast, pvcName string) []v
 			Name:      pvcName,
 			MountPath: n.PersistenceMountPath,
 		})
+	}
+
+	if h.Spec.IsLiteMemberEnabled() {
+		mounts = append(mounts, liteVolumeMount())
 	}
 
 	if h.Spec.UserCodeNamespaces.IsEnabled() {
@@ -3008,6 +3068,14 @@ func env(h *hazelcastv1alpha1.Hazelcast) []v1.EnvVar {
 			Name:  "CLASSPATH",
 			Value: javaClassPath(h),
 		},
+		{
+			Name: "POD_NAME",
+			ValueFrom: &v1.EnvVarSource{
+				FieldRef: &v1.ObjectFieldSelector{
+					FieldPath: "metadata.name",
+				},
+			},
+		},
 	}
 	if h.Spec.GetLicenseKeySecretName() != "" {
 		envs = append(envs,
@@ -3026,6 +3094,20 @@ func env(h *hazelcastv1alpha1.Hazelcast) []v1.EnvVar {
 
 	envs = append(envs, h.Spec.Env...)
 
+	return envs
+}
+
+func envFrom(h *hazelcastv1alpha1.Hazelcast) []v1.EnvFromSource {
+	var envs []v1.EnvFromSource
+	if h.Spec.IsLiteMemberEnabled() {
+		envs = append(envs, v1.EnvFromSource{
+			ConfigMapRef: &v1.ConfigMapEnvSource{
+				LocalObjectReference: v1.LocalObjectReference{
+					Name: h.Name + n.LiteSuffix,
+				},
+			},
+		})
+	}
 	return envs
 }
 

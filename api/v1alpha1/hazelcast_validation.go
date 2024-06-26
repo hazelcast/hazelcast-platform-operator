@@ -251,6 +251,9 @@ func (v *hazelcastValidator) validateClusterSize(h *Hazelcast) {
 	if *h.Spec.ClusterSize > naming.ClusterSizeLimit {
 		v.Invalid(Path("spec", "clusterSize"), h.Spec.ClusterSize, fmt.Sprintf("may not be greater than %d", naming.ClusterSizeLimit))
 	}
+	if h.Spec.LiteMemberCount != nil && *h.Spec.ClusterSize <= *h.Spec.LiteMemberCount {
+		v.Invalid(Path("spec", "liteMemberCount"), h.Spec.LiteMemberCount, fmt.Sprintf("may not be greater than or equal to clusterSize (%d)", *h.Spec.ClusterSize))
+	}
 }
 
 func (v *hazelcastValidator) validateAdvancedNetwork(h *Hazelcast) {
@@ -375,6 +378,14 @@ func (v *hazelcastValidator) validateArg(args []string, arg string) {
 func (v *hazelcastValidator) validateNotUpdatableHazelcastFields(current *HazelcastSpec, last *HazelcastSpec) {
 	if current.HighAvailabilityMode != last.HighAvailabilityMode {
 		v.Forbidden(Path("spec", "highAvailabilityMode"), "field cannot be updated")
+	}
+
+	if last.LiteMemberCount != nil && current.LiteMemberCount != nil && *current.LiteMemberCount != *last.LiteMemberCount {
+		v.Forbidden(Path("spec", "liteMemberCount"), "field cannot be updated")
+	}
+
+	if last.LiteMemberCount != nil && *last.LiteMemberCount >= *current.ClusterSize {
+		v.Invalid(Path("spec", "clusterSize"), current.ClusterSize, fmt.Sprintf("cannot be lower or equal to liteMemberCount (%d)", *last.LiteMemberCount))
 	}
 
 	v.validateNotUpdatableHzPersistenceFields(current.Persistence, last.Persistence)
