@@ -391,14 +391,8 @@ func (r *HazelcastReconciler) reconcileService(ctx context.Context, h *hazelcast
 			delete(service.Labels, n.ServiceEndpointTypeLabelName)
 		}
 
-		// append default wan port to HZ Discovery Service if use did not configure
-		isAddWANPort := false
-		if h.Spec.AdvancedNetwork == nil || len(h.Spec.AdvancedNetwork.WAN) == 0 {
-			isAddWANPort = true
-		}
-
 		service.Spec.Type = serviceType(h)
-		service.Spec.Ports = util.EnrichServiceNodePorts(hazelcastPort(isAddWANPort), service.Spec.Ports)
+		service.Spec.Ports = util.EnrichServiceNodePorts(hazelcastPort(h.Spec.AdvancedNetwork), service.Spec.Ports)
 
 		return nil
 	})
@@ -594,15 +588,15 @@ func (r *HazelcastReconciler) reconcileHazelcastEndpoints(ctx context.Context, h
 					Name:      svc.Name,
 					Namespace: svc.Namespace,
 				}
-				// For the default Wan port when the WANConfig is not configured under the AdvancedNetwork config
-				if port.Name == n.WanDefaultPortName {
-					endpointNn.Name = fmt.Sprintf("%s-%s", endpointNn.Name, "wan")
-					hzEndpoints = append(hzEndpoints, hazelcastEndpointFromService(endpointNn, h, hazelcastv1alpha1.HazelcastEndpointTypeWAN, port.Port))
-					continue
-				}
+
 				if port.Name == n.HazelcastPortName {
 					hzEndpoints = append(hzEndpoints, hazelcastEndpointFromService(endpointNn, h, hazelcastv1alpha1.HazelcastEndpointTypeDiscovery, port.Port))
-					continue
+				} else if port.Name == n.WanDefaultPortName {
+					endpointNn.Name = fmt.Sprintf("%s-%s", endpointNn.Name, "wan")
+					hzEndpoints = append(hzEndpoints, hazelcastEndpointFromService(endpointNn, h, hazelcastv1alpha1.HazelcastEndpointTypeWAN, port.Port))
+				} else if strings.HasPrefix(port.Name, "wan") {
+					endpointNn.Name = fmt.Sprintf("%s-%s", endpointNn.Name, port.Name)
+					hzEndpoints = append(hzEndpoints, hazelcastEndpointFromService(endpointNn, h, hazelcastv1alpha1.HazelcastEndpointTypeWAN, port.Port))
 				}
 			}
 		case n.ServiceEndpointTypeMemberLabelValue:
@@ -611,27 +605,24 @@ func (r *HazelcastReconciler) reconcileHazelcastEndpoints(ctx context.Context, h
 					Name:      svc.Name,
 					Namespace: svc.Namespace,
 				}
-				// For the default Wan port when the WANConfig is not configured under the AdvancedNetwork config
-				if port.Name == n.WanDefaultPortName {
-					endpointNn.Name = fmt.Sprintf("%s-wan", endpointNn.Name)
-					hzEndpoints = append(hzEndpoints, hazelcastEndpointFromService(endpointNn, h, hazelcastv1alpha1.HazelcastEndpointTypeWAN, port.Port))
-					continue
-				}
+
 				if port.Name == n.HazelcastPortName {
 					hzEndpoints = append(hzEndpoints, hazelcastEndpointFromService(endpointNn, h, hazelcastv1alpha1.HazelcastEndpointTypeMember, port.Port))
-					continue
+				} else if port.Name == n.WanDefaultPortName {
+					endpointNn.Name = fmt.Sprintf("%s-wan", endpointNn.Name)
+					hzEndpoints = append(hzEndpoints, hazelcastEndpointFromService(endpointNn, h, hazelcastv1alpha1.HazelcastEndpointTypeWAN, port.Port))
+				} else if strings.HasPrefix(port.Name, "wan") {
+					endpointNn.Name = fmt.Sprintf("%s-%s", endpointNn.Name, port.Name)
+					hzEndpoints = append(hzEndpoints, hazelcastEndpointFromService(endpointNn, h, hazelcastv1alpha1.HazelcastEndpointTypeWAN, port.Port))
 				}
 			}
 		case n.ServiceEndpointTypeWANLabelValue:
-			for i, port := range svc.Spec.Ports {
+			for _, port := range svc.Spec.Ports {
 				endpointNn := types.NamespacedName{
 					Name:      svc.Name,
 					Namespace: svc.Namespace,
 				}
-				if len(svc.Spec.Ports) > 1 {
-					endpointNn.Name = fmt.Sprintf("%s-%d", endpointNn.Name, i)
-				}
-
+				endpointNn.Name = fmt.Sprintf("%s-%s", endpointNn.Name, port.Name)
 				hzEndpoints = append(hzEndpoints, hazelcastEndpointFromService(endpointNn, h, hazelcastv1alpha1.HazelcastEndpointTypeWAN, port.Port))
 			}
 		default:
@@ -670,18 +661,9 @@ func (r *HazelcastReconciler) reconcileHazelcastEndpoints(ctx context.Context, h
 					address = nodeAddress[pods.Items[0].Spec.NodeName]
 				}
 
-				// depending on Endpoint type we get name of the port
-				var portName string
-				switch hzEndpoint.Spec.Type {
-				case v1alpha1.HazelcastEndpointTypeWAN:
-					portName = n.WanDefaultPortName
-				default:
-					portName = n.HazelcastPortName
-				}
-
 				// NodePorts get address from svc .nodePort property
 				for _, port := range svc.Spec.Ports {
-					if port.Name == portName {
+					if port.Port == hzEndpoint.Spec.Port {
 						hzEndpoint.Status.Address = fmt.Sprintf("%s:%d", address, port.NodePort)
 						break
 					}
@@ -783,24 +765,24 @@ func servicePerPodLabels(h *hazelcastv1alpha1.Hazelcast) map[string]string {
 }
 
 func servicePerPodPort(an *hazelcastv1alpha1.AdvancedNetwork) []v1.ServicePort {
-	ports := []corev1.ServicePort{
+	p := []corev1.ServicePort{
 		clientPort(),
 	}
 
 	if an != nil && len(an.WAN) > 0 {
 		for _, w := range an.WAN {
 			if w.ServiceType == hazelcastv1alpha1.WANServiceTypeWithExposeExternally {
-				ports = append(ports, wanConfigServicePorts(w)...)
+				p = append(p, wanConfigServicePorts(w)...)
 			}
 		}
 	} else {
-		ports = append(ports, defaultWANPort())
+		p = append(p, defaultWANPort())
 	}
 
-	return ports
+	return p
 }
 
-func hazelcastPort(isAddWANPort bool) []v1.ServicePort {
+func hazelcastPort(an *hazelcastv1alpha1.AdvancedNetwork) []v1.ServicePort {
 	p := []corev1.ServicePort{
 		clientPort(),
 		{
@@ -819,7 +801,13 @@ func hazelcastPort(isAddWANPort bool) []v1.ServicePort {
 		},
 	}
 
-	if isAddWANPort {
+	if an != nil && len(an.WAN) > 0 {
+		for _, w := range an.WAN {
+			if w.ServiceType == hazelcastv1alpha1.WANServiceTypeWithExposeExternally {
+				p = append(p, wanConfigServicePorts(w)...)
+			}
+		}
+	} else {
 		p = append(p, defaultWANPort())
 	}
 
