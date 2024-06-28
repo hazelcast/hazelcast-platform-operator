@@ -18,7 +18,7 @@ import (
 	proto "github.com/hazelcast/hazelcast-go-client"
 	"github.com/hazelcast/platform-operator-agent/init/compound"
 	downloadurl "github.com/hazelcast/platform-operator-agent/init/file_download_url"
-	"github.com/hazelcast/platform-operator-agent/init/jar_download_bucket"
+	downloadbucket "github.com/hazelcast/platform-operator-agent/init/jar_download_bucket"
 	"github.com/hazelcast/platform-operator-agent/init/restore"
 	"github.com/pavlo-v-chernykh/keystore-go/v4"
 	"golang.org/x/mod/semver"

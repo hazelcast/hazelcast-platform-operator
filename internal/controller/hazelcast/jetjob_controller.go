@@ -229,7 +229,8 @@ func (r *JetJobReconciler) downloadFile(ctx context.Context, job *hazelcastv1alp
 	g, groupCtx := errgroup.WithContext(ctx)
 	mtlsClient, err := r.mtlsClientRegistry.GetOrCreate(ctx, r.Client, hazelcastName.Namespace)
 	if err != nil {
-		_, _ = r.updateStatus(ctx, jjnn, failedJetJobStatus(err))
+		_, err := r.updateStatus(ctx, jjnn, failedJetJobStatus(err))
+		return err
 	}
 	for _, m := range client.OrderedMembers() {
 		m := m

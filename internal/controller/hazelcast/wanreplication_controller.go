@@ -190,6 +190,7 @@ func (r *WanReplicationReconciler) deleteLeftoverMapsFromStatus(ctx context.Cont
 			if err := deleteWanMapStatus(ctx, r.Client, wan, mapWanKey); err != nil {
 				return err
 			}
+			return err
 		}
 		if controllerutil.ContainsFinalizer(m, n.WanRepMapFinalizer) {
 			// Finalizer will be removed in further steps in the reconciler
