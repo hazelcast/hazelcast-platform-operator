@@ -83,6 +83,8 @@ spec:
                           description: Service Type string describes ingress methods
                             for a service
                           type: string
+                      required:
+                      - name
                       type: object
                     type: array
                     x-kubernetes-list-map-keys:
