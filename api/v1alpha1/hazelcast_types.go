@@ -49,6 +49,11 @@ type HazelcastSpec struct {
 	// +optional
 	ClusterSize *int32 `json:"clusterSize,omitempty"`
 
+	// Number of Hazelcast lite members in the cluster.
+	// +kubebuilder:validation:Minimum=0
+	// +optional
+	LiteMemberCount *int32 `json:"liteMemberCount,omitempty"`
+
 	// Repository to pull the Hazelcast Platform image from.
 	// +kubebuilder:default:="docker.io/hazelcast/hazelcast"
 	// +optional
@@ -197,6 +202,10 @@ type HazelcastSpec struct {
 	// +optional
 	// +kubebuilder:validation:XValidation:message="Environment variables cannot start with 'HZ_'. Use customConfigCmName to configure Hazelcast.",rule="self.all(env, env.name.startsWith('HZ_') == false)"
 	Env []corev1.EnvVar `json:"env,omitempty"`
+}
+
+func (s *HazelcastSpec) IsLiteMemberEnabled() bool {
+	return s.LiteMemberCount != nil && *s.LiteMemberCount > 0
 }
 
 func (s *HazelcastSpec) GetLicenseKeySecretName() string {
@@ -1247,6 +1256,10 @@ type HazelcastStatus struct {
 	// Number of Hazelcast members in the cluster.
 	// +optional
 	ClusterSize int32 `json:"clusterSize"`
+
+	// Number of Hazelcast lite members in the cluster.
+	// +optional
+	LiteMemberCount int32 `json:"liteMemberCount"`
 
 	// Selector is a label selector used by HorizontalPodAutoscaler to autoscale Hazelcast resource.
 	// +optional

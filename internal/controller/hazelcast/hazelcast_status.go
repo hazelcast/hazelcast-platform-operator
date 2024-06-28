@@ -116,6 +116,15 @@ func (m memberStatuses) HzStatusApply(hs *hazelcastv1alpha1.HazelcastStatus) {
 	allMemberStatuses := append(readyFailedMembers, pendingMembers...)
 	hs.Members = allMemberStatuses
 
+	var liteMemberCount int32
+	for _, s := range allMemberStatuses {
+		if s.Lite {
+			liteMemberCount++
+		}
+	}
+
+	hs.LiteMemberCount = liteMemberCount
+
 	if m.restoreState != (codecTypes.ClusterHotRestartStatus{}) {
 		hs.Restore = hazelcastv1alpha1.RestoreStatus{
 			State:                   m.restoreState.RestoreState(),

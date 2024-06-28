@@ -82,11 +82,13 @@ func (b *ClusterBackup) Cancel(ctx context.Context) error {
 func (b *ClusterBackup) Members() []*MemberBackup {
 	var mb []*MemberBackup
 	for uuid, m := range b.members {
-		mb = append(mb, &MemberBackup{
-			statusService: b.statusService,
-			Address:       m.Address,
-			UUID:          uuid,
-		})
+		if !m.LiteMember {
+			mb = append(mb, &MemberBackup{
+				statusService: b.statusService,
+				Address:       m.Address,
+				UUID:          uuid,
+			})
+		}
 	}
 	return mb
 }

@@ -6,6 +6,8 @@ import (
 	"time"
 
 	"github.com/go-logr/logr"
+	"github.com/hazelcast/hazelcast-go-client/cluster"
+	"github.com/hazelcast/hazelcast-platform-operator/internal/protocol/codec"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
@@ -292,6 +294,34 @@ func (r *HazelcastReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 		)
 	}
 
+	expectedLiteMemberCount := *h.Spec.LiteMemberCount
+	var actualLiteMemberCount int32
+	var liteMembers []cluster.MemberInfo
+	var dataMembers []cluster.MemberInfo
+	for _, member := range cl.OrderedMembers() {
+		if member.LiteMember {
+			liteMembers = append(liteMembers, member)
+			actualLiteMemberCount++
+		} else {
+			dataMembers = append(dataMembers, member)
+		}
+	}
+	if expectedLiteMemberCount > actualLiteMemberCount {
+		err = demoteDataMembers(ctx, cl, dataMembers, expectedLiteMemberCount-actualLiteMemberCount)
+		if err != nil {
+			return r.update(ctx, h, recoptions.Error(err), withHzFailedPhase(fmt.Sprintf("error demoting data members: %s", err)))
+		}
+	}
+	if expectedLiteMemberCount < actualLiteMemberCount {
+		err = promoteLiteMembers(ctx, cl, liteMembers, actualLiteMemberCount-expectedLiteMemberCount)
+		if err != nil {
+			return r.update(ctx, h, recoptions.Error(err), withHzFailedPhase(fmt.Sprintf("error promoting lite members: %s", err)))
+		}
+	}
+	if expectedLiteMemberCount != actualLiteMemberCount {
+		waitForLiteMembersToBeReady(cl, expectedLiteMemberCount)
+	}
+
 	if newExecutorServices != nil {
 		if !cl.AreAllMembersAccessible() {
 			return r.update(ctx, h, recoptions.RetryAfter(retryAfter),
@@ -318,6 +348,48 @@ func (r *HazelcastReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 		r.withMemberStatuses(ctx, h, nil),
 		withHzStatefulSet(statefulSet),
 	)
+}
+
+func demoteDataMembers(ctx context.Context, cl hzclient.Client, members []cluster.MemberInfo, count int32) error {
+	var i int32
+	for i = 0; i < count; i++ {
+		_, err := cl.InvokeOnMember(ctx, codec.EncodeMCDemoteDataMemberRequest(), members[i].UUID, nil)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func promoteLiteMembers(ctx context.Context, cl hzclient.Client, members []cluster.MemberInfo, count int32) error {
+	var i int32
+	for i = 0; i < count; i++ {
+		_, err := cl.InvokeOnMember(ctx, codec.EncodeMCPromoteLiteMemberRequest(), members[i].UUID, nil)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func waitForLiteMembersToBeReady(cl hzclient.Client, expectedLiteMemberCount int32) {
+	ticker := time.NewTicker(1 * time.Second)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-ticker.C:
+			var currentLiteMemberCount int32
+			for _, member := range cl.OrderedMembers() {
+				if member.LiteMember {
+					currentLiteMemberCount++
+				}
+			}
+			if expectedLiteMemberCount == currentLiteMemberCount {
+				return
+			}
+		}
+	}
 }
 
 func (r *HazelcastReconciler) podUpdates(_ context.Context, pod client.Object) []reconcile.Request {
