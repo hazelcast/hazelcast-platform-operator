@@ -286,7 +286,7 @@ func (r *HotBackupReconciler) startBackup(ctx context.Context, backupName types.
 	mtlsClient, err := r.mtlsClientRegistry.GetOrCreate(ctx, r.Client, hazelcastName.Namespace)
 	if err != nil {
 		return r.updateStatus(ctx, backupName, recoptions.Error(err),
-			withHotBackupFailedState(returnErr.Error()))
+			withHotBackupFailedState(err.Error()))
 	}
 
 	var uploads []*upload.Upload
