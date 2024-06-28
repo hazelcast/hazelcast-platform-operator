@@ -1147,6 +1147,8 @@ type AdvancedNetwork struct {
 	// +optional
 	ClientServerSocketEndpointConfig ServerSocketEndpointConfig `json:"clientServerSocketEndpointConfig,omitempty"`
 
+	// +listType=map
+	// +listMapKey=name
 	// +optional
 	WAN []WANConfig `json:"wan,omitempty"`
 }
