@@ -3,7 +3,6 @@ package hazelcast
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"net"
 	"reflect"
@@ -332,9 +331,9 @@ func (r *WanReplicationReconciler) checkConnectivity(ctx context.Context, req ct
 			memberAddresses = append(memberAddresses, v.Address)
 		}
 
-		mtlsClient, ok := r.mtlsClientRegistry.Get(req.Namespace)
-		if !ok {
-			return errors.New("failed to get MTLS client")
+		mtlsClient, err := r.mtlsClientRegistry.GetOrCreate(ctx, r.Client, req.Namespace)
+		if err != nil {
+			return err
 		}
 		for _, memberAddress := range memberAddresses {
 			p, err := dialer.NewDialer(&dialer.Config{
@@ -700,7 +699,6 @@ func (r *WanReplicationReconciler) SetupWithManager(mgr ctrl.Manager) error {
 					return false
 				},
 				UpdateFunc: func(updateEvent event.UpdateEvent) bool {
-					// to run handler 'wanRequestsForSuccessfulMap' function after the map is ready
 					oldMap, ok := updateEvent.ObjectOld.(*hazelcastv1alpha1.Map)
 					if !ok {
 						return false
@@ -709,6 +707,7 @@ func (r *WanReplicationReconciler) SetupWithManager(mgr ctrl.Manager) error {
 					if !ok {
 						return false
 					}
+					// run the handler function once after the map is ready
 					return oldMap.Status.State != hazelcastv1alpha1.MapSuccess && newMap.Status.State == hazelcastv1alpha1.MapSuccess
 				},
 				DeleteFunc: func(deleteEvent event.DeleteEvent) bool {
@@ -720,6 +719,18 @@ func (r *WanReplicationReconciler) SetupWithManager(mgr ctrl.Manager) error {
 			}),
 		).
 		Watches(&hazelcastv1alpha1.Map{}, handler.EnqueueRequestsFromMapFunc(r.wanRequestsForTerminationCandidateMap)).
+		Watches(&hazelcastv1alpha1.Hazelcast{}, handler.EnqueueRequestsFromMapFunc(r.wanRequestsForHazelcast),
+			builder.WithPredicates(predicate.Funcs{
+				CreateFunc: func(createEvent event.CreateEvent) bool {
+					return false
+				},
+				UpdateFunc: func(updateEvent event.UpdateEvent) bool {
+					return false
+				},
+				GenericFunc: func(genericEvent event.GenericEvent) bool {
+					return false
+				},
+			})).
 		Complete(r)
 }
 
@@ -730,40 +741,41 @@ func (r *WanReplicationReconciler) wanRequestsForSuccessfulMap(ctx context.Conte
 	}
 
 	wanList := hazelcastv1alpha1.WanReplicationList{}
-	nsMatcher := client.InNamespace(hzMap.Namespace)
-	err := r.List(ctx, &wanList, nsMatcher)
+	err := r.List(ctx, &wanList, client.InNamespace(hzMap.Namespace))
 	if err != nil {
 		return []reconcile.Request{}
 	}
-	var requests []reconcile.Request
+
+	var requestedWans = make(map[string]hazelcastv1alpha1.WanReplication)
 	for _, wan := range wanList.Items {
-	wanResourcesLoop:
 		for _, wanResource := range wan.Spec.Resources {
 			switch wanResource.Kind {
 			case hazelcastv1alpha1.ResourceKindMap:
 				if wanResource.Name == hzMap.Name {
-					requests = append(requests, reconcile.Request{
-						NamespacedName: types.NamespacedName{
-							Name:      wan.Name,
-							Namespace: wan.Namespace,
-						},
-					})
-					break wanResourcesLoop
+					requestedWans[wan.Name] = wan
 				}
 			case hazelcastv1alpha1.ResourceKindHZ:
 				if wanResource.Name == hzMap.Spec.HazelcastResourceName {
-					requests = append(requests, reconcile.Request{
-						NamespacedName: types.NamespacedName{
-							Name:      wan.Name,
-							Namespace: wan.Namespace,
-						},
-					})
-					break wanResourcesLoop
+					requestedWans[wan.Name] = wan
 				}
+			}
+			if _, ok := requestedWans[wan.Name]; ok {
+				break
 			}
 		}
 	}
-	return requests
+
+	reqs := make([]reconcile.Request, 0, len(requestedWans))
+	for _, wan := range requestedWans {
+		reqs = append(reqs, reconcile.Request{
+			NamespacedName: types.NamespacedName{
+				Name:      wan.Name,
+				Namespace: wan.Namespace,
+			},
+		})
+	}
+
+	return reqs
 }
 
 func (r *WanReplicationReconciler) wanRequestsForTerminationCandidateMap(_ context.Context, m client.Object) []reconcile.Request {
@@ -792,6 +804,39 @@ func (r *WanReplicationReconciler) wanRequestsForTerminationCandidateMap(_ conte
 					Namespace: mp.GetNamespace(),
 				},
 			})
+		}
+	}
+
+	return reqs
+}
+
+func (r *WanReplicationReconciler) wanRequestsForHazelcast(ctx context.Context, m client.Object) []reconcile.Request {
+	hz, ok := m.(*hazelcastv1alpha1.Hazelcast)
+	if !ok {
+		return []reconcile.Request{}
+	}
+
+	wanList := hazelcastv1alpha1.WanReplicationList{}
+	err := r.List(ctx, &wanList, client.InNamespace(hz.Namespace))
+	if err != nil {
+		return []reconcile.Request{}
+	}
+
+	var reqs []reconcile.Request
+	for _, wan := range wanList.Items {
+		for _, wanResource := range wan.Spec.Resources {
+			if wanResource.Kind != hazelcastv1alpha1.ResourceKindHZ {
+				continue
+			}
+			if wanResource.Name == hz.Name {
+				reqs = append(reqs, reconcile.Request{
+					NamespacedName: types.NamespacedName{
+						Name:      wan.Name,
+						Namespace: wan.Namespace,
+					},
+				})
+				break
+			}
 		}
 	}
 

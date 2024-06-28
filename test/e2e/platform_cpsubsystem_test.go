@@ -106,16 +106,21 @@ var _ = Describe("CP Subsystem", Group("cp_subsystem"), func() {
 		CreateHazelcastCR(hazelcast)
 		evaluateReadyMembers(hzLookupKey)
 
-		stopChan := portForwardPod(hazelcast.Name+"-0", hazelcast.Namespace, localPort+":5701")
-		defer closeChannel(stopChan)
-		cl := newHazelcastClientPortForward(context.Background(), hazelcast, localPort)
-		cli := hzClient.NewClientInternal(cl)
-
-		rg := createCPGroup(ctx, cli)
-
 		key := randString(5)
 		value := randString(5)
-		writeToCPMap(ctx, cli, cpMapName, key, value, rg)
+		var rg types.RaftGroupId
+
+		By("Fill CP Map", func() {
+			localPort := strconv.Itoa(8900 + GinkgoParallelProcess())
+			stopChan := portForwardPod(hazelcast.Name+"-0", hazelcast.Namespace, localPort+":5701")
+			defer closeChannel(stopChan)
+			cl := newHazelcastClientPortForward(context.Background(), hazelcast, localPort)
+			cli := hzClient.NewClientInternal(cl)
+
+			rg = createCPGroup(ctx, cli)
+
+			writeToCPMap(ctx, cli, cpMapName, key, value, rg)
+		})
 
 		By("pause Hazelcast")
 		UpdateHazelcastCR(hazelcast, func(hazelcast *hazelcastcomv1alpha1.Hazelcast) *hazelcastcomv1alpha1.Hazelcast {
@@ -124,14 +129,23 @@ var _ = Describe("CP Subsystem", Group("cp_subsystem"), func() {
 		})
 		WaitForReplicaSize(hazelcast.Namespace, hazelcast.Name, 0)
 
-		By("resume Hazelcast")
-		UpdateHazelcastCR(hazelcast, func(hazelcast *hazelcastcomv1alpha1.Hazelcast) *hazelcastcomv1alpha1.Hazelcast {
-			hazelcast.Spec.ClusterSize = pointer.Int32(3)
-			return hazelcast
-		})
-		evaluateReadyMembers(hzLookupKey)
+		By("resume Hazelcast", func() {
+			UpdateHazelcastCR(hazelcast, func(hazelcast *hazelcastcomv1alpha1.Hazelcast) *hazelcastcomv1alpha1.Hazelcast {
+				hazelcast.Spec.ClusterSize = pointer.Int32(3)
+				return hazelcast
+			})
+			evaluateReadyMembers(hzLookupKey)
 
-		readFromCPMap(ctx, cli, cpMapName, key, value, rg)
+			localPort := strconv.Itoa(8900 + GinkgoParallelProcess())
+			stopChan := portForwardPod(hazelcast.Name+"-1", hazelcast.Namespace, localPort+":5701")
+			defer closeChannel(stopChan)
+			cl := newHazelcastClientPortForward(context.Background(), hazelcast, localPort)
+			cli := hzClient.NewClientInternal(cl)
+
+			evaluateReadyMembers(hzLookupKey)
+
+			readFromCPMap(ctx, cli, cpMapName, key, value, rg)
+		})
 	},
 		Entry("with CP Subsystem PVC", hazelcastconfig.CPSubsystem(3)),
 		Entry("with Persistence PVC", hazelcastconfig.CPSubsystemPersistence(3)),

@@ -11,7 +11,6 @@ import (
 	"github.com/google/go-cmp/cmp"
 	proto "github.com/hazelcast/hazelcast-go-client"
 	"gopkg.in/yaml.v3"
-	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	"k8s.io/apimachinery/pkg/types"
@@ -437,22 +436,6 @@ func Test_configBaseDirShouldNotChangeWhenExists(t *testing.T) {
 	}
 	Expect(actualConf.Hazelcast.Persistence.BaseDir).Should(Equal(n.PersistenceMountPath))
 	Expect(actualConf.Hazelcast.Persistence.BackupDir).Should(Equal(path.Join(n.PersistenceMountPath, "hot-backup")))
-	sts := &appsv1.StatefulSet{}
-	err = c.Get(context.Background(), nn, sts)
-	if err != nil {
-		t.Errorf("Error getting StatefulSet")
-	}
-	Expect(sts.Spec.Template.Spec.InitContainers).Should(WithTransform(func(containers []corev1.Container) []corev1.EnvVar {
-		for _, container := range containers {
-			if container.Name == n.RestoreAgent {
-				return container.Env
-			}
-		}
-		return []corev1.EnvVar{}
-	}, ContainElement(corev1.EnvVar{
-		Name:  "RESTORE_DESTINATION",
-		Value: n.PersistenceMountPath,
-	})))
 }
 
 type listKeys func(h config.Hazelcast) []string

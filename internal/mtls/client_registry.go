@@ -13,7 +13,7 @@ import (
 
 type HttpClientRegistry interface {
 	Create(ctx context.Context, kubeClient client.Client, ns string) (*http.Client, error)
-	Get(ns string) (*http.Client, bool)
+	GetOrCreate(ctx context.Context, kubeClient client.Client, ns string) (*http.Client, error)
 	Delete(ns string)
 }
 
@@ -26,7 +26,7 @@ type httpClientRegistry struct {
 }
 
 func (cr *httpClientRegistry) Create(ctx context.Context, kubeClient client.Client, ns string) (*http.Client, error) {
-	c, ok := cr.Get(ns)
+	c, ok := cr.get(ns)
 	if ok {
 		return c, nil
 	}
@@ -39,14 +39,22 @@ func (cr *httpClientRegistry) Create(ctx context.Context, kubeClient client.Clie
 	return c, nil
 }
 
-func (cr *httpClientRegistry) Get(ns string) (*http.Client, bool) {
+func (cr *httpClientRegistry) GetOrCreate(ctx context.Context, kubeClient client.Client, ns string) (*http.Client, error) {
+	nn := types.NamespacedName{Name: n.MTLSCertSecretName, Namespace: ns}
+	if v, ok := cr.clients.Load(nn); ok {
+		return v.(*http.Client), nil
+	}
+	return cr.Create(ctx, kubeClient, ns)
+}
+
+func (cr *httpClientRegistry) Delete(ns string) {
+	cr.clients.Delete(types.NamespacedName{Name: n.MTLSCertSecretName, Namespace: ns})
+}
+
+func (cr *httpClientRegistry) get(ns string) (*http.Client, bool) {
 	nn := types.NamespacedName{Name: n.MTLSCertSecretName, Namespace: ns}
 	if v, ok := cr.clients.Load(nn); ok {
 		return v.(*http.Client), true
 	}
 	return nil, false
-}
-
-func (cr *httpClientRegistry) Delete(ns string) {
-	cr.clients.Delete(types.NamespacedName{Name: n.MTLSCertSecretName, Namespace: ns})
 }
