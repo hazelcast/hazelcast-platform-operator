@@ -158,7 +158,7 @@ var _ = Describe("Hazelcast CR", func() {
 			for i := 0; i < int(wan.PortCount); i++ {
 				portName := fmt.Sprintf("wan-%s-%d", wan.Name, i)
 				Expect(servicePortNameMap).To(HaveKey(portName))
-				port, _ := servicePortNameMap[portName]
+				port := servicePortNameMap[portName]
 				Expect(port.Port).Should(Equal(int32(wan.Port + uint(i))))
 				Expect(port.TargetPort.IntVal).Should(Equal(int32(wan.Port + uint(i))))
 				Expect(port.Protocol).Should(Equal(corev1.ProtocolTCP))
@@ -1630,14 +1630,14 @@ var _ = Describe("Hazelcast CR", func() {
 				for _, wan := range hz.Spec.AdvancedNetwork.WAN {
 					serviceName := fmt.Sprintf("%s-%s", hz.Name, wan.Name)
 					Expect(svcMap).To(HaveKey(serviceName))
-					svc, _ := svcMap[serviceName]
+					svc := svcMap[serviceName]
 					Expect(svc.Spec.Type).Should(BeEquivalentTo(wan.ServiceType))
 					Expect(svc.Spec.Ports).Should(HaveLen(int(wan.PortCount)))
 					ensureWansPortsAreExposedOnService([]hazelcastv1alpha1.WANConfig{wan}, svc)
 				}
 
 				Expect(svcMap).To(HaveKey(hz.Name))
-				svc, _ := svcMap[hz.Name]
+				svc := svcMap[hz.Name]
 				ensureWansPortsAreNotExposedOnService(hz.Spec.AdvancedNetwork.WAN, svc)
 			})
 
@@ -1875,7 +1875,7 @@ var _ = Describe("Hazelcast CR", func() {
 			}
 
 			Expect(k8sClient.Create(context.Background(), hz)).
-				Should(MatchError(ContainSubstring("invalid serviceType value, possible values are ClusterIP and LoadBalancer")))
+				Should(MatchError(ContainSubstring("is invalid: spec.advancedNetwork.wan[0].serviceType: Unsupported value: \"ExternalName\": supported values: \"ClusterIP\", \"NodePort\", \"LoadBalancer\", \"WithExposeExternally\"")))
 		})
 
 		It("should fail to set ServiceType to WithExposeExternally when exposeExternally is not enabled", func() {
