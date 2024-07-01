@@ -141,6 +141,44 @@ var _ = Describe("Hazelcast CR", func() {
 		return hz
 	}
 
+	servicesToMap := func(svcs []corev1.Service) map[string]corev1.Service {
+		svcMap := make(map[string]corev1.Service)
+		for _, svc := range svcs {
+			svcMap[svc.Name] = svc
+		}
+		return svcMap
+	}
+
+	ensureWansPortsAreExposedOnService := func(wans []hazelcastv1alpha1.WANConfig, svc corev1.Service) {
+		for _, wan := range wans {
+			servicePortNameMap := make(map[string]corev1.ServicePort)
+			for _, p := range svc.Spec.Ports {
+				servicePortNameMap[p.Name] = p
+			}
+			for i := 0; i < int(wan.PortCount); i++ {
+				portName := fmt.Sprintf("wan-%s-%d", wan.Name, i)
+				Expect(servicePortNameMap).To(HaveKey(portName))
+				port, _ := servicePortNameMap[portName]
+				Expect(port.Port).Should(Equal(int32(wan.Port + uint(i))))
+				Expect(port.TargetPort.IntVal).Should(Equal(int32(wan.Port + uint(i))))
+				Expect(port.Protocol).Should(Equal(corev1.ProtocolTCP))
+			}
+		}
+	}
+
+	ensureWansPortsAreNotExposedOnService := func(wans []hazelcastv1alpha1.WANConfig, svc corev1.Service) {
+		for _, wan := range wans {
+			wanPorts := []int32{}
+			for i := wan.Port; i < wan.PortCount; i++ {
+				wanPorts = append(wanPorts, int32(i))
+			}
+
+			for _, port := range svc.Spec.Ports {
+				Expect(wanPorts).Should(Not(ContainElement(port)))
+			}
+		}
+	}
+
 	BeforeEach(func() {
 		if ee {
 			By(fmt.Sprintf("creating license key secret '%s'", n.LicenseDataKey))
@@ -1585,45 +1623,25 @@ var _ = Describe("Hazelcast CR", func() {
 				serviceList := &corev1.ServiceList{}
 				err := k8sClient.List(context.Background(), serviceList, client.InNamespace(hz.Namespace), labelFilter(hz))
 				Expect(err).Should(BeNil())
-
 				Expect(serviceList.Items).Should(HaveLen(3))
-				serviceNameMap := make(map[string]corev1.Service)
-				for _, s := range serviceList.Items {
-					serviceNameMap[s.Name] = s
-				}
 
+				By("checking exposed wan ports")
+				svcMap := servicesToMap(serviceList.Items)
 				for _, wan := range hz.Spec.AdvancedNetwork.WAN {
 					serviceName := fmt.Sprintf("%s-%s", hz.Name, wan.Name)
-					Expect(serviceNameMap).To(HaveKey(serviceName))
-					svc, _ := serviceNameMap[serviceName]
+					Expect(svcMap).To(HaveKey(serviceName))
+					svc, _ := svcMap[serviceName]
 					Expect(svc.Spec.Type).Should(BeEquivalentTo(wan.ServiceType))
 					Expect(svc.Spec.Ports).Should(HaveLen(int(wan.PortCount)))
-					servicePortNameMap := make(map[string]corev1.ServicePort)
-					for _, p := range svc.Spec.Ports {
-						servicePortNameMap[p.Name] = p
-					}
-					for i := 0; i < int(wan.PortCount); i++ {
-						portName := fmt.Sprintf("wan-%s-%d", wan.Name, i)
-						Expect(servicePortNameMap).To(HaveKey(portName))
-						port, _ := servicePortNameMap[portName]
-						Expect(port.Port).Should(Equal(int32(wan.Port + uint(i))))
-						Expect(port.TargetPort.IntVal).Should(Equal(int32(wan.Port + uint(i))))
-						Expect(port.Protocol).Should(Equal(corev1.ProtocolTCP))
-					}
+					ensureWansPortsAreExposedOnService([]hazelcastv1alpha1.WANConfig{wan}, svc)
 				}
 
-				for _, s := range serviceList.Items {
-					if strings.Contains(s.Name, "tokyo") {
-						Expect(s.Spec.Type).Should(Equal(corev1.ServiceTypeClusterIP))
-					}
-
-					if strings.Contains(s.Name, "istanbul") {
-						Expect(s.Spec.Type).Should(Equal(corev1.ServiceTypeLoadBalancer))
-					}
-				}
+				Expect(svcMap).To(HaveKey(hz.Name))
+				svc, _ := svcMap[hz.Name]
+				ensureWansPortsAreNotExposedOnService(hz.Spec.AdvancedNetwork.WAN, svc)
 			})
 
-			It("should expose ports on service-per-pod services", func() {
+			It("should expose WAN ports on service-per-pod services", func() {
 				spec := test.HazelcastSpec(defaultHazelcastSpecValues(), ee)
 				spec.ExposeExternally = &hazelcastv1alpha1.ExposeExternallyConfiguration{
 					Type:                 hazelcastv1alpha1.ExposeExternallyTypeSmart,
@@ -1659,34 +1677,22 @@ var _ = Describe("Hazelcast CR", func() {
 				serviceList := &corev1.ServiceList{}
 				err := k8sClient.List(context.Background(), serviceList, client.InNamespace(hz.Namespace), labelFilter(hz))
 				Expect(err).Should(BeNil())
-
 				Expect(serviceList.Items).Should(HaveLen(int(*hz.Spec.ClusterSize) + 1))
-				serviceNameMap := make(map[string]corev1.Service)
-				for _, s := range serviceList.Items {
-					serviceNameMap[s.Name] = s
-				}
+
+				By("checking exposed wan ports")
+				svcMap := servicesToMap(serviceList.Items)
 
 				for i := 0; i < int(*hz.Spec.ClusterSize); i++ {
 					serviceName := fmt.Sprintf("%s-%d", hz.Name, i)
-					Expect(serviceNameMap).To(HaveKey(serviceName))
-					svc, _ := serviceNameMap[serviceName]
+					Expect(svcMap).To(HaveKey(serviceName))
+					svc, _ := svcMap[serviceName]
 					Expect(svc.Spec.Type).Should(BeEquivalentTo(hazelcastv1alpha1.MemberAccessLoadBalancer))
-					Expect(svc.Spec.Ports).Should(HaveLen(11))
-					servicePortNameMap := make(map[string]corev1.ServicePort)
-					for _, p := range svc.Spec.Ports {
-						servicePortNameMap[p.Name] = p
-					}
-					for _, wan := range hz.Spec.AdvancedNetwork.WAN {
-						for j := 0; j < int(wan.PortCount); j++ {
-							portName := fmt.Sprintf("wan-%s-%d", wan.Name, j)
-							Expect(servicePortNameMap).To(HaveKey(portName))
-							port, _ := servicePortNameMap[portName]
-							Expect(port.Port).Should(Equal(int32(wan.Port + uint(j))))
-							Expect(port.TargetPort.IntVal).Should(Equal(int32(wan.Port + uint(j))))
-							Expect(port.Protocol).Should(Equal(corev1.ProtocolTCP))
-						}
-					}
+					ensureWansPortsAreExposedOnService(hz.Spec.AdvancedNetwork.WAN, svc)
 				}
+
+				Expect(svcMap).To(HaveKey(hz.Name))
+				svc, _ := svcMap[hz.Name]
+				ensureWansPortsAreNotExposedOnService(hz.Spec.AdvancedNetwork.WAN, svc)
 			})
 		})
 
@@ -1759,6 +1765,51 @@ var _ = Describe("Hazelcast CR", func() {
 				Expect(err).Should(BeNil())
 
 				Expect(len(svcList.Items)).Should(Equal(1)) // just the HZ Discovery Service
+			})
+
+			It("should expose default WAN port in service-per-pod services when exposeExternally is enabled", func() {
+				spec := test.HazelcastSpec(defaultHazelcastSpecValues(), ee)
+				spec.ExposeExternally = &hazelcastv1alpha1.ExposeExternallyConfiguration{
+					Type:                 hazelcastv1alpha1.ExposeExternallyTypeSmart,
+					DiscoveryServiceType: corev1.ServiceTypeLoadBalancer,
+					MemberAccess:         hazelcastv1alpha1.MemberAccessLoadBalancer,
+				}
+				hz := &hazelcastv1alpha1.Hazelcast{
+					ObjectMeta: randomObjectMeta(namespace),
+					Spec:       spec,
+				}
+
+				create(hz)
+				assertHzStatusIsPending(hz)
+
+				By("checking service-per-pod services")
+				serviceList := &corev1.ServiceList{}
+				err := k8sClient.List(context.Background(), serviceList, client.InNamespace(hz.Namespace), labelFilter(hz))
+				Expect(err).Should(BeNil())
+				Expect(serviceList.Items).Should(HaveLen(int(*hz.Spec.ClusterSize) + 1))
+
+				By("checking exposed wan ports")
+				svcMap := servicesToMap(serviceList.Items)
+
+				for i := 0; i < int(*hz.Spec.ClusterSize); i++ {
+					serviceName := fmt.Sprintf("%s-%d", hz.Name, i)
+					Expect(svcMap).To(HaveKey(serviceName))
+					svc, _ := svcMap[serviceName]
+					Expect(svc.Spec.Type).Should(BeEquivalentTo(hazelcastv1alpha1.MemberAccessLoadBalancer))
+					servicePorts := make([]int32, 0)
+					for _, port := range svc.Spec.Ports {
+						servicePorts = append(servicePorts, port.Port)
+					}
+					Expect(servicePorts).Should(ContainElement(int32(5710)))
+				}
+
+				Expect(svcMap).To(HaveKey(hz.Name))
+				svc, _ := svcMap[hz.Name]
+				servicePorts := make([]int32, 0)
+				for _, port := range svc.Spec.Ports {
+					servicePorts = append(servicePorts, port.Port)
+				}
+				Expect(servicePorts).Should(ContainElement(int32(5710)))
 			})
 		})
 
