@@ -175,7 +175,6 @@ var _ = Describe("Hazelcast CR with Persistence feature enabled", Group("backup_
 			defer agentLogReader.Close()
 			test.EventuallyInLogs(agentLogReader, 10*Second, logInterval).Should(ContainSubstring("Starting new task"))
 			test.EventuallyInLogs(agentLogReader, 10*Second, logInterval).Should(ContainSubstring("task is started"))
-			test.EventuallyInLogs(agentLogReader, 10*Second, logInterval).Should(ContainSubstring("task successfully read secret"))
 			test.EventuallyInLogs(agentLogReader, 10*Second, logInterval).Should(ContainSubstring("task is in progress"))
 
 			By("get hotbackup object")

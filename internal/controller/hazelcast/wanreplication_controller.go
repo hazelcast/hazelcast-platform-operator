@@ -3,7 +3,6 @@ package hazelcast
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"net"
 	"reflect"
@@ -191,6 +190,7 @@ func (r *WanReplicationReconciler) deleteLeftoverMapsFromStatus(ctx context.Cont
 			if err := deleteWanMapStatus(ctx, r.Client, wan, mapWanKey); err != nil {
 				return err
 			}
+			return err
 		}
 		if controllerutil.ContainsFinalizer(m, n.WanRepMapFinalizer) {
 			// Finalizer will be removed in further steps in the reconciler
@@ -331,9 +331,9 @@ func (r *WanReplicationReconciler) checkConnectivity(ctx context.Context, req ct
 			memberAddresses = append(memberAddresses, v.Address)
 		}
 
-		mtlsClient, ok := r.mtlsClientRegistry.Get(req.Namespace)
-		if !ok {
-			return errors.New("failed to get MTLS client")
+		mtlsClient, err := r.mtlsClientRegistry.GetOrCreate(ctx, r.Client, req.Namespace)
+		if err != nil {
+			return err
 		}
 		for _, memberAddress := range memberAddresses {
 			p, err := dialer.NewDialer(&dialer.Config{

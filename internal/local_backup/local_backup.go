@@ -49,7 +49,7 @@ func (u *LocalBackup) GetLatestLocalBackup(ctx context.Context) (string, error) 
 	}
 
 	if len(localBackups.Backups) == 0 {
-		return "", errors.New("There are no local backups")
+		return "", errors.New("there are no local backups")
 	}
 
 	return localBackups.Backups[len(localBackups.Backups)-1], nil
