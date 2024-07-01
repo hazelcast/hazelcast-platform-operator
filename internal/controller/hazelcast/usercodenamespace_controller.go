@@ -50,10 +50,6 @@ func NewUserCodeNamespaceReconciler(c client.Client, log logr.Logger, s *runtime
 	}
 }
 
-//+kubebuilder:rbac:groups=hazelcast.com,resources=usercodenamespaces,verbs=get;list;watch;create;update;patch;delete
-//+kubebuilder:rbac:groups=hazelcast.com,resources=usercodenamespaces/status,verbs=get;update;patch
-//+kubebuilder:rbac:groups=hazelcast.com,resources=usercodenamespaces/finalizers,verbs=update
-
 func (r *UserCodeNamespaceReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	logger := r.WithValues("name", req.Name, "namespace", req.NamespacedName)
 
