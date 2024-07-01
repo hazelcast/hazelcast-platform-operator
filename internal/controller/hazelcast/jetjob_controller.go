@@ -188,6 +188,9 @@ func (r *JetJobReconciler) applyJetJob(ctx context.Context, job *hazelcastv1alph
 	if job.Spec.MainClass != "" {
 		metaData.MainClass = job.Spec.MainClass
 	}
+	if len(job.Spec.Parameters) != 0 {
+		metaData.JobParameters = job.Spec.Parameters
+	}
 	if job.Spec.InitialSnapshotResourceName != "" {
 		jjsnn := types.NamespacedName{Name: job.Spec.InitialSnapshotResourceName, Namespace: job.Namespace}
 		jjs := hazelcastv1alpha1.JetJobSnapshot{}

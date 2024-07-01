@@ -100,6 +100,11 @@ spec:
                 description: Name of the JetJob to be created. If empty, CR name will
                   be used. It cannot be updated after the config is created successfully.
                 type: string
+              parameters:
+                description: Parameters to be passed to Jet Job.
+                items:
+                  type: string
+                type: array
               remoteURL:
                 description: URL from where the file will be downloaded.
                 type: string
