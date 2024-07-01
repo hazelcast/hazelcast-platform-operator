@@ -2897,7 +2897,7 @@ func (r *HazelcastReconciler) ensureClusterActive(ctx context.Context, client hz
 
 var illegalClusterType = errs.New("only enterprise clusters are supported")
 
-func (r *HazelcastReconciler) ensureClusterEnterprise(ctx context.Context, client hzclient.Client, h *hazelcastv1alpha1.Hazelcast) (bool, error) {
+func (r *HazelcastReconciler) isEnterpriseCluster(ctx context.Context, client hzclient.Client, h *hazelcastv1alpha1.Hazelcast) (bool, error) {
 	req := codec.EncodeClientAuthenticationRequest(
 		h.Name,
 		"",

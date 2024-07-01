@@ -285,8 +285,8 @@ func (r *HazelcastReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 	}
 	r.statusServiceRegistry.Create(req.NamespacedName, cl, r.Log, r.triggerReconcileChan)
 
-	var isEnterprise bool
-	if isEnterprise, err = r.ensureClusterEnterprise(ctx, cl, h); err != nil {
+	isEnterprise, err := r.isEnterpriseCluster(ctx, cl, h)
+	if err != nil {
 		return r.update(ctx, h, recoptions.Error(err), withHzFailedPhase(err.Error()))
 	}
 	if !isEnterprise {
