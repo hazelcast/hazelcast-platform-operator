@@ -184,7 +184,9 @@ jobs:
 
       - name: Get GH Public IP
         id: ip
-        uses: haythem/public-ip@v1.3
+        run: |
+          response=$(curl -s canhazip.com)
+          echo "ipv4=$response" >> "$GITHUB_OUTPUT"
 
       - name: Update Network Security Group
         uses: nick-fields/retry@v3
@@ -243,6 +245,7 @@ jobs:
           make test-e2e NAMESPACE=${NAMESPACE} RELEASE_NAME=$RELEASE_NAME REPORT_SUFFIX=ee_01 WORKFLOW_ID=aks
 
       - name: Check if the operator pod has not restarted
+        if: always()
         run: |
           source .github/scripts/utils.sh
           assert_operator_pod_not_restarted ${NAMESPACE}

@@ -252,6 +252,7 @@ jobs:
           echo "RUNNING TESTS in $NAMESPACE"
 
       - name: Check if the operator pod has not restarted
+        if: always()
         run: |
           source .github/scripts/utils.sh
           assert_operator_pod_not_restarted ${NAMESPACE}

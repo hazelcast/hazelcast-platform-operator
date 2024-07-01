@@ -19,7 +19,9 @@ import (
 	proto "github.com/hazelcast/hazelcast-go-client"
 	clientTypes "github.com/hazelcast/hazelcast-go-client/types"
 	"github.com/hazelcast/platform-operator-agent/init/compound"
-	"github.com/hazelcast/platform-operator-agent/init/jar_download_bucket"
+	downloadurl "github.com/hazelcast/platform-operator-agent/init/file_download_url"
+	downloadbucket "github.com/hazelcast/platform-operator-agent/init/jar_download_bucket"
+	"github.com/hazelcast/platform-operator-agent/init/restore"
 	"github.com/pavlo-v-chernykh/keystore-go/v4"
 	"golang.org/x/mod/semver"
 	"golang.org/x/sync/errgroup"
@@ -859,26 +861,23 @@ func hazelcastEndpointFromService(nn types.NamespacedName, hz *hazelcastv1alpha1
 	}
 }
 
-func (r *HazelcastReconciler) reconcileAgentConfig(ctx context.Context, h *hazelcastv1alpha1.Hazelcast, logger logr.Logger) error {
-	if !h.Spec.UserCodeNamespaces.IsEnabled() {
-		return nil
-	}
+func (r *HazelcastReconciler) reconcileInitContainerConfig(ctx context.Context, h *hazelcastv1alpha1.Hazelcast, logger logr.Logger) error {
 	cm := &corev1.ConfigMap{
 		ObjectMeta: metadata(h),
 		Data:       make(map[string]string),
 	}
-	cm.Name = cm.Name + n.AgentSuffix
+	cm.Name = cm.Name + n.InitSuffix
 	err := controllerutil.SetControllerReference(h, cm, r.Scheme)
 	if err != nil {
 		return fmt.Errorf("failed to set owner reference on ConfigMap: %w", err)
 	}
 	return retry.RetryOnConflict(retry.DefaultRetry, func() error {
 		result, err := controllerutil.CreateOrUpdate(ctx, r.Client, cm, func() error {
-			cfg, err := agentConfig(ctx, r.Client, h, logger)
+			cfg, err := initContainerConfig(ctx, r.Client, h, logger)
 			if err != nil {
 				return err
 			}
-			cm.Data[n.AgentConfigFile] = string(cfg)
+			cm.Data[n.InitConfigFile] = string(cfg)
 			return nil
 		})
 		if result != controllerutil.OperationResultNone {
@@ -945,31 +944,175 @@ func (r *HazelcastReconciler) reconcileMTLSSecret(ctx context.Context, h *hazelc
 	return err
 }
 
-func agentConfig(ctx context.Context, c client.Client, h *hazelcastv1alpha1.Hazelcast, logger logr.Logger) ([]byte, error) {
-	ns, err := filterUserCodeNamespaces(ctx, c, h)
-	if err != nil {
-		return nil, err
+func initContainerConfig(ctx context.Context, c client.Client, h *hazelcastv1alpha1.Hazelcast, logger logr.Logger) ([]byte, error) {
+	cfgW := compound.ConfigWrapper{
+		InitContainer: &compound.Config{},
 	}
 
-	cfgW := compound.ConfigWrapper{}
-	if len(ns) != 0 {
-		buckets := make([]downloadbucket.Cmd, 0)
-		for _, ucn := range ns {
-			buckets = append(buckets, downloadbucket.Cmd{
-				BucketURI:   ucn.Spec.BucketConfiguration.BucketURI,
-				SecretName:  ucn.Spec.BucketConfiguration.SecretName,
-				Destination: filepath.Join(n.UCNBucketPath, ucn.Name+".zip"),
-			})
+	if h.Spec.UserCodeNamespaces.IsEnabled() {
+		ns, err := filterUserCodeNamespaces(ctx, c, h)
+		if err != nil {
+			return nil, err
 		}
-		cfgW.InitContainer = &compound.Config{
-			Download: &compound.Download{
-				Bundle: &compound.Bundle{
-					Buckets: buckets,
+
+		if len(ns) != 0 {
+			buckets := make([]downloadbucket.Cmd, 0)
+			for _, ucn := range ns {
+				buckets = append(buckets, downloadbucket.Cmd{
+					BucketURI:   ucn.Spec.BucketConfiguration.BucketURI,
+					SecretName:  ucn.Spec.BucketConfiguration.SecretName,
+					Destination: filepath.Join(n.UCNBucketPath, ucn.Name+".zip"),
+				})
+			}
+			cfgW.InitContainer = &compound.Config{
+				Download: &compound.Download{
+					Bundle: &compound.Bundle{
+						Buckets: buckets,
+					},
+				},
+			}
+		}
+	}
+
+	ucn := h.Spec.DeprecatedUserCodeDeployment
+
+	if h.Spec.DeprecatedUserCodeDeployment.IsBucketEnabled() {
+		cfgW.InitContainer.Download = &compound.Download{
+			Buckets: []downloadbucket.Cmd{
+				{
+					Destination: n.UserCodeBucketPath,
+					SecretName:  ucn.BucketConfiguration.GetSecretName(),
+					BucketURI:   ucn.BucketConfiguration.BucketURI,
 				},
 			},
 		}
 	}
+
+	if h.Spec.DeprecatedUserCodeDeployment.IsRemoteURLsEnabled() {
+		cfgW.InitContainer.Download = &compound.Download{
+			URLs: []downloadurl.Cmd{
+				{
+					Destination: n.UserCodeBucketPath,
+					URLs:        strings.Join(ucn.RemoteURLs, ","),
+				},
+			},
+		}
+	}
+
+	jet := h.Spec.JetEngineConfiguration
+
+	if h.Spec.JetEngineConfiguration.IsBucketEnabled() {
+		cfgW.InitContainer.Download = &compound.Download{
+			Buckets: []downloadbucket.Cmd{
+				{
+					Destination: n.JetJobJarsPath,
+					SecretName:  jet.BucketConfiguration.GetSecretName(),
+					BucketURI:   jet.BucketConfiguration.BucketURI,
+				},
+			},
+		}
+	}
+
+	if h.Spec.JetEngineConfiguration.IsRemoteURLsEnabled() {
+		cfgW.InitContainer.Download = &compound.Download{
+			URLs: []downloadurl.Cmd{
+				{
+					Destination: n.JetJobJarsPath,
+					URLs:        strings.Join(jet.RemoteURLs, ","),
+				},
+			},
+		}
+	}
+
+	if !h.Spec.Persistence.IsRestoreEnabled() {
+		return yaml.Marshal(cfgW)
+	}
+
+	hzConf, err := getHazelcastConfig(ctx, c, types.NamespacedName{Name: h.Name, Namespace: h.Namespace})
+	if err != nil {
+		return nil, fmt.Errorf("unable to fetch existing HZ config: %v", err)
+	}
+
+	var r compound.Restore
+	if h.Spec.Persistence.RestoreFromHotBackupResourceName() {
+		r, err = restoreCmdForHBResource(ctx, c, h,
+			types.NamespacedName{Namespace: h.Namespace, Name: h.Spec.Persistence.Restore.HotBackupResourceName}, hzConf.Hazelcast.Persistence.BaseDir)
+		if err != nil {
+			return nil, err
+		}
+	} else if h.Spec.Persistence.RestoreFromLocalBackup() {
+		r = restoreLocalInitContainer(h, *h.Spec.Persistence.Restore.LocalConfiguration, hzConf.Hazelcast.Persistence.BaseDir)
+	} else {
+		r = restoreInitContainer(h, h.Spec.Persistence.Restore.BucketConfiguration.GetSecretName(),
+			h.Spec.Persistence.Restore.BucketConfiguration.BucketURI, hzConf.Hazelcast.Persistence.BaseDir)
+	}
+	cfgW.InitContainer.Restore = &r
+
 	return yaml.Marshal(cfgW)
+}
+
+func restoreCmdForHBResource(ctx context.Context, cl client.Client, h *hazelcastv1alpha1.Hazelcast, key types.NamespacedName, baseDir string) (compound.Restore, error) {
+	hb := &hazelcastv1alpha1.HotBackup{}
+	err := cl.Get(ctx, key, hb)
+	if err != nil {
+		return compound.Restore{}, err
+	}
+
+	if hb.Status.State != hazelcastv1alpha1.HotBackupSuccess {
+		return compound.Restore{}, fmt.Errorf("restore hotbackup '%s' status is not %s", hb.Name, hazelcastv1alpha1.HotBackupSuccess)
+	}
+
+	var r compound.Restore
+	if hb.Spec.IsExternal() {
+		bucketURI := hb.Status.GetBucketURI()
+		r = restoreInitContainer(h, hb.Spec.GetSecretName(), bucketURI, baseDir)
+	} else {
+		backupFolder := hb.Status.GetBackupFolder()
+		r = restoreLocalInitContainer(h, hazelcastv1alpha1.RestoreFromLocalConfiguration{
+			BackupFolder: backupFolder,
+		}, baseDir)
+	}
+
+	return r, nil
+}
+
+func restoreInitContainer(h *hazelcastv1alpha1.Hazelcast, secretName, bucket, baseDir string) compound.Restore {
+	return compound.Restore{
+		Bucket: &restore.BucketToPVCCmd{
+			Bucket:      bucket,
+			Destination: baseDir,
+			// Hostname:    "",
+			SecretName: secretName,
+			RestoreID:  h.Spec.Persistence.Restore.Hash(),
+		},
+	}
+}
+
+func restoreLocalInitContainer(h *hazelcastv1alpha1.Hazelcast, conf hazelcastv1alpha1.RestoreFromLocalConfiguration, destBaseDir string) compound.Restore {
+	// it maybe configured by restore.localConfig.
+	// HotBackup CR does not configure it. For HotBackup CR source and destination base directories are always the same.
+	srcBaseDir := destBaseDir
+	if conf.BaseDir != "" {
+		srcBaseDir = conf.BaseDir
+	}
+
+	backupDir := n.BackupDir
+	if conf.BackupDir != "" {
+		backupDir = conf.BackupDir
+	}
+
+	backupFolder := conf.BackupFolder
+
+	return compound.Restore{
+		PVC: &restore.LocalInPVCCmd{
+			BackupSequenceFolderName: backupFolder,
+			BackupSourceBaseDir:      srcBaseDir,
+			BackupDestinationBaseDir: destBaseDir,
+			BackupDir:                backupDir,
+			// Hostname:                 "",
+			RestoreID: h.Spec.Persistence.Restore.Hash(),
+		},
+	}
 }
 
 func hazelcastConfig(ctx context.Context, c client.Client, h *hazelcastv1alpha1.Hazelcast, logger logr.Logger) ([]byte, error) {
@@ -2220,14 +2363,12 @@ func (r *HazelcastReconciler) reconcileStatefulset(ctx context.Context, h *hazel
 			sts.Spec.Template.Spec.Containers[0].ReadinessProbe.ProbeHandler.HTTPGet.Path = "/hazelcast/health/ready"
 		}
 
-		hzConf, err := getHazelcastConfig(ctx, r.Client, types.NamespacedName{Name: h.Name, Namespace: h.Namespace})
-		if err != nil {
-			return fmt.Errorf("unable to fetch existing HZ config: %v", err)
-		}
-		sts.Spec.Template.Spec.InitContainers, err = initContainers(ctx, h, r.Client, hzConf, pvcName)
+		ic, err := initContainer(h, pvcName)
 		if err != nil {
 			return err
 		}
+		sts.Spec.Template.Spec.InitContainers = []v1.Container{ic}
+
 		sts.Spec.Template.Spec.Volumes = volumes(h)
 		sts.Spec.Template.Spec.Containers[0].VolumeMounts = hzContainerVolumeMounts(h, pvcName)
 		sts.Spec.Template.Spec.Containers[1].VolumeMounts = sidecarVolumeMounts(h, pvcName)
@@ -2418,111 +2559,18 @@ func containerSecurityContext() *v1.SecurityContext {
 	}
 }
 
-func initContainers(ctx context.Context, h *hazelcastv1alpha1.Hazelcast, cl client.Client, conf *config.HazelcastWrapper, pvcName string) ([]v1.Container, error) {
-	var containers []corev1.Container
-
-	if h.Spec.DeprecatedUserCodeDeployment.IsBucketEnabled() {
-		containers = append(containers, bucketDownloadContainer(
-			n.UserCodeBucketAgent+h.Spec.DeprecatedUserCodeDeployment.TriggerSequence, h.AgentDockerImage(),
-			h.Spec.DeprecatedUserCodeDeployment.RemoteFileConfiguration, ucdBucketAgentVolumeMount()))
-	}
-
-	if h.Spec.DeprecatedUserCodeDeployment.IsRemoteURLsEnabled() {
-		containers = append(containers, urlDownloadContainer(
-			n.UserCodeURLAgent+h.Spec.DeprecatedUserCodeDeployment.TriggerSequence, h.AgentDockerImage(),
-			h.Spec.DeprecatedUserCodeDeployment.RemoteFileConfiguration, ucdBucketAgentVolumeMount()))
-	}
-
-	if h.Spec.JetEngineConfiguration.IsBucketEnabled() {
-		containers = append(containers, bucketDownloadContainer(
-			n.JetBucketAgent, h.AgentDockerImage(), h.Spec.JetEngineConfiguration.RemoteFileConfiguration, jetJobJarsVolumeMount()))
-	}
-
-	if h.Spec.JetEngineConfiguration.IsRemoteURLsEnabled() {
-		containers = append(containers, urlDownloadContainer(
-			n.JetUrlAgent, h.AgentDockerImage(), h.Spec.JetEngineConfiguration.RemoteFileConfiguration, jetJobJarsVolumeMount()))
-	}
-
-	if h.Spec.UserCodeNamespaces.IsEnabled() {
-		containers = append(containers, ucnDownloadContainer(n.InitAgent, h.AgentDockerImage(), ucnBucketVolumeMount()))
-	}
-
-	if !h.Spec.Persistence.IsRestoreEnabled() {
-		return containers, nil
-	}
-
-	if h.Spec.Persistence.RestoreFromHotBackupResourceName() {
-		cont, err := getRestoreContainerFromHotBackupResource(ctx, cl, h,
-			types.NamespacedName{Namespace: h.Namespace, Name: h.Spec.Persistence.Restore.HotBackupResourceName}, conf.Hazelcast.Persistence.BaseDir, pvcName)
-		if err != nil {
-			return nil, err
-		}
-		containers = append(containers, cont)
-
-		return containers, nil
-	} else if h.Spec.Persistence.RestoreFromLocalBackup() {
-		containers = append(containers, restoreLocalAgentContainer(h, *h.Spec.Persistence.Restore.LocalConfiguration, conf.Hazelcast.Persistence.BaseDir, pvcName))
-	} else {
-		// restoring from bucket config
-		containers = append(containers, restoreAgentContainer(h, h.Spec.Persistence.Restore.BucketConfiguration.GetSecretName(),
-			h.Spec.Persistence.Restore.BucketConfiguration.BucketURI, conf.Hazelcast.Persistence.BaseDir, pvcName))
-	}
-
-	return containers, nil
-}
-
-func getRestoreContainerFromHotBackupResource(ctx context.Context, cl client.Client, h *hazelcastv1alpha1.Hazelcast, key types.NamespacedName, baseDir, pvcName string) (v1.Container, error) {
-	hb := &hazelcastv1alpha1.HotBackup{}
-	err := cl.Get(ctx, key, hb)
-	if err != nil {
-		return corev1.Container{}, err
-	}
-
-	if hb.Status.State != hazelcastv1alpha1.HotBackupSuccess {
-		return corev1.Container{}, fmt.Errorf("restore hotbackup '%s' status is not %s", hb.Name, hazelcastv1alpha1.HotBackupSuccess)
-	}
-
-	var cont corev1.Container
-	if hb.Spec.IsExternal() {
-		bucketURI := hb.Status.GetBucketURI()
-		cont = restoreAgentContainer(h, hb.Spec.GetSecretName(), bucketURI, baseDir, pvcName)
-	} else {
-		backupFolder := hb.Status.GetBackupFolder()
-		cont = restoreLocalAgentContainer(h, hazelcastv1alpha1.RestoreFromLocalConfiguration{
-			BackupFolder: backupFolder,
-		}, baseDir, pvcName)
-	}
-
-	return cont, nil
-}
-
-func restoreAgentContainer(h *hazelcastv1alpha1.Hazelcast, secretName, bucket, baseDir, pvcName string) v1.Container {
-	commandName := "restore_pvc"
-
-	return v1.Container{
-		Name:            n.RestoreAgent,
-		Image:           h.AgentDockerImage(),
-		ImagePullPolicy: corev1.PullIfNotPresent,
-		Args:            []string{commandName},
+func initContainer(h *hazelcastv1alpha1.Hazelcast, pvcName string) (v1.Container, error) {
+	c := corev1.Container{
+		Name:  n.InitContainer,
+		Image: h.AgentDockerImage(),
+		Args:  []string{"execute-multiple-commands"},
 		Env: []v1.EnvVar{
 			{
-				Name:  "RESTORE_SECRET_NAME",
-				Value: secretName,
+				Name:  "CONFIG_FILE",
+				Value: n.InitConfigDir + n.InitConfigFile,
 			},
 			{
-				Name:  "RESTORE_BUCKET",
-				Value: bucket,
-			},
-			{
-				Name:  "RESTORE_DESTINATION",
-				Value: baseDir,
-			},
-			{
-				Name:  "RESTORE_ID",
-				Value: h.Spec.Persistence.Restore.Hash(),
-			},
-			{
-				Name: "RESTORE_HOSTNAME",
+				Name: "HOSTNAME",
 				ValueFrom: &v1.EnvVarSource{
 					FieldRef: &v1.ObjectFieldSelector{
 						APIVersion: "v1",
@@ -2531,106 +2579,44 @@ func restoreAgentContainer(h *hazelcastv1alpha1.Hazelcast, secretName, bucket, b
 				},
 			},
 		},
-		TerminationMessagePath:   "/dev/termination-log",
-		TerminationMessagePolicy: "File",
-		VolumeMounts: []v1.VolumeMount{{
-			Name:      pvcName,
-			MountPath: n.PersistenceMountPath,
-		}},
-		SecurityContext: containerSecurityContext(),
-	}
-}
-
-func restoreLocalAgentContainer(h *hazelcastv1alpha1.Hazelcast, conf hazelcastv1alpha1.RestoreFromLocalConfiguration, destBaseDir, pvcName string) v1.Container {
-	commandName := "restore_pvc_local"
-
-	// it maybe configured by restore.localConfig.
-	// HotBackup CR does not configure it. For HotBackup CR source and destination base directories are always the same.
-	srcBaseDir := destBaseDir
-	if conf.BaseDir != "" {
-		srcBaseDir = conf.BaseDir
-	}
-
-	backupDir := n.BackupDir
-	if conf.BackupDir != "" {
-		backupDir = conf.BackupDir
-	}
-
-	backupFolder := conf.BackupFolder
-
-	c := v1.Container{
-		Name:            n.RestoreLocalAgent,
-		Image:           h.AgentDockerImage(),
-		ImagePullPolicy: corev1.PullIfNotPresent,
-		Args:            []string{commandName},
-		Env: []v1.EnvVar{
-			{
-				Name:  "RESTORE_LOCAL_BACKUP_SRC_BASE_DIR",
-				Value: srcBaseDir,
-			},
-			{
-				Name:  "RESTORE_LOCAL_BACKUP_DEST_BASE_DIR",
-				Value: destBaseDir,
-			},
-			{
-				Name:  "RESTORE_LOCAL_BACKUP_BACKUP_DIR",
-				Value: backupDir,
-			},
-			{
-				Name:  "RESTORE_LOCAL_BACKUP_FOLDER_NAME",
-				Value: backupFolder,
-			},
-			{
-				Name:  "RESTORE_LOCAL_ID",
-				Value: h.Spec.Persistence.Restore.Hash(),
-			},
-			{
-				Name: "RESTORE_LOCAL_HOSTNAME",
-				ValueFrom: &v1.EnvVarSource{
-					FieldRef: &v1.ObjectFieldSelector{
-						APIVersion: "v1",
-						FieldPath:  "metadata.name",
-					},
-				},
-			},
-		},
-		TerminationMessagePath:   "/dev/termination-log",
-		TerminationMessagePolicy: "File",
-		VolumeMounts: []v1.VolumeMount{
-			{
-				Name:      pvcName,
-				MountPath: n.PersistenceMountPath,
-			},
-		},
-		SecurityContext: containerSecurityContext(),
-	}
-
-	return c
-}
-
-func bucketDownloadContainer(name, image string, rfc hazelcastv1alpha1.RemoteFileConfiguration, vm v1.VolumeMount) v1.Container {
-	return v1.Container{
-		Name:  name,
-		Image: image,
-		Args:  []string{"jar-download-bucket"},
-		Env: []v1.EnvVar{
-			{
-				Name:  "JDB_SECRET_NAME",
-				Value: rfc.BucketConfiguration.GetSecretName(),
-			},
-			{
-				Name:  "JDB_BUCKET_URI",
-				Value: rfc.BucketConfiguration.BucketURI,
-			},
-			{
-				Name:  "JDB_DESTINATION",
-				Value: vm.MountPath,
-			},
-		},
-		VolumeMounts:             []v1.VolumeMount{vm},
 		TerminationMessagePath:   "/dev/termination-log",
 		TerminationMessagePolicy: "File",
 		SecurityContext:          containerSecurityContext(),
+		ImagePullPolicy:          corev1.PullIfNotPresent,
+		VolumeMounts: []v1.VolumeMount{
+
+			{
+				Name:      n.InitConfigMap,
+				MountPath: n.InitConfigDir,
+			},
+		},
+	}
+
+	if h.Spec.DeprecatedUserCodeDeployment.IsBucketEnabled() ||
+		h.Spec.DeprecatedUserCodeDeployment.IsRemoteURLsEnabled() {
+		c.VolumeMounts = append(c.VolumeMounts, ucdBucketAgentVolumeMount())
+	}
+
+	if h.Spec.JetEngineConfiguration.IsBucketEnabled() ||
+		h.Spec.JetEngineConfiguration.IsRemoteURLsEnabled() {
+		c.VolumeMounts = append(c.VolumeMounts, jetJobJarsVolumeMount())
+	}
+
+	if h.Spec.UserCodeNamespaces.IsEnabled() {
+		c.VolumeMounts = append(c.VolumeMounts, ucnBucketVolumeMount())
+	}
+
+	if h.Spec.Persistence.IsEnabled() {
+		c.VolumeMounts = append(c.VolumeMounts, persistenceVolumeMount(pvcName))
+	}
+
+	return c, nil
+}
+
+func persistenceVolumeMount(pvcName string) v1.VolumeMount {
+	return v1.VolumeMount{
+		Name:      pvcName,
+		MountPath: n.PersistenceMountPath,
 	}
 }
 
@@ -2662,48 +2648,6 @@ func tmpDirVolumeMount() v1.VolumeMount {
 	}
 }
 
-func ucnDownloadContainer(name, image string, vm v1.VolumeMount) v1.Container {
-	return v1.Container{
-		Name:            name,
-		Args:            []string{"execute-multiple-commands"},
-		Image:           image,
-		ImagePullPolicy: corev1.PullIfNotPresent,
-		Env: []v1.EnvVar{
-			{
-				Name:  "CONFIG_FILE",
-				Value: n.AgentConfigDir + n.AgentConfigFile,
-			},
-		},
-		VolumeMounts:             []v1.VolumeMount{vm, {Name: n.AgentConfigMap, MountPath: n.AgentConfigDir}},
-		TerminationMessagePath:   "/dev/termination-log",
-		TerminationMessagePolicy: "File",
-		SecurityContext:          containerSecurityContext(),
-	}
-}
-
-func urlDownloadContainer(name, image string, rfc hazelcastv1alpha1.RemoteFileConfiguration, vm v1.VolumeMount) v1.Container {
-	return v1.Container{
-		Name:            name,
-		Args:            []string{"file-download-url"},
-		Image:           image,
-		ImagePullPolicy: corev1.PullIfNotPresent,
-		Env: []v1.EnvVar{
-			{
-				Name:  "FDU_URLS",
-				Value: strings.Join(rfc.RemoteURLs, ","),
-			},
-			{
-				Name:  "FDU_DESTINATION",
-				Value: vm.MountPath,
-			},
-		},
-		VolumeMounts:             []v1.VolumeMount{vm},
-		TerminationMessagePath:   "/dev/termination-log",
-		TerminationMessagePolicy: "File",
-		SecurityContext:          containerSecurityContext(),
-	}
-}
-
 func ucdURLAgentVolumeMount() v1.VolumeMount {
 	return v1.VolumeMount{
 		Name:      n.UserCodeURLVolumeName,
@@ -2722,11 +2666,26 @@ func volumes(h *hazelcastv1alpha1.Hazelcast) []v1.Volume {
 				},
 			},
 		},
+		{
+			Name: n.InitConfigMap,
+			VolumeSource: v1.VolumeSource{
+				ConfigMap: &v1.ConfigMapVolumeSource{
+					LocalObjectReference: v1.LocalObjectReference{
+						Name: h.Name + n.InitSuffix,
+					},
+					DefaultMode: pointer.Int32(420),
+				},
+			},
+		},
 		emptyDirVolume(n.UserCodeBucketVolumeName),
 		emptyDirVolume(n.UserCodeURLVolumeName),
 		emptyDirVolume(n.JetJobJarsVolumeName),
 		emptyDirVolume(n.TmpDirVolName),
 		tlsVolume(h),
+	}
+
+	if h.Spec.UserCodeNamespaces.IsEnabled() {
+		vols = append(vols, emptyDirVolume(n.UCNVolumeName))
 	}
 
 	if h.Spec.DeprecatedUserCodeDeployment.IsConfigMapEnabled() {
@@ -2735,20 +2694,6 @@ func volumes(h *hazelcastv1alpha1.Hazelcast) []v1.Volume {
 
 	if h.Spec.JetEngineConfiguration.IsConfigMapEnabled() {
 		vols = append(vols, configMapVolumes(jetConfigMapName, h.Spec.JetEngineConfiguration.RemoteFileConfiguration)...)
-	}
-
-	if h.Spec.UserCodeNamespaces.IsEnabled() {
-		vols = append(vols, emptyDirVolume(n.UCNVolumeName), corev1.Volume{
-			Name: n.AgentConfigMap,
-			VolumeSource: v1.VolumeSource{
-				ConfigMap: &v1.ConfigMapVolumeSource{
-					LocalObjectReference: v1.LocalObjectReference{
-						Name: h.Name + n.AgentSuffix,
-					},
-					DefaultMode: pointer.Int32(420),
-				},
-			},
-		})
 	}
 
 	return vols
@@ -2818,10 +2763,7 @@ func sidecarVolumeMounts(h *hazelcastv1alpha1.Hazelcast, pvcName string) []v1.Vo
 		vm = append(vm, ucnBucketVolumeMount())
 	}
 	if h.Spec.Persistence.IsEnabled() {
-		vm = append(vm, v1.VolumeMount{
-			Name:      pvcName,
-			MountPath: n.PersistenceMountPath,
-		})
+		vm = append(vm, persistenceVolumeMount(pvcName))
 	}
 	return vm
 }

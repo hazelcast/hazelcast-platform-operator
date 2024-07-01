@@ -2,6 +2,7 @@ package hazelcast
 
 import (
 	"context"
+	"errors"
 
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -40,6 +41,9 @@ func updateUserCodeNamespaceStatus(ctx context.Context, c client.Client, ucn *ha
 	err := c.Status().Update(ctx, ucn)
 	if options.state == hazelcastv1alpha1.UserCodeNamespacePending {
 		return ctrl.Result{Requeue: true}, nil
+	}
+	if options.state == hazelcastv1alpha1.UserCodeNamespaceFailure {
+		return ctrl.Result{}, errors.New(options.message)
 	}
 	return ctrl.Result{}, err
 }

@@ -9,6 +9,7 @@ env:
   GAR_REGION: us-east1
   GAR_PROJECT: hazelcast-33
   GAR_REPO: hazelcast-platform-operator
+  NAMESPACE: test-operator-ee
 
 jobs:
   prepare-env:
@@ -65,15 +66,7 @@ jobs:
 
           eksctl create iamserviceaccount \
             --name aws-iam-sa \
-            --namespace test-operator-os \
-            --cluster ${CLUSTER_NAME} \
-            --role-name ${ROLE_NAME}-os \
-            --attach-policy-arn arn:aws:iam::aws:policy/AmazonS3FullAccess \
-            --approve
-
-          eksctl create iamserviceaccount \
-            --name aws-iam-sa \
-            --namespace test-operator-ee \
+            --namespace ${NAMESPACE} \
             --cluster ${CLUSTER_NAME} \
             --role-name ${ROLE_NAME}-ee \
             --attach-policy-arn arn:aws:iam::aws:policy/AmazonS3FullAccess \
@@ -152,8 +145,7 @@ jobs:
       run:
         shell: bash
     env:
-      NAMESPACE: test-operator
-      RELEASE_NAME: hp-${{ github.run_id }}
+      RELEASE_NAME: hp-ee-${{ github.run_id }}
       IMG: ${{ needs.get-image.outputs.IMG }}
     steps:
       - name: Checkout
@@ -172,7 +164,9 @@ jobs:
 
       - name: Get GH Public IP
         id: ip
-        uses: haythem/public-ip@v1.3
+        run: |
+          response=$(curl -s canhazip.com)
+          echo "ipv4=$response" >> "$GITHUB_OUTPUT"
 
       - name: Configure SecurityGroup of Nodes
         run: |-
@@ -224,9 +218,7 @@ jobs:
 
       - name: Deploy Operator to EKS
         run: |
-          kubectl create namespace ${NAMESPACE}
           kubectl config set-context --current --namespace=${NAMESPACE}
-
           DEPLOY_NAME=${RELEASE_NAME}-hazelcast-platform-operator
           make install-operator NAMESPACE=${NAMESPACE} IMG=${IMG} RELEASE_NAME=$RELEASE_NAME
           kubectl rollout status deployment $DEPLOY_NAME
@@ -244,7 +236,7 @@ jobs:
           kubectl create secret generic br-secret-az --namespace ${NAMESPACE} \
             --from-literal=storage-account=operatortest \
             --from-literal=storage-key=${{ env.AZURE_STORAGE_KEY }}
-
+          
           kubectl create secret generic br-secret-gcp --namespace ${NAMESPACE} --from-literal=google-credentials-path='${{ env.GKE_SA_KEY }}'
 
       - name: Run Hazelcast E2E tests on EKS
@@ -253,6 +245,7 @@ jobs:
           make test-e2e NAMESPACE=${NAMESPACE} RELEASE_NAME=${RELEASE_NAME} REPORT_SUFFIX=ee_01 WORKFLOW_ID=eks
 
       - name: Check if the operator pod has not restarted
+        if: always()
         run: |
           source .github/scripts/utils.sh
           assert_operator_pod_not_restarted ${NAMESPACE}

@@ -219,7 +219,7 @@ func (r *HazelcastReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 		return r.update(ctx, h, recoptions.Error(err), withHzFailedPhase(err.Error()))
 	}
 
-	err = r.reconcileAgentConfig(ctx, h, logger)
+	err = r.reconcileInitContainerConfig(ctx, h, logger)
 	if err != nil {
 		return r.update(ctx, h, recoptions.Error(err), withHzFailedPhase(err.Error()))
 	}
