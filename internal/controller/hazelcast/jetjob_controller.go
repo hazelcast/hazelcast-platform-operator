@@ -3,7 +3,6 @@ package hazelcast
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"net"
 	"path"
@@ -228,10 +227,10 @@ func (r *JetJobReconciler) applyJetJob(ctx context.Context, job *hazelcastv1alph
 
 func (r *JetJobReconciler) downloadFile(ctx context.Context, job *hazelcastv1alpha1.JetJob, hazelcastName types.NamespacedName, jjnn types.NamespacedName, client hzclient.Client, logger logr.Logger) error {
 	g, groupCtx := errgroup.WithContext(ctx)
-	mtlsClient, ok := r.mtlsClientRegistry.Get(hazelcastName.Namespace)
-	if !ok {
-		returnErr := errors.New("failed to get MTLS client")
-		_, _ = r.updateStatus(ctx, jjnn, failedJetJobStatus(returnErr))
+	mtlsClient, err := r.mtlsClientRegistry.GetOrCreate(ctx, r.Client, hazelcastName.Namespace)
+	if err != nil {
+		_, err := r.updateStatus(ctx, jjnn, failedJetJobStatus(err))
+		return err
 	}
 	for _, m := range client.OrderedMembers() {
 		m := m

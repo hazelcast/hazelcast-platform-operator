@@ -2,17 +2,22 @@ package hazelcast
 
 import (
 	"context"
+	"crypto/tls"
+	"crypto/x509"
 	"errors"
 	"fmt"
 	"net"
 	"net/http"
 	"net/http/httptest"
+	"runtime"
 	"sync"
+	"testing"
 
 	"github.com/go-logr/logr"
 	proto "github.com/hazelcast/hazelcast-go-client"
 	"github.com/hazelcast/hazelcast-go-client/cluster"
 	hztypes "github.com/hazelcast/hazelcast-go-client/types"
+	. "github.com/onsi/gomega"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
@@ -23,6 +28,7 @@ import (
 
 	hazelcastv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
 	hzclient "github.com/hazelcast/hazelcast-platform-operator/internal/hazelcast-client"
+	"github.com/hazelcast/hazelcast-platform-operator/internal/mtls"
 	n "github.com/hazelcast/hazelcast-platform-operator/internal/naming"
 	codecTypes "github.com/hazelcast/hazelcast-platform-operator/internal/protocol/types"
 )
@@ -135,7 +141,7 @@ func fakeK8sClient(initObjs ...client.Object) client.Client {
 		Build()
 }
 
-func fakeHttpServer(url string, handler http.HandlerFunc) (*httptest.Server, error) {
+func fakeMtlsHttpServer(url string, tlsCfg *tls.Config, handler http.HandlerFunc) (*httptest.Server, error) {
 	l, err := net.Listen("tcp", url)
 	if err != nil {
 		return nil, err
@@ -143,8 +149,32 @@ func fakeHttpServer(url string, handler http.HandlerFunc) (*httptest.Server, err
 	ts := httptest.NewUnstartedServer(handler)
 	_ = ts.Listener.Close()
 	ts.Listener = l
-	ts.Start()
+	ts.TLS = tlsCfg
+	ts.StartTLS()
 	return ts, nil
+}
+
+func setupTlsConfig(k8sClient client.Client, namespace string) *tls.Config {
+	certNn := types.NamespacedName{Name: n.MTLSCertSecretName, Namespace: namespace}
+	_, err := mtls.NewClient(context.Background(), k8sClient, certNn)
+	Expect(err).To(BeNil())
+	certSecret := &corev1.Secret{}
+	Expect(k8sClient.Get(context.TODO(), certNn, certSecret)).Should(Succeed())
+
+	ca, cert, key := certSecret.Data[mtls.TLSCAKey], certSecret.Data[corev1.TLSCertKey], certSecret.Data[corev1.TLSPrivateKeyKey]
+	pool := x509.NewCertPool()
+	Expect(pool.AppendCertsFromPEM(ca)).To(BeTrue())
+
+	pair, err := tls.X509KeyPair(cert, key)
+	Expect(err).Should(BeNil())
+
+	tlsConf := &tls.Config{
+		ClientAuth:   tls.RequireAndVerifyClientCert,
+		ClientCAs:    pool,
+		Certificates: []tls.Certificate{pair},
+	}
+
+	return tlsConf
 }
 
 type fakeHzClientRegistry struct {
@@ -152,11 +182,11 @@ type fakeHzClientRegistry struct {
 }
 
 func (cr *fakeHzClientRegistry) GetOrCreate(ctx context.Context, nn types.NamespacedName) (hzclient.Client, error) {
-	client, ok := cr.Get(nn)
+	c, ok := cr.Get(nn)
 	if !ok {
-		return client, fmt.Errorf("fake client was not set before test")
+		return c, fmt.Errorf("fake client was not set before test")
 	}
-	return client, nil
+	return c, nil
 }
 
 func (cr *fakeHzClientRegistry) Set(ns types.NamespacedName, cl hzclient.Client) {
@@ -188,11 +218,8 @@ func (hr *fakeHttpClientRegistry) Create(_ context.Context, _ client.Client, ns 
 	return nil, errors.New("no client found")
 }
 
-func (hr *fakeHttpClientRegistry) Get(ns string) (*http.Client, bool) {
-	if v, ok := hr.clients.Load(types.NamespacedName{Name: n.MTLSCertSecretName, Namespace: ns}); ok {
-		return v.(*http.Client), ok
-	}
-	return nil, false
+func (hr *fakeHttpClientRegistry) GetOrCreate(ctx context.Context, kubeClient client.Client, ns string) (*http.Client, error) {
+	return hr.Create(ctx, kubeClient, ns)
 }
 
 func (hr *fakeHttpClientRegistry) Delete(ns string) {
@@ -314,4 +341,16 @@ func (ss *fakeHzStatusService) GetTimedMemberState(_ context.Context, uuid hztyp
 }
 
 func (ss *fakeHzStatusService) Stop() {
+}
+
+func fail(t *testing.T) func(message string, callerSkip ...int) {
+	return func(message string, callerSkip ...int) {
+		if len(callerSkip) > 0 {
+			_, file, line, _ := runtime.Caller(callerSkip[0])
+			lineInfo := fmt.Sprintf("%s:%d", file, line)
+			t.Errorf("%s\n%s", lineInfo, message)
+		} else {
+			t.Error(message)
+		}
+	}
 }

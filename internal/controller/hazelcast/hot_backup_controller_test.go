@@ -2,10 +2,10 @@ package hazelcast
 
 import (
 	"context"
+	"crypto/tls"
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"runtime"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -43,12 +43,9 @@ func TestHotBackupReconciler_shouldBeSuccessful(t *testing.T) {
 	nn, h, hb := defaultCRs()
 	fakeHzClient, fakeHzStatusService, _ := defaultFakeClientAndService()
 
-	defer defaultFakeHttpServer()()
-
 	cr := &fakeHzClientRegistry{}
 	sr := &fakeHzStatusServiceRegistry{}
-	hr := &fakeHttpClientRegistry{}
-	hr.Set(nn.Namespace, &http.Client{})
+	hr := mtls.NewHttpClientRegistry()
 	cr.Set(nn, &fakeHzClient)
 	sr.Set(nn, &fakeHzStatusService)
 
@@ -61,7 +58,18 @@ func TestHotBackupReconciler_shouldBeSuccessful(t *testing.T) {
 		Data:       make(map[string][]byte),
 	}
 	cm.Data["hazelcast.yaml"] = cfg
-	r := hotBackupReconcilerWithCRs(cr, sr, hr, h, hb, cm)
+
+	k8sClient := fakeK8sClient([]client.Object{h, hb, cm}...)
+	defer defaultFakeMtlsHttpServer(setupTlsConfig(k8sClient, nn.Namespace))()
+
+	r := NewHotBackupReconciler(
+		k8sClient,
+		ctrl.Log.WithName("test").WithName("Hazelcast"),
+		nil,
+		hr,
+		cr,
+		sr,
+	)
 	_, err = r.Reconcile(context.TODO(), reconcile.Request{NamespacedName: nn})
 	Expect(err).Should(BeNil())
 
@@ -83,16 +91,23 @@ func TestHotBackupReconciler_shouldSetStatusToFailedWhenHbCallFails(t *testing.T
 		return nil, nil
 	}
 
-	defer defaultFakeHttpServer()()
-
 	sr := &fakeHzStatusServiceRegistry{}
 	cr := &fakeHzClientRegistry{}
-	hr := &fakeHttpClientRegistry{}
-	hr.Set(nn.Namespace, &http.Client{})
+	hr := mtls.NewHttpClientRegistry()
 	sr.Set(nn, &fakeHzStatusService)
 	cr.Set(nn, &fakeHzClient)
 
-	r := hotBackupReconcilerWithCRs(cr, sr, hr, h, hb)
+	k8sClient := fakeK8sClient([]client.Object{h, hb}...)
+	defer defaultFakeMtlsHttpServer(setupTlsConfig(k8sClient, nn.Namespace))()
+
+	r := NewHotBackupReconciler(
+		k8sClient,
+		ctrl.Log.WithName("test").WithName("Hazelcast"),
+		nil,
+		hr,
+		cr,
+		sr,
+	)
 	_, err := r.Reconcile(context.TODO(), reconcile.Request{NamespacedName: nn})
 	Expect(err).Should(BeNil())
 
@@ -109,16 +124,23 @@ func TestHotBackupReconciler_shouldSetStatusToFailedWhenTimedMemberStateFails(t 
 	fakeHzClient, fakeHzStatusService, mm := defaultFakeClientAndService()
 	fakeHzStatusService.timedMemberStateMap[mm[0].UUID].TimedMemberState.MemberState.HotRestartState.BackupTaskState = "FAILURE"
 
-	defer defaultFakeHttpServer()()
-
 	sr := &fakeHzStatusServiceRegistry{}
 	cr := &fakeHzClientRegistry{}
-	hr := &fakeHttpClientRegistry{}
-	hr.Set(nn.Namespace, &http.Client{})
+	hr := mtls.NewHttpClientRegistry()
 	sr.Set(nn, &fakeHzStatusService)
 	cr.Set(nn, &fakeHzClient)
 
-	r := hotBackupReconcilerWithCRs(cr, sr, hr, h, hb)
+	k8sClient := fakeK8sClient([]client.Object{h, hb}...)
+	defer defaultFakeMtlsHttpServer(setupTlsConfig(k8sClient, nn.Namespace))()
+
+	r := NewHotBackupReconciler(
+		k8sClient,
+		ctrl.Log.WithName("test").WithName("Hazelcast"),
+		nil,
+		hr,
+		cr,
+		sr,
+	)
 	_, err := r.Reconcile(context.TODO(), reconcile.Request{NamespacedName: nn})
 	Expect(err).Should(BeNil())
 
@@ -145,16 +167,23 @@ func TestHotBackupReconciler_shouldNotTriggerHotBackupTwice(t *testing.T) {
 		return nil, nil
 	}
 
-	defer defaultFakeHttpServer()()
-
 	sr := &fakeHzStatusServiceRegistry{}
 	cr := &fakeHzClientRegistry{}
-	hr := &fakeHttpClientRegistry{}
-	hr.Set(nn.Namespace, &http.Client{})
+	hr := mtls.NewHttpClientRegistry()
 	sr.Set(nn, &fakeHzStatusService)
 	cr.Set(nn, &fakeHzClient)
 
-	r := hotBackupReconcilerWithCRs(cr, sr, hr, h, hb)
+	k8sClient := fakeK8sClient([]client.Object{h, hb}...)
+	defer defaultFakeMtlsHttpServer(setupTlsConfig(k8sClient, nn.Namespace))()
+
+	r := NewHotBackupReconciler(
+		k8sClient,
+		ctrl.Log.WithName("test").WithName("Hazelcast"),
+		nil,
+		hr,
+		cr,
+		sr,
+	)
 	var reconcileWg sync.WaitGroup
 	reconcileWg.Add(1)
 	go func() {
@@ -183,16 +212,24 @@ func TestHotBackupReconciler_shouldCancelContextIfHotbackupCRIsDeleted(t *testin
 	nn, h, hb := defaultCRs()
 
 	fakeHzClient, fakeHzStatusService, _ := defaultFakeClientAndService()
-	defer defaultFakeHttpServer()()
 
 	cr := &fakeHzClientRegistry{}
 	sr := &fakeHzStatusServiceRegistry{}
-	hr := &fakeHttpClientRegistry{}
-	hr.Set(nn.Namespace, &http.Client{})
+	hr := mtls.NewHttpClientRegistry()
 	cr.Set(nn, &fakeHzClient)
 	sr.Set(nn, &fakeHzStatusService)
 
-	r := hotBackupReconcilerWithCRs(cr, sr, hr, h, hb)
+	k8sClient := fakeK8sClient([]client.Object{h, hb}...)
+	defer defaultFakeMtlsHttpServer(setupTlsConfig(k8sClient, nn.Namespace))()
+
+	r := NewHotBackupReconciler(
+		k8sClient,
+		ctrl.Log.WithName("test").WithName("Hazelcast"),
+		nil,
+		hr,
+		cr,
+		sr,
+	)
 	_, err := r.Reconcile(context.TODO(), reconcile.Request{NamespacedName: nn})
 	Expect(err).Should(BeNil())
 
@@ -212,7 +249,14 @@ func TestHotBackupReconciler_shouldNotSetStatusToFailedIfHazelcastCRNotFound(t *
 	RegisterFailHandler(fail(t))
 	nn, _, hb := defaultCRs()
 
-	r := hotBackupReconcilerWithCRs(&fakeHzClientRegistry{}, &fakeHzStatusServiceRegistry{}, &fakeHttpClientRegistry{}, hb)
+	r := NewHotBackupReconciler(
+		fakeK8sClient([]client.Object{hb}...),
+		ctrl.Log.WithName("test").WithName("Hazelcast"),
+		nil,
+		mtls.NewHttpClientRegistry(),
+		&fakeHzClientRegistry{},
+		&fakeHzStatusServiceRegistry{},
+	)
 	_, err := r.Reconcile(context.TODO(), reconcile.Request{NamespacedName: nn})
 	if err != nil {
 		t.Errorf("Error expecting Reconcile to return without error")
@@ -231,7 +275,14 @@ func TestHotBackupReconciler_shouldFailIfPersistenceNotEnabledAtHazelcast(t *tes
 		n.LastSuccessfulSpecAnnotation: string(hs),
 	}
 
-	r := hotBackupReconcilerWithCRs(&fakeHzClientRegistry{}, &fakeHzStatusServiceRegistry{}, &fakeHttpClientRegistry{}, h, hb)
+	r := NewHotBackupReconciler(
+		fakeK8sClient([]client.Object{h, hb}...),
+		ctrl.Log.WithName("test").WithName("Hazelcast"),
+		nil,
+		mtls.NewHttpClientRegistry(),
+		&fakeHzClientRegistry{},
+		&fakeHzStatusServiceRegistry{},
+	)
 	_, err := r.Reconcile(context.TODO(), reconcile.Request{NamespacedName: nn})
 	if err == nil {
 		t.Errorf("Error expecting Reconcile to return error")
@@ -268,7 +319,14 @@ func TestHotBackupReconciler_shouldFailIfDeletedWhenReferencedByHazelcastRestore
 		n.LastSuccessfulSpecAnnotation: string(hs),
 	}
 
-	r := hotBackupReconcilerWithCRs(&fakeHzClientRegistry{}, &fakeHzStatusServiceRegistry{}, &fakeHttpClientRegistry{}, h, hb)
+	r := NewHotBackupReconciler(
+		fakeK8sClient([]client.Object{h, hb}...),
+		ctrl.Log.WithName("test").WithName("Hazelcast"),
+		nil,
+		mtls.NewHttpClientRegistry(),
+		&fakeHzClientRegistry{},
+		&fakeHzStatusServiceRegistry{},
+	)
 
 	// setup and start kubeclient for validator
 	err := kubeclient.Setup(r.Client).Start(context.Background())
@@ -284,29 +342,6 @@ func TestHotBackupReconciler_shouldFailIfDeletedWhenReferencedByHazelcastRestore
 		return hb.Status.State
 	}, 2*time.Second, 100*time.Millisecond).Should(Equal(hazelcastv1alpha1.HotBackupFailure))
 	Expect(hb.Status.Message).Should(ContainSubstring(fmt.Sprintf("Hazelcast '%s' has a restore reference to the Hotbackup", h.Name)))
-}
-
-func fail(t *testing.T) func(message string, callerSkip ...int) {
-	return func(message string, callerSkip ...int) {
-		if len(callerSkip) > 0 {
-			_, file, line, _ := runtime.Caller(callerSkip[0])
-			lineInfo := fmt.Sprintf("%s:%d", file, line)
-			t.Errorf("%s\n%s", lineInfo, message)
-		} else {
-			t.Error(message)
-		}
-	}
-}
-
-func hotBackupReconcilerWithCRs(clientReg hzclient.ClientRegistry, serviceReg hzclient.StatusServiceRegistry, httpReg mtls.HttpClientRegistry, initObjs ...client.Object) *HotBackupReconciler {
-	return NewHotBackupReconciler(
-		fakeK8sClient(initObjs...),
-		ctrl.Log.WithName("test").WithName("Hazelcast"),
-		nil,
-		httpReg,
-		clientReg,
-		serviceReg,
-	)
 }
 
 func defaultFakeClientAndService() (fakeHzClient, fakeHzStatusService, []cluster.MemberInfo) {
@@ -391,11 +426,13 @@ func defaultCRs() (types.NamespacedName, *hazelcastv1alpha1.Hazelcast, *hazelcas
 	return nn, h, hb
 }
 
-func defaultFakeHttpServer() func() {
-	ts, err := fakeHttpServer(fmt.Sprintf("%s:%d", defaultMemberIP, hzclient.AgentPort), func(writer http.ResponseWriter, request *http.Request) {
-		writer.WriteHeader(200)
-		_, _ = writer.Write([]byte(`{"backups" : ["backup-123"]}`))
-	})
+func defaultFakeMtlsHttpServer(tlsConfig *tls.Config) func() {
+	ts, err := fakeMtlsHttpServer(fmt.Sprintf("%s:%d", defaultMemberIP, hzclient.AgentPort),
+		tlsConfig,
+		func(writer http.ResponseWriter, request *http.Request) {
+			writer.WriteHeader(200)
+			_, _ = writer.Write([]byte(`{"backups" : ["backup-123"]}`))
+		})
 	Expect(err).Should(BeNil())
 	return ts.Close
 }
