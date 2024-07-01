@@ -559,7 +559,7 @@ TMP_DIR=$$(mktemp -d) ;\
 cd $$TMP_DIR ;\
 go mod init tmp &> /dev/null;\
 mkdir -p $(dir $(1)) ;\
-GOBIN=$(dir $(1)) CGO_ENABLED=0 go install $(2);\
+GOBIN=$(dir $(1)) CGO_ENABLED=0 go install $(2) &> /dev/null ;\
 rm -rf $$TMP_DIR ;\
 }
 endef

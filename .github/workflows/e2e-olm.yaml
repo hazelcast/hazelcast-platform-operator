@@ -70,7 +70,6 @@ jobs:
           gcloud iam service-accounts add-iam-policy-binding cn-workload-identity-test@${{ env.GCP_PROJECT_ID }}.iam.gserviceaccount.com \
             --project ${{ env.GCP_PROJECT_ID }} \
             --role roles/iam.workloadIdentityUser \
-            --member "serviceAccount:${{ env.GCP_PROJECT_ID }}.svc.id.goog[test-operator-os/cn-workload-identity-test]" \
             --member "serviceAccount:${{ env.GCP_PROJECT_ID }}.svc.id.goog[test-operator-ee/cn-workload-identity-test]"
 
   grafana-setup:
@@ -83,7 +82,7 @@ jobs:
       gh_run_id: ${{ github.run_id }}
       gh_run_number: ${{ github.run_number }}
       gh_sha: ${{ github.sha }}
-      namespaces: "test-operator-os, test-operator-ee"
+      namespaces: "test-operator-ee"
 
   install-olm:
     needs: [create-gke-cluster]
@@ -189,7 +188,9 @@ jobs:
 
       - name: Get GH Public IP
         id: ip
-        uses: haythem/public-ip@v1.3
+        run: |
+          response=$(curl -s canhazip.com)
+          echo "ipv4=$response" >> "$GITHUB_OUTPUT"
 
       - name: Update Firewall Rules
         uses: nick-fields/retry@v3
