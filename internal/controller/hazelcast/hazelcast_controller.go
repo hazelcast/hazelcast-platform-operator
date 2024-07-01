@@ -122,9 +122,7 @@ func (r *HazelcastReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 
 	if !isSpecChanged && h.Status.Message == illegalClusterType.Error() {
 		return ctrl.Result{}, nil
-	}
-
-	if isSpecChanged {
+	} else if isSpecChanged {
 		err = r.updateLastAppliedSpec(ctx, h, logger)
 		if err != nil {
 			return r.update(ctx, h, recoptions.Error(err), withHzFailedPhase(err.Error()))
