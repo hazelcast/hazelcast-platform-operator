@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bufio"
 	"flag"
 	"fmt"
 	"golang.org/x/mod/semver"
@@ -213,14 +214,58 @@ func formatOutput(output string) string {
 	return output
 }
 
-func ignoreChanges(output string, ignoreMessages []string) string {
+func readIgnoreMessages(filePath string) ([]string, error) {
+	file, err := os.Open(filePath)
+	if err != nil {
+		return nil, err
+	}
+	defer func(file *os.File) {
+		err = file.Close()
+		if err != nil {
+
+		}
+	}(file)
+
+	var ignoreMessages []string
+	scanner := bufio.NewScanner(file)
+	for scanner.Scan() {
+		line := strings.TrimSpace(scanner.Text())
+		if line == "" {
+			continue
+		}
+		ignoreMessages = append(ignoreMessages, line)
+	}
+	return ignoreMessages, nil
+}
+
+func normalizeBlock(block string) string {
+	lines := strings.FieldsFunc(block, func(r rune) bool {
+		return r == '\n' || r == '\r'
+	})
+	for i, line := range lines {
+		lines[i] = strings.TrimSpace(line)
+	}
+	return strings.Join(lines, " ")
+}
+
+func replaceANSI(str string) string {
+	return regexp.MustCompile(`\x1b\[[0-9;]*m`).ReplaceAllString(str, "")
+}
+
+func ignoreChanges(output string, ignoreMessagesFilePath string) string {
+	ignoreMessages, err := readIgnoreMessages(ignoreMessagesFilePath)
+	if err != nil {
+		return ""
+	}
+
 	blocks := strings.Split(output, "\n\n")
 	var filteredBlocks []string
 
 blockLoop:
 	for _, block := range blocks {
+		normalizedBlock := normalizeBlock(replaceANSI(block))
 		for _, message := range ignoreMessages {
-			if strings.Contains(block, message) {
+			if strings.Contains(normalizedBlock, message) {
 				continue blockLoop
 			}
 		}
@@ -255,7 +300,7 @@ func generateAndExtractCRDs(version, outputFile, repoURL string, wg *sync.WaitGr
 func main() {
 	base := flag.String("base", "", "Version of the first CRD to compare")
 	revision := flag.String("revision", "", "Version of the second CRD to compare")
-	ignoreMessages := flag.String("ignore", "", "Comma-separated list of messages https://github.com/Tufin/oasdiff/blob/main/checker/localizations_src/en/messages.yaml to ignore in the output")
+	ignoreMessagesFile := flag.String("ignore", "", "Path to file containing messages to ignore in the output")
 	baseRepoURL := flag.String("base-repo-url", "https://hazelcast-charts.s3.amazonaws.com", "URL of the base Helm chart repository")
 	revisionRepoURL := flag.String("revision-repo-url", "https://hazelcast-charts.s3.amazonaws.com", "URL of the revision Helm chart repository")
 	flag.Parse()
@@ -270,11 +315,6 @@ func main() {
 
 	if *revision != "" && *revision != "latest-snapshot" && semver.Compare(fmt.Sprintf("v%s", *revision), "v5.5") <= 0 {
 		log.Fatalf("revision version %s is not supported for backward compatibility check. Versions must be greater than 5.5 unless it is 'latest-snapshot'. Starting from version 5.6, Helm charts are used for setup instead of bundle files. This tool supports only Helm chart setup.", *revision)
-	}
-
-	var ignoreList []string
-	if *ignoreMessages != "" {
-		ignoreList = strings.Split(*ignoreMessages, ",")
 	}
 
 	apiLoader := openapi3.NewLoader()
@@ -305,7 +345,7 @@ func main() {
 			output := bc.MultiLineError(localization, checker.ColorAlways)
 			formattedOutput += fmt.Sprintf("\n%s\n", formatOutput(output))
 		}
-		filteredOutput := ignoreChanges(formattedOutput, ignoreList)
+		filteredOutput := ignoreChanges(formattedOutput, *ignoreMessagesFile)
 		errorCount := strings.Count(filteredOutput, "error")
 		warningCount := strings.Count(filteredOutput, "warning")
 		summary := fmt.Sprintf("%s\n%d breaking changes: %d error, %d warning\n", infoMessage, errorCount+warningCount, errorCount, warningCount)
