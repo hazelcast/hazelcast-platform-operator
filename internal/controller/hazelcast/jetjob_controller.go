@@ -52,11 +52,6 @@ func NewJetJobReconciler(c client.Client, log logr.Logger, cs hzclient.ClientReg
 	}
 }
 
-// Role related to CRs
-//+kubebuilder:rbac:groups=hazelcast.com,resources=jetjobs,verbs=get;list;watch;create;update;patch;delete,namespace=watched
-//+kubebuilder:rbac:groups=hazelcast.com,resources=jetjobs/status,verbs=get;update;patch,namespace=watched
-//+kubebuilder:rbac:groups=hazelcast.com,resources=jetjobs/finalizers,verbs=update,namespace=watched
-
 func (r *JetJobReconciler) Reconcile(ctx context.Context, req ctrl.Request) (result reconcile.Result, err error) {
 	logger := r.Log.WithValues("hazelcast-jet-job", req.NamespacedName)
 

@@ -1,89 +1,29 @@
----
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
   name: manager-role
 rules:
-- apiGroups:
-  - ""
-  resources:
-  - nodes
-  verbs:
-  - get
-- apiGroups:
-  - admissionregistration.k8s.io
-  resources:
-  - validatingwebhookconfigurations
-  verbs:
-  - get
-  - list
-  - update
-  - watch
-- apiGroups:
-  - hazelcast.com
-  resources:
-  - usercodenamespaces
-  verbs:
-  - create
-  - delete
-  - get
-  - list
-  - patch
-  - update
-  - watch
-- apiGroups:
-  - hazelcast.com
-  resources:
-  - usercodenamespaces/finalizers
-  verbs:
-  - update
-- apiGroups:
-  - hazelcast.com
-  resources:
-  - usercodenamespaces/status
-  verbs:
-  - get
-  - patch
-  - update
-- apiGroups:
-  - hazelcast.com
-  resources:
-  - wansyncs
-  verbs:
-  - create
-  - delete
-  - get
-  - list
-  - patch
-  - update
-  - watch
-- apiGroups:
-  - hazelcast.com
-  resources:
-  - wansyncs/finalizers
-  verbs:
-  - update
-- apiGroups:
-  - hazelcast.com
-  resources:
-  - wansyncs/status
-  verbs:
-  - get
-  - patch
-  - update
-- apiGroups:
-  - rbac.authorization.k8s.io
-  resources:
-  - clusterrolebindings
-  - clusterroles
-  verbs:
-  - create
-  - delete
-  - get
-  - list
-  - patch
-  - update
-  - watch
+  - apiGroups:
+      - ""
+    resources:
+      - nodes
+    verbs:
+      - get
+      - list
+      - watch
+  - apiGroups:
+      - rbac.authorization.k8s.io
+    resources:
+      - clusterrolebindings
+      - clusterroles
+    verbs:
+      - create
+      - delete
+      - get
+      - list
+      - patch
+      - update
+      - watch
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
@@ -91,24 +31,24 @@ metadata:
   name: manager-role
   namespace: operator-namespace
 rules:
-- apiGroups:
-  - apps
-  resources:
-  - deployments
-  verbs:
-  - get
-- apiGroups:
-  - coordination.k8s.io
-  resources:
-  - leases
-  verbs:
-  - create
-  - delete
-  - get
-  - list
-  - patch
-  - update
-  - watch
+  - apiGroups:
+      - apps
+    resources:
+      - deployments
+    verbs:
+      - get
+  - apiGroups:
+      - coordination.k8s.io
+    resources:
+      - leases
+    verbs:
+      - create
+      - delete
+      - get
+      - list
+      - patch
+      - update
+      - watch
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
@@ -116,478 +56,153 @@ metadata:
   name: manager-role
   namespace: watched
 rules:
-- apiGroups:
-  - ""
-  resources:
-  - configmaps
-  - events
-  - pods
-  - secrets
-  - serviceaccounts
-  - services
-  verbs:
-  - create
-  - delete
-  - get
-  - list
-  - patch
-  - update
-  - watch
-- apiGroups:
-  - ""
-  resources:
-  - endpoints
-  - pods
-  - services
-  verbs:
-  - get
-  - list
-- apiGroups:
-  - ""
-  resources:
-  - events
-  - pods
-  - services
-  verbs:
-  - create
-  - delete
-  - get
-  - list
-  - patch
-  - update
-  - watch
-- apiGroups:
-  - ""
-  resources:
-  - secrets
-  verbs:
-  - create
-  - get
-  - list
-  - update
-  - watch
-- apiGroups:
-  - apps
-  resources:
-  - statefulsets
-  verbs:
-  - create
-  - delete
-  - get
-  - list
-  - patch
-  - update
-  - watch
-- apiGroups:
-  - hazelcast.com
-  resources:
-  - caches
-  verbs:
-  - create
-  - delete
-  - get
-  - list
-  - patch
-  - update
-  - watch
-- apiGroups:
-  - hazelcast.com
-  resources:
-  - caches/finalizers
-  verbs:
-  - update
-- apiGroups:
-  - hazelcast.com
-  resources:
-  - caches/status
-  verbs:
-  - get
-  - patch
-  - update
-- apiGroups:
-  - hazelcast.com
-  resources:
-  - cronhotbackups
-  verbs:
-  - create
-  - delete
-  - get
-  - list
-  - patch
-  - update
-  - watch
-- apiGroups:
-  - hazelcast.com
-  resources:
-  - cronhotbackups/finalizers
-  verbs:
-  - update
-- apiGroups:
-  - hazelcast.com
-  resources:
-  - cronhotbackups/status
-  verbs:
-  - get
-  - patch
-  - update
-- apiGroups:
-  - hazelcast.com
-  resources:
-  - hazelcastendpoints
-  verbs:
-  - create
-  - delete
-  - get
-  - list
-  - patch
-  - update
-  - watch
-- apiGroups:
-  - hazelcast.com
-  resources:
-  - hazelcastendpoints/finalizers
-  verbs:
-  - update
-- apiGroups:
-  - hazelcast.com
-  resources:
-  - hazelcastendpoints/status
-  verbs:
-  - get
-  - patch
-  - update
-- apiGroups:
-  - hazelcast.com
-  resources:
-  - hazelcasts
-  verbs:
-  - create
-  - delete
-  - get
-  - list
-  - patch
-  - update
-  - watch
-- apiGroups:
-  - hazelcast.com
-  resources:
-  - hazelcasts/finalizers
-  verbs:
-  - update
-- apiGroups:
-  - hazelcast.com
-  resources:
-  - hazelcasts/status
-  verbs:
-  - get
-  - patch
-  - update
-- apiGroups:
-  - hazelcast.com
-  resources:
-  - hotbackups
-  verbs:
-  - create
-  - delete
-  - get
-  - list
-  - patch
-  - update
-  - watch
-- apiGroups:
-  - hazelcast.com
-  resources:
-  - hotbackups/finalizers
-  verbs:
-  - update
-- apiGroups:
-  - hazelcast.com
-  resources:
-  - hotbackups/status
-  verbs:
-  - get
-  - patch
-  - update
-- apiGroups:
-  - hazelcast.com
-  resources:
-  - jetjobs
-  verbs:
-  - create
-  - delete
-  - get
-  - list
-  - patch
-  - update
-  - watch
-- apiGroups:
-  - hazelcast.com
-  resources:
-  - jetjobs/finalizers
-  verbs:
-  - update
-- apiGroups:
-  - hazelcast.com
-  resources:
-  - jetjobs/status
-  verbs:
-  - get
-  - patch
-  - update
-- apiGroups:
-  - hazelcast.com
-  resources:
-  - jetjobsnapshots
-  verbs:
-  - create
-  - delete
-  - get
-  - list
-  - patch
-  - update
-  - watch
-- apiGroups:
-  - hazelcast.com
-  resources:
-  - jetjobsnapshots/finalizers
-  verbs:
-  - update
-- apiGroups:
-  - hazelcast.com
-  resources:
-  - jetjobsnapshots/status
-  verbs:
-  - get
-  - patch
-  - update
-- apiGroups:
-  - hazelcast.com
-  resources:
-  - managementcenters
-  verbs:
-  - create
-  - delete
-  - get
-  - list
-  - patch
-  - update
-  - watch
-- apiGroups:
-  - hazelcast.com
-  resources:
-  - managementcenters/finalizers
-  verbs:
-  - update
-- apiGroups:
-  - hazelcast.com
-  resources:
-  - managementcenters/status
-  verbs:
-  - get
-  - patch
-  - update
-- apiGroups:
-  - hazelcast.com
-  resources:
-  - maps
-  verbs:
-  - create
-  - delete
-  - get
-  - list
-  - patch
-  - update
-  - watch
-- apiGroups:
-  - hazelcast.com
-  resources:
-  - maps/finalizers
-  verbs:
-  - update
-- apiGroups:
-  - hazelcast.com
-  resources:
-  - maps/status
-  verbs:
-  - get
-  - patch
-  - update
-- apiGroups:
-  - hazelcast.com
-  resources:
-  - multimaps
-  verbs:
-  - create
-  - delete
-  - get
-  - list
-  - patch
-  - update
-  - watch
-- apiGroups:
-  - hazelcast.com
-  resources:
-  - multimaps/finalizers
-  verbs:
-  - update
-- apiGroups:
-  - hazelcast.com
-  resources:
-  - multimaps/status
-  verbs:
-  - get
-  - patch
-  - update
-- apiGroups:
-  - hazelcast.com
-  resources:
-  - queues
-  verbs:
-  - create
-  - delete
-  - get
-  - list
-  - patch
-  - update
-  - watch
-- apiGroups:
-  - hazelcast.com
-  resources:
-  - queues/finalizers
-  verbs:
-  - update
-- apiGroups:
-  - hazelcast.com
-  resources:
-  - queues/status
-  verbs:
-  - get
-  - patch
-  - update
-- apiGroups:
-  - hazelcast.com
-  resources:
-  - replicatedmaps
-  verbs:
-  - create
-  - delete
-  - get
-  - list
-  - patch
-  - update
-  - watch
-- apiGroups:
-  - hazelcast.com
-  resources:
-  - replicatedmaps/finalizers
-  verbs:
-  - update
-- apiGroups:
-  - hazelcast.com
-  resources:
-  - replicatedmaps/status
-  verbs:
-  - get
-  - patch
-  - update
-- apiGroups:
-  - hazelcast.com
-  resources:
-  - topics
-  verbs:
-  - create
-  - delete
-  - get
-  - list
-  - patch
-  - update
-  - watch
-- apiGroups:
-  - hazelcast.com
-  resources:
-  - topics/finalizers
-  verbs:
-  - update
-- apiGroups:
-  - hazelcast.com
-  resources:
-  - topics/status
-  verbs:
-  - get
-  - patch
-  - update
-- apiGroups:
-  - hazelcast.com
-  resources:
-  - wanreplications
-  verbs:
-  - create
-  - delete
-  - get
-  - list
-  - patch
-  - update
-  - watch
-- apiGroups:
-  - hazelcast.com
-  resources:
-  - wanreplications/finalizers
-  verbs:
-  - update
-- apiGroups:
-  - hazelcast.com
-  resources:
-  - wanreplications/status
-  verbs:
-  - get
-  - patch
-  - update
-- apiGroups:
-  - networking.k8s.io
-  resources:
-  - ingresses
-  verbs:
-  - create
-  - delete
-  - get
-  - list
-  - patch
-  - update
-  - watch
-- apiGroups:
-  - rbac.authorization.k8s.io
-  resources:
-  - rolebindings
-  - roles
-  verbs:
-  - create
-  - delete
-  - get
-  - list
-  - patch
-  - update
-  - watch
-- apiGroups:
-  - route.openshift.io
-  resources:
-  - routes
-  verbs:
-  - create
-  - delete
-  - get
-  - list
-  - patch
-  - update
-  - watch
-- apiGroups:
-  - route.openshift.io
-  resources:
-  - routes/custom-host
-  verbs:
-  - create
-- apiGroups:
-  - route.openshift.io
-  resources:
-  - routes/status
-  verbs:
-  - get
+  - apiGroups:
+      - ""
+    resources:
+      - configmaps
+      - events
+      - pods
+      - secrets
+      - serviceaccounts
+      - services
+      - endpoints
+    verbs:
+      - create
+      - delete
+      - get
+      - list
+      - patch
+      - update
+      - watch
+  - apiGroups:
+      - apps
+    resources:
+      - statefulsets
+    verbs:
+      - create
+      - delete
+      - get
+      - list
+      - patch
+      - update
+      - watch
+  - apiGroups:
+      - hazelcast.com
+    resources:
+      - caches
+      - cronhotbackups
+      - hazelcastendpoints
+      - hazelcasts
+      - hotbackups
+      - jetjobs
+      - jetjobsnapshots
+      - managementcenters
+      - maps
+      - multimaps
+      - queues
+      - replicatedmaps
+      - topics
+      - usercodenamespaces
+      - wansyncs
+      - wanreplications
+    verbs:
+      - create
+      - delete
+      - get
+      - list
+      - patch
+      - update
+      - watch
+  - apiGroups:
+      - hazelcast.com
+    resources:
+      - caches/finalizers
+      - cronhotbackups/finalizers
+      - hazelcastendpoints/finalizers
+      - hazelcasts/finalizers
+      - hotbackups/finalizers
+      - jetjobs/finalizers
+      - jetjobsnapshots/finalizers
+      - managementcenters/finalizers
+      - maps/finalizers
+      - multimaps/finalizers
+      - queues/finalizers
+      - replicatedmaps/finalizers
+      - topics/finalizers
+      - usercodenamespaces/finalizers
+      - wansyncs/finalizers
+      - wanreplications/finalizers
+    verbs:
+      - update
+  - apiGroups:
+      - hazelcast.com
+    resources:
+      - caches/status
+      - cronhotbackups/status
+      - hazelcastendpoints/status
+      - hazelcasts/status
+      - hotbackups/status
+      - jetjobs/status
+      - jetjobsnapshots/status
+      - managementcenters/status
+      - maps/status
+      - multimaps/status
+      - queues/status
+      - replicatedmaps/status
+      - topics/status
+      - usercodenamespaces/status
+      - wansyncs/status
+      - wanreplications/status
+    verbs:
+      - get
+      - patch
+      - update
+  - apiGroups:
+      - networking.k8s.io
+    resources:
+      - ingresses
+    verbs:
+      - create
+      - delete
+      - get
+      - list
+      - patch
+      - update
+      - watch
+  - apiGroups:
+      - rbac.authorization.k8s.io
+    resources:
+      - rolebindings
+      - roles
+    verbs:
+      - create
+      - delete
+      - get
+      - list
+      - patch
+      - update
+      - watch
+  - apiGroups:
+      - route.openshift.io
+    resources:
+      - routes
+    verbs:
+      - create
+      - delete
+      - get
+      - list
+      - patch
+      - update
+      - watch
+  - apiGroups:
+      - route.openshift.io
+    resources:
+      - routes/custom-host
+    verbs:
+      - create
+  - apiGroups:
+      - route.openshift.io
+    resources:
+      - routes/status
+    verbs:
+      - get
