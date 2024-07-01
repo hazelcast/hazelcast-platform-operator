@@ -1929,6 +1929,7 @@ var _ = Describe("Hazelcast CR", func() {
 					return config.Hazelcast.NativeMemory.Enabled
 				}, timeout, interval).Should(BeTrue())
 			})
+
 			It("should error when not using enterprise version", func() {
 				if ee {
 					Skip("This test will only run in OS configuration")
