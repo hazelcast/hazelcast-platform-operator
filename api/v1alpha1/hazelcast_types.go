@@ -1154,7 +1154,7 @@ type AdvancedNetwork struct {
 type WANConfig struct {
 	Port      uint `json:"port,omitempty"`
 	PortCount uint `json:"portCount,omitempty"`
-	// +kubebuilder:default:="ClusterIP"
+	// +kubebuilder:default:="LoadBalancer"
 	// +optional
 	ServiceType WANServiceType `json:"serviceType,omitempty"`
 	// +kubebuilder:validation:MaxLength:=8
