@@ -1685,13 +1685,13 @@ var _ = Describe("Hazelcast CR", func() {
 				for i := 0; i < int(*hz.Spec.ClusterSize); i++ {
 					serviceName := fmt.Sprintf("%s-%d", hz.Name, i)
 					Expect(svcMap).To(HaveKey(serviceName))
-					svc, _ := svcMap[serviceName]
+					svc := svcMap[serviceName]
 					Expect(svc.Spec.Type).Should(BeEquivalentTo(hazelcastv1alpha1.MemberAccessLoadBalancer))
 					ensureWansPortsAreExposedOnService(hz.Spec.AdvancedNetwork.WAN, svc)
 				}
 
 				Expect(svcMap).To(HaveKey(hz.Name))
-				svc, _ := svcMap[hz.Name]
+				svc := svcMap[hz.Name]
 				ensureWansPortsAreNotExposedOnService(hz.Spec.AdvancedNetwork.WAN, svc)
 			})
 		})
@@ -1794,7 +1794,7 @@ var _ = Describe("Hazelcast CR", func() {
 				for i := 0; i < int(*hz.Spec.ClusterSize); i++ {
 					serviceName := fmt.Sprintf("%s-%d", hz.Name, i)
 					Expect(svcMap).To(HaveKey(serviceName))
-					svc, _ := svcMap[serviceName]
+					svc := svcMap[serviceName]
 					Expect(svc.Spec.Type).Should(BeEquivalentTo(hazelcastv1alpha1.MemberAccessLoadBalancer))
 					servicePorts := make([]int32, 0)
 					for _, port := range svc.Spec.Ports {
