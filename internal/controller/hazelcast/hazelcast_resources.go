@@ -3259,6 +3259,17 @@ func (r *HazelcastReconciler) updateLastSuccessfulConfiguration(ctx context.Cont
 	return err
 }
 
+func (r *HazelcastReconciler) updateLastAppliedSpec(ctx context.Context, h *hazelcastv1alpha1.Hazelcast, logger logr.Logger) error {
+	opResult, err := util.Update(ctx, r.Client, h, func() error {
+		controller.InsertLastAppliedSpec(h.Spec, h)
+		return nil
+	})
+	if opResult != controllerutil.OperationResultNone {
+		logger.Info("Operation result", "Hazelcast Annotation", h.Name, "result", opResult)
+	}
+	return err
+}
+
 func (r *HazelcastReconciler) unmarshalHazelcastSpec(h *hazelcastv1alpha1.Hazelcast, rawLastSpec string) (*hazelcastv1alpha1.HazelcastSpec, error) {
 	hs, err := json.Marshal(h.Spec)
 	if err != nil {

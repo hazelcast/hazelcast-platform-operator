@@ -2,7 +2,9 @@ package hazelcast
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
+	"reflect"
 	"time"
 
 	"github.com/go-logr/logr"
@@ -110,8 +112,23 @@ func (r *HazelcastReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 		return ctrl.Result{}, nil
 	}
 
-	if h.Status.Message == illegalClusterType.Error() {
+	var isSpecChanged bool
+	if lastAppliedSpec, ok := h.ObjectMeta.Annotations[n.LastAppliedSpecAnnotation]; ok {
+		b, _ := json.Marshal(h.Spec)
+		isSpecChanged = !reflect.DeepEqual(lastAppliedSpec, string(b))
+	} else {
+		isSpecChanged = true
+	}
+
+	if !isSpecChanged && h.Status.Message == illegalClusterType.Error() {
 		return ctrl.Result{}, nil
+	}
+
+	if isSpecChanged {
+		err = r.updateLastAppliedSpec(ctx, h, logger)
+		if err != nil {
+			return r.update(ctx, h, recoptions.Error(err), withHzFailedPhase(err.Error()))
+		}
 	}
 
 	if mutated := mutate.HazelcastSpec(h); mutated {
@@ -231,6 +248,7 @@ func (r *HazelcastReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 			return r.update(ctx, h, recoptions.RetryAfter(retryAfter),
 				withHzPhase(hazelcastv1alpha1.Pending),
 				r.withMemberStatuses(ctx, h, err),
+				withHzMessage(""),
 				withHzStatefulSet(statefulSet),
 			)
 		}
@@ -246,6 +264,7 @@ func (r *HazelcastReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 			return r.update(ctx, h, recoptions.RetryAfter(retryAfter),
 				withHzPhase(hazelcastv1alpha1.Pending),
 				r.withMemberStatuses(ctx, h, err),
+				withHzMessage(""),
 				withHzStatefulSet(statefulSet),
 			)
 		} else {
