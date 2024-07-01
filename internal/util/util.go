@@ -322,6 +322,6 @@ func EnrichServiceNodePorts(desired []corev1.ServicePort, current []corev1.Servi
 			desired[i].NodePort = val.NodePort
 		}
 	}
-	
+
 	return desired
 }
