@@ -1804,7 +1804,7 @@ var _ = Describe("Hazelcast CR", func() {
 				}
 
 				Expect(svcMap).To(HaveKey(hz.Name))
-				svc, _ := svcMap[hz.Name]
+				svc := svcMap[hz.Name]
 				servicePorts := make([]int32, 0)
 				for _, port := range svc.Spec.Ports {
 					servicePorts = append(servicePorts, port.Port)
