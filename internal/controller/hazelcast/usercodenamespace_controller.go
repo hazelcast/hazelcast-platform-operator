@@ -91,7 +91,7 @@ func (r *UserCodeNamespaceReconciler) Reconcile(ctx context.Context, req ctrl.Re
 	h := &hazelcastv1alpha1.Hazelcast{}
 	err := r.Client.Get(ctx, types.NamespacedName{Namespace: req.Namespace, Name: ucn.Spec.HazelcastResourceName}, h)
 	if err != nil {
-		err = fmt.Errorf("could not create/update User Code Deployemnt config: Hazelcast resource not found: %w", err)
+		err = fmt.Errorf("could not create/update User Code Deployment config: Hazelcast resource not found: %w", err)
 		return updateUserCodeNamespaceStatus(ctx, r.Client, ucn, userCodeNamepsaceFailedStatus(err))
 	}
 	if h.Status.Phase != hazelcastv1alpha1.Running {
