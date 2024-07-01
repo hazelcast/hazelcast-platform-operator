@@ -64,6 +64,10 @@ type JetJobSpec struct {
 
 	// Configuration for downloading the file from remote.
 	// +optional
+	Parameters []string `json:"parameters,omitempty"`
+
+	// Configuration for downloading the file from remote.
+	// +optional
 	JetRemoteFileConfiguration `json:",inline"`
 }
 

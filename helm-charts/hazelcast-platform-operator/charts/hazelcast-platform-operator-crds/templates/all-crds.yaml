@@ -3010,6 +3010,11 @@ spec:
                 description: Name of the JetJob to be created. If empty, CR name will
                   be used. It cannot be updated after the config is created successfully.
                 type: string
+              parameters:
+                description: Configuration for downloading the file from remote.
+                items:
+                  type: string
+                type: array
               remoteURL:
                 description: URL from where the file will be downloaded.
                 type: string

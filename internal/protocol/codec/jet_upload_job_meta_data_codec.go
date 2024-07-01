@@ -51,3 +51,22 @@ func EncodeJetUploadJobMetaDataRequest(jobMetaData types.JobMetaData) *proto.Cli
 
 	return clientMessage
 }
+
+func DecodeJetUploadJobMetaDataRequest(clientMessage *proto.ClientMessage) types.JobMetaData {
+	jobMetaData := types.JobMetaData{}
+
+	frameIterator := clientMessage.FrameIterator()
+	initialFrame := frameIterator.Next()
+
+	jobMetaData.SessionId = DecodeUUID(initialFrame.Content, JetUploadJobMetaDataCodecRequestSessionIdOffset)
+	jobMetaData.JarOnMember = DecodeBoolean(initialFrame.Content, JetUploadJobMetaDataCodecRequestJarOnMemberOffset)
+
+	jobMetaData.FileName = DecodeString(frameIterator)
+	jobMetaData.Sha256Hex = DecodeString(frameIterator)
+	jobMetaData.SnapshotName = DecodeNullableForString(frameIterator)
+	jobMetaData.JobName = DecodeNullableForString(frameIterator)
+	jobMetaData.MainClass = DecodeNullableForString(frameIterator)
+	jobMetaData.JobParameters = DecodeListMultiFrameForString(frameIterator)
+
+	return jobMetaData
+}
