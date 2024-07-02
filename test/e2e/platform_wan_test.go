@@ -3,12 +3,14 @@ package e2e
 import (
 	"context"
 	"fmt"
-	chaosmeshv1alpha1 "github.com/chaos-mesh/chaos-mesh/api/v1alpha1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/utils/pointer"
 	"strconv"
 	"strings"
 	. "time"
+
+	chaosmeshv1alpha1 "github.com/chaos-mesh/chaos-mesh/api/v1alpha1"
+	"github.com/hazelcast/hazelcast-platform-operator/internal/naming"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/utils/pointer"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -42,7 +44,7 @@ var _ = Describe("Hazelcast WAN", Label("platform_wan"), func() {
 		GinkgoWriter.Printf("Aftereach end time is %v\n", Now().String())
 	})
 
-	It("should send 3 GB data by each cluster in active-passive mode in the different namespaces", Tag(EE|AnyCloud), func() {
+	It("should send 3 GB data by each cluster in active-passive mode in the different namespaces", Tag(AnyCloud), func() {
 		SwitchContext(context1)
 		setupEnv()
 		setLabelAndCRName("hpwan-1")
@@ -50,7 +52,7 @@ var _ = Describe("Hazelcast WAN", Label("platform_wan"), func() {
 		expectedTrgMapSize := int(float64(mapSizeInMb) * 128)
 
 		By("creating source Hazelcast cluster")
-		hazelcastSource := hazelcastconfig.ExposeExternallySmartLoadBalancer(sourceLookupKey, ee, labels)
+		hazelcastSource := hazelcastconfig.ExposeExternallySmartLoadBalancer(sourceLookupKey, labels)
 		hazelcastSource.Spec.Resources = &corev1.ResourceRequirements{
 			Limits: map[corev1.ResourceName]resource.Quantity{
 				corev1.ResourceMemory: resource.MustParse(strconv.Itoa(mapSizeInMb*2) + "Mi")},
@@ -61,7 +63,7 @@ var _ = Describe("Hazelcast WAN", Label("platform_wan"), func() {
 		_ = waitForLBAddress(sourceLookupKey)
 
 		By("creating target Hazelcast cluster")
-		hazelcastTarget := hazelcastconfig.ExposeExternallySmartLoadBalancer(targetLookupKey, ee, labels)
+		hazelcastTarget := hazelcastconfig.ExposeExternallySmartLoadBalancer(targetLookupKey, labels)
 		hazelcastTarget.Spec.Resources = &corev1.ResourceRequirements{
 			Limits: map[corev1.ResourceName]resource.Quantity{
 				corev1.ResourceMemory: resource.MustParse(strconv.Itoa(mapSizeInMb*2) + "Mi")},
@@ -103,7 +105,7 @@ var _ = Describe("Hazelcast WAN", Label("platform_wan"), func() {
 		WaitForMapSize(context.Background(), targetLookupKey, m.Name, expectedTrgMapSize, 30*Minute)
 	})
 
-	It("should send 6 GB data by each cluster in active-active mode in the different namespaces", Serial, Tag(EE|AnyCloud), func() {
+	It("should send 6 GB data by each cluster in active-active mode in the different namespaces", Serial, Tag(AnyCloud), func() {
 		SwitchContext(context1)
 		setupEnv()
 		setLabelAndCRName("hpwan-2")
@@ -115,7 +117,7 @@ var _ = Describe("Hazelcast WAN", Label("platform_wan"), func() {
 		expectedSrcMapSize := int(float64(mapSizeInMb*2) * 128)
 
 		By("creating source Hazelcast cluster")
-		hazelcastSource := hazelcastconfig.ExposeExternallySmartLoadBalancer(sourceLookupKey, ee, labels)
+		hazelcastSource := hazelcastconfig.ExposeExternallySmartLoadBalancer(sourceLookupKey, labels)
 		hazelcastSource.Spec.Resources = &corev1.ResourceRequirements{
 			Limits: map[corev1.ResourceName]resource.Quantity{
 				corev1.ResourceMemory: resource.MustParse(strconv.Itoa(mapSizeInMb*4) + "Mi")},
@@ -126,7 +128,7 @@ var _ = Describe("Hazelcast WAN", Label("platform_wan"), func() {
 		evaluateReadyMembers(sourceLookupKey)
 
 		By("creating target Hazelcast cluster")
-		hazelcastTarget := hazelcastconfig.ExposeExternallySmartLoadBalancer(targetLookupKey, ee, labels)
+		hazelcastTarget := hazelcastconfig.ExposeExternallySmartLoadBalancer(targetLookupKey, labels)
 		hazelcastTarget.Spec.Resources = &corev1.ResourceRequirements{
 			Limits: map[corev1.ResourceName]resource.Quantity{
 				corev1.ResourceMemory: resource.MustParse(strconv.Itoa(mapSizeInMb*4) + "Mi")},
@@ -235,7 +237,7 @@ var _ = Describe("Hazelcast WAN", Label("platform_wan"), func() {
 		WaitForMapSize(context.Background(), sourceLookupKey, mapTrg2.MapName(), expectedSrcMapSize, 30*Minute)
 	})
 
-	It("should send 3 GB data by each cluster in active-passive mode in the different GKE clusters", Serial, Tag(EE|AnyCloud), func() {
+	It("should send 3 GB data by each cluster in active-passive mode in the different GKE clusters", Serial, Tag(AnyCloud), func() {
 		var mapSizeInMb = 1024
 		/**
 		2 (entries per single goroutine) = 1048576  (Bytes per 1Mb)  / 8192 (Bytes per entry) / 64 (goroutines)
@@ -247,7 +249,7 @@ var _ = Describe("Hazelcast WAN", Label("platform_wan"), func() {
 		setupEnv()
 		setLabelAndCRName("hpwan-3")
 
-		hazelcastSource := hazelcastconfig.ExposeExternallySmartLoadBalancer(sourceLookupKey, ee, labels)
+		hazelcastSource := hazelcastconfig.ExposeExternallySmartLoadBalancer(sourceLookupKey, labels)
 		hazelcastSource.Spec.Resources = &corev1.ResourceRequirements{
 			Limits: map[corev1.ResourceName]resource.Quantity{
 				corev1.ResourceMemory: resource.MustParse(strconv.Itoa(mapSizeInMb*2) + "Mi")},
@@ -260,7 +262,7 @@ var _ = Describe("Hazelcast WAN", Label("platform_wan"), func() {
 		By("creating target Hazelcast cluster")
 		SwitchContext(context2)
 		setupEnv()
-		hazelcastTarget := hazelcastconfig.ExposeExternallySmartLoadBalancer(targetLookupKey, ee, labels)
+		hazelcastTarget := hazelcastconfig.ExposeExternallySmartLoadBalancer(targetLookupKey, labels)
 		hazelcastTarget.Spec.Resources = &corev1.ResourceRequirements{
 			Limits: map[corev1.ResourceName]resource.Quantity{
 				corev1.ResourceMemory: resource.MustParse(strconv.Itoa(mapSizeInMb*2) + "Mi")},
@@ -306,7 +308,7 @@ var _ = Describe("Hazelcast WAN", Label("platform_wan"), func() {
 		WaitForMapSize(context.Background(), targetLookupKey, m.Name, expectedTrgMapSize, 30*Minute)
 	})
 
-	It("should send 6 GB data by each cluster in active-active mode in the different GKE clusters", Serial, Tag(EE|AnyCloud), func() {
+	It("should send 6 GB data by each cluster in active-active mode in the different GKE clusters", Serial, Tag(AnyCloud), func() {
 		var mapSizeInMb = 1024
 		/**
 		2 (entries per single goroutine) = 1048576  (Bytes per 1Mb)  / 8192 (Bytes per entry) / 64 (goroutines)
@@ -319,7 +321,7 @@ var _ = Describe("Hazelcast WAN", Label("platform_wan"), func() {
 		setupEnv()
 		setLabelAndCRName("hpwan-4")
 
-		hazelcastSource := hazelcastconfig.ExposeExternallySmartLoadBalancer(sourceLookupKey, ee, labels)
+		hazelcastSource := hazelcastconfig.ExposeExternallySmartLoadBalancer(sourceLookupKey, labels)
 		hazelcastSource.Spec.Resources = &corev1.ResourceRequirements{
 			Limits: map[corev1.ResourceName]resource.Quantity{
 				corev1.ResourceMemory: resource.MustParse(strconv.Itoa(mapSizeInMb*4) + "Mi")},
@@ -332,7 +334,7 @@ var _ = Describe("Hazelcast WAN", Label("platform_wan"), func() {
 		By("creating target Hazelcast cluster")
 		SwitchContext(context2)
 		setupEnv()
-		hazelcastTarget := hazelcastconfig.ExposeExternallySmartLoadBalancer(targetLookupKey, ee, labels)
+		hazelcastTarget := hazelcastconfig.ExposeExternallySmartLoadBalancer(targetLookupKey, labels)
 		hazelcastTarget.Spec.Resources = &corev1.ResourceRequirements{
 			Limits: map[corev1.ResourceName]resource.Quantity{
 				corev1.ResourceMemory: resource.MustParse(strconv.Itoa(mapSizeInMb*4) + "Mi")},
@@ -456,7 +458,7 @@ var _ = Describe("Hazelcast WAN", Label("platform_wan"), func() {
 	})
 
 	Context("Data Sync between separate clusters", func() {
-		It("should replicate data for maps with TS and non TS storage in active-passive WAN replication mode", Serial, Tag(EE|AnyCloud), func() {
+		It("should replicate data for maps with TS and non TS storage in active-passive WAN replication mode", Serial, Tag(AnyCloud), func() {
 			SwitchContext(context1)
 			setupEnv()
 			setLabelAndCRName("hpwts-1")
@@ -590,7 +592,7 @@ var _ = Describe("Hazelcast WAN", Label("platform_wan"), func() {
 			SwitchContext(context2)
 			setupEnv()
 			UpdateHazelcastCR(hazelcastTarget, func(hazelcast *hazelcastcomv1alpha1.Hazelcast) *hazelcastcomv1alpha1.Hazelcast {
-				hazelcast.Spec.Repository = "docker.io/hazelcast/hazelcast-enterprise"
+				hazelcast.Spec.Repository = naming.HazelcastEERepo
 				return hazelcast
 			})
 			DeletePod(hazelcastTarget.Name+"-0", 0, targetLookupKey)
@@ -628,7 +630,7 @@ var _ = Describe("Hazelcast WAN", Label("platform_wan"), func() {
 			WaitForMapSize(ctx, targetLookupKey, nonTsMap.MapName(), expectedMapSize*3, 15*Minute)
 		})
 
-		It("shouldn't fail in active-passive mode across separate clusters", Serial, Tag(EE|AnyCloud), func() {
+		It("shouldn't fail in active-passive mode across separate clusters", Serial, Tag(AnyCloud), func() {
 			var mapSizeInMb = 5000
 			expectedTrgMapSize := int(float64(mapSizeInMb) * 128)
 
@@ -637,7 +639,7 @@ var _ = Describe("Hazelcast WAN", Label("platform_wan"), func() {
 			setupEnv()
 			setLabelAndCRName("hpwans-6")
 
-			hazelcastSource := hazelcastconfig.ExposeExternallySmartLoadBalancer(sourceLookupKey, ee, labels)
+			hazelcastSource := hazelcastconfig.ExposeExternallySmartLoadBalancer(sourceLookupKey, labels)
 			hazelcastSource.Spec.Resources = &corev1.ResourceRequirements{
 				Limits: map[corev1.ResourceName]resource.Quantity{
 					corev1.ResourceMemory: resource.MustParse(strconv.Itoa(mapSizeInMb*4) + "Mi")},
@@ -662,7 +664,7 @@ var _ = Describe("Hazelcast WAN", Label("platform_wan"), func() {
 			By("creating target Hazelcast cluster")
 			SwitchContext(context2)
 			setupEnv()
-			hazelcastTarget := hazelcastconfig.ExposeExternallySmartLoadBalancer(targetLookupKey, ee, labels)
+			hazelcastTarget := hazelcastconfig.ExposeExternallySmartLoadBalancer(targetLookupKey, labels)
 			hazelcastTarget.Spec.Resources = &corev1.ResourceRequirements{
 				Limits: map[corev1.ResourceName]resource.Quantity{
 					corev1.ResourceMemory: resource.MustParse(strconv.Itoa(mapSizeInMb*4) + "Mi")},
@@ -724,7 +726,7 @@ var _ = Describe("Hazelcast WAN", Label("platform_wan"), func() {
 			SwitchContext(context2)
 			setupEnv()
 			UpdateHazelcastCR(hazelcastTarget, func(hazelcast *hazelcastcomv1alpha1.Hazelcast) *hazelcastcomv1alpha1.Hazelcast {
-				hazelcast.Spec.Repository = "docker.io/hazelcast/hazelcast-enterprise"
+				hazelcast.Spec.Repository = naming.HazelcastEERepo
 				return hazelcast
 			})
 			DeletePod(hazelcastTarget.Name+"-0", 0, targetLookupKey)
@@ -752,7 +754,7 @@ var _ = Describe("Hazelcast WAN", Label("platform_wan"), func() {
 			WaitForMapSize(context.Background(), targetLookupKey, mapSrc2.Spec.Name, expectedTrgMapSize, 15*Minute)
 		})
 
-		It("shouldn't fail due to split brain in active-passive mode across separate clusters", Serial, Tag(EE|AnyCloud), func() {
+		It("shouldn't fail due to split brain in active-passive mode across separate clusters", Serial, Tag(AnyCloud), func() {
 			var mapSizeInMb = 1024
 			duration := "3m"
 			expectedTrgMapSize := int(float64(mapSizeInMb) * 128)
@@ -762,7 +764,7 @@ var _ = Describe("Hazelcast WAN", Label("platform_wan"), func() {
 			setupEnv()
 			setLabelAndCRName("hpwans-7")
 
-			hazelcastSource := hazelcastconfig.ExposeExternallySmartLoadBalancer(sourceLookupKey, ee, labels)
+			hazelcastSource := hazelcastconfig.ExposeExternallySmartLoadBalancer(sourceLookupKey, labels)
 			hazelcastSource.Spec.Resources = &corev1.ResourceRequirements{
 				Limits: map[corev1.ResourceName]resource.Quantity{
 					corev1.ResourceMemory: resource.MustParse(strconv.Itoa(mapSizeInMb*4) + "Mi")},
@@ -787,7 +789,7 @@ var _ = Describe("Hazelcast WAN", Label("platform_wan"), func() {
 			By("creating target Hazelcast cluster")
 			SwitchContext(context2)
 			setupEnv()
-			hazelcastTarget := hazelcastconfig.ExposeExternallySmartLoadBalancer(targetLookupKey, ee, labels)
+			hazelcastTarget := hazelcastconfig.ExposeExternallySmartLoadBalancer(targetLookupKey, labels)
 			hazelcastTarget.Spec.Resources = &corev1.ResourceRequirements{
 				Limits: map[corev1.ResourceName]resource.Quantity{
 					corev1.ResourceMemory: resource.MustParse(strconv.Itoa(mapSizeInMb*4) + "Mi")},

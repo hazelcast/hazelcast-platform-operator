@@ -2,10 +2,13 @@ package hazelcast
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
+	"reflect"
 	"time"
 
 	"github.com/go-logr/logr"
+	"github.com/hazelcast/hazelcast-platform-operator/internal/controller/hazelcast/mutate"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
@@ -21,7 +24,6 @@ import (
 
 	hazelcastv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
 	recoptions "github.com/hazelcast/hazelcast-platform-operator/internal/controller"
-	"github.com/hazelcast/hazelcast-platform-operator/internal/controller/hazelcast/mutate"
 	hzclient "github.com/hazelcast/hazelcast-platform-operator/internal/hazelcast-client"
 	"github.com/hazelcast/hazelcast-platform-operator/internal/mtls"
 	n "github.com/hazelcast/hazelcast-platform-operator/internal/naming"
@@ -85,6 +87,23 @@ func (r *HazelcastReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 		}
 		logger.V(util.DebugLevel).Info("Finalizer's pre-delete function executed successfully and the finalizer removed from custom resource", "Name:", n.Finalizer)
 		return ctrl.Result{}, nil
+	}
+
+	var isSpecChanged bool
+	if lastAppliedSpec, ok := h.ObjectMeta.Annotations[n.LastAppliedSpecAnnotation]; ok {
+		b, _ := json.Marshal(h.Spec)
+		isSpecChanged = !reflect.DeepEqual(lastAppliedSpec, string(b))
+	} else {
+		isSpecChanged = true
+	}
+
+	if !isSpecChanged && h.Status.Message == illegalClusterType.Error() {
+		return ctrl.Result{}, nil
+	} else if isSpecChanged {
+		err = r.updateLastAppliedSpec(ctx, h, logger)
+		if err != nil {
+			return r.update(ctx, h, recoptions.Error(err), withHzFailedPhase(err.Error()))
+		}
 	}
 
 	if mutated := mutate.HazelcastSpec(h); mutated {
@@ -204,6 +223,7 @@ func (r *HazelcastReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 			return r.update(ctx, h, recoptions.RetryAfter(retryAfter),
 				withHzPhase(hazelcastv1alpha1.Pending),
 				r.withMemberStatuses(ctx, h, err),
+				withHzMessage(""),
 				withHzStatefulSet(statefulSet),
 			)
 		}
@@ -219,6 +239,7 @@ func (r *HazelcastReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 			return r.update(ctx, h, recoptions.RetryAfter(retryAfter),
 				withHzPhase(hazelcastv1alpha1.Pending),
 				r.withMemberStatuses(ctx, h, err),
+				withHzMessage(""),
 				withHzStatefulSet(statefulSet),
 			)
 		} else {
@@ -240,6 +261,17 @@ func (r *HazelcastReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 		)
 	}
 	r.statusServiceRegistry.Create(req.NamespacedName, cl, r.Log, r.triggerReconcileChan)
+
+	isEnterprise, err := r.isEnterpriseCluster(ctx, cl, h)
+	if err != nil {
+		return r.update(ctx, h, recoptions.Error(err), withHzFailedPhase(err.Error()))
+	}
+	if !isEnterprise {
+		if err = r.Client.Delete(ctx, &statefulSet); err != nil {
+			return ctrl.Result{}, err
+		}
+		return r.update(ctx, h, recoptions.Error(illegalClusterType), withHzFailedPhase(illegalClusterType.Error()))
+	}
 
 	if err = r.ensureClusterActive(ctx, cl, h); err != nil {
 		logger.Error(err, "Cluster activation attempt after hot restore failed")

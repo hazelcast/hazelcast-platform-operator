@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"encoding/pem"
+	errs "errors"
 	"fmt"
 	"hash/crc32"
 	"net"
@@ -16,6 +17,7 @@ import (
 
 	"github.com/go-logr/logr"
 	proto "github.com/hazelcast/hazelcast-go-client"
+	clientTypes "github.com/hazelcast/hazelcast-go-client/types"
 	"github.com/hazelcast/platform-operator-agent/init/compound"
 	downloadurl "github.com/hazelcast/platform-operator-agent/init/file_download_url"
 	downloadbucket "github.com/hazelcast/platform-operator-agent/init/jar_download_bucket"
@@ -1967,9 +1969,7 @@ func createMapConfig(ctx context.Context, c client.Client, hz *hazelcastv1alpha1
 		UserCodeNamespace: ms.UserCodeNamespace,
 	}
 
-	if util.IsEnterprise(hz.Spec.Repository) {
-		mc.WanReplicationReference = wanReplicationRef(defaultWanReplicationRefCodec(hz, m))
-	}
+	mc.WanReplicationReference = wanReplicationRef(defaultWanReplicationRefCodec(m))
 
 	if ms.MapStore != nil {
 		msp, err := getMapStoreProperties(ctx, c, ms.MapStore.PropertiesSecretName, hz.Namespace)
@@ -2844,7 +2844,6 @@ func configMapVolumeMounts(nameFn ConfigMapVolumeName, rfc hazelcastv1alpha1.Rem
 // the persistence is enabled and if the Hazelcast is not yet running
 func (r *HazelcastReconciler) persistenceStartupAction(ctx context.Context, h *hazelcastv1alpha1.Hazelcast, logger logr.Logger) error {
 	if !h.Spec.Persistence.IsEnabled() ||
-		!util.IsEnterprise(h.Spec.Repository) ||
 		h.Spec.Persistence.StartupAction == "" ||
 		h.Status.Phase == hazelcastv1alpha1.Running {
 		return nil
@@ -2894,6 +2893,27 @@ func (r *HazelcastReconciler) ensureClusterActive(ctx context.Context, client hz
 		return nil
 	}
 	return svc.ChangeClusterState(ctx, codecTypes.ClusterStateActive)
+}
+
+var illegalClusterType = errs.New("only enterprise clusters are supported")
+
+func (r *HazelcastReconciler) isEnterpriseCluster(ctx context.Context, client hzclient.Client, h *hazelcastv1alpha1.Hazelcast) (bool, error) {
+	req := codec.EncodeClientAuthenticationRequest(
+		h.Name,
+		"",
+		"",
+		clientTypes.NewUUID(),
+		"GOO",
+		1,
+		"1.5.0",
+		"operator",
+		[]string{})
+	resp, err := client.InvokeOnRandomTarget(ctx, req, nil)
+	if err != nil {
+		return false, err
+	}
+	_, _, _, _, _, _, _, failOverSupported := codec.DecodeClientAuthenticationResponse(resp)
+	return failOverSupported, nil
 }
 
 func appendHAModeTopologySpreadConstraints(h *hazelcastv1alpha1.Hazelcast) []v1.TopologySpreadConstraint {
@@ -3173,6 +3193,17 @@ func serviceAccountName(h *hazelcastv1alpha1.Hazelcast) string {
 func (r *HazelcastReconciler) updateLastSuccessfulConfiguration(ctx context.Context, h *hazelcastv1alpha1.Hazelcast, logger logr.Logger) error {
 	opResult, err := util.Update(ctx, r.Client, h, func() error {
 		controller.InsertLastSuccessfullyAppliedSpec(h.Spec, h)
+		return nil
+	})
+	if opResult != controllerutil.OperationResultNone {
+		logger.Info("Operation result", "Hazelcast Annotation", h.Name, "result", opResult)
+	}
+	return err
+}
+
+func (r *HazelcastReconciler) updateLastAppliedSpec(ctx context.Context, h *hazelcastv1alpha1.Hazelcast, logger logr.Logger) error {
+	opResult, err := util.Update(ctx, r.Client, h, func() error {
+		controller.InsertLastAppliedSpec(h.Spec, h)
 		return nil
 	})
 	if opResult != controllerutil.OperationResultNone {

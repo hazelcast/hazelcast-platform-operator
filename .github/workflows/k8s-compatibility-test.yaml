@@ -82,11 +82,8 @@ jobs:
       - name: Run unit tests
         run: make test-unit
 
-      - name: Run integration tests (OS)
-        run: make GO_TEST_FLAGS="-ee=false" test-it
-
-      - name: Run integration tests (EE)
-        run: make GO_TEST_FLAGS="-ee=true" test-it
+      - name: Run integration tests
+        run: make test-it
 
   run-test:
     uses: ./.github/workflows/e2e-kind.yaml

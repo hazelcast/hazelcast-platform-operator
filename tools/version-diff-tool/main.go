@@ -3,12 +3,13 @@ package main
 import (
 	"flag"
 	"fmt"
-	"golang.org/x/mod/semver"
 	"log"
 	"os"
 	"regexp"
 	"strings"
 	"sync"
+
+	"golang.org/x/mod/semver"
 
 	"github.com/getkin/kin-openapi/openapi3"
 	"github.com/tufin/oasdiff/checker"
@@ -252,6 +253,13 @@ func generateAndExtractCRDs(version, outputFile, repoURL string, wg *sync.WaitGr
 	}
 }
 
+var ignoreMessagesList = []string{
+	`the request property 'spec.licenseKeySecretName' became required`,
+	`the 'spec.licenseKeySecretName' request property's minLength was increased from '0' to '1'`,
+	`the request property 'spec.licenseKeySecretName' became required`,
+	`the 'spec.licenseKeySecretName' request property's minLength was increased from '0' to '1'`,
+}
+
 func main() {
 	base := flag.String("base", "", "Version of the first CRD to compare")
 	revision := flag.String("revision", "", "Version of the second CRD to compare")
@@ -272,7 +280,7 @@ func main() {
 		log.Fatalf("revision version %s is not supported for backward compatibility check. Versions must be greater than 5.5 unless it is 'latest-snapshot'. Starting from version 5.6, Helm charts are used for setup instead of bundle files. This tool supports only Helm chart setup.", *revision)
 	}
 
-	var ignoreList []string
+	var ignoreList = ignoreMessagesList
 	if *ignoreMessages != "" {
 		ignoreList = strings.Split(*ignoreMessages, ",")
 	}

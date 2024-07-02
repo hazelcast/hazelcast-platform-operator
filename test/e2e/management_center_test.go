@@ -50,9 +50,9 @@ var _ = Describe("Management-Center", Group("mc"), func() {
 	}
 
 	Context("ManagementCenter creation", func() {
-		It("should create ManagementCenter resources", Tag(Kind|Any), func() {
+		It("should create ManagementCenter resources", Tag(Kind|AnyCloud), func() {
 			setLabelAndCRName("mc-1")
-			mc := mcconfig.Default(mcLookupKey, ee, labels)
+			mc := mcconfig.Default(mcLookupKey, labels)
 			mc.Spec.Resources = &corev1.ResourceRequirements{
 				Limits: map[corev1.ResourceName]resource.Quantity{
 					corev1.ResourceMemory: resource.MustParse("1Gi")},
@@ -83,9 +83,9 @@ var _ = Describe("Management-Center", Group("mc"), func() {
 			})
 		})
 
-		It("should create ManagementCenter resources and no PVC", Tag(Kind|Any), func() {
+		It("should create ManagementCenter resources and no PVC", Tag(Kind|AnyCloud), func() {
 			setLabelAndCRName("mc-2")
-			mc := mcconfig.PersistenceDisabled(mcLookupKey, ee, labels)
+			mc := mcconfig.PersistenceDisabled(mcLookupKey, labels)
 			mc.Spec.Resources = &corev1.ResourceRequirements{
 				Limits: map[corev1.ResourceName]resource.Quantity{
 					corev1.ResourceMemory: resource.MustParse("1Gi")},
@@ -114,17 +114,17 @@ var _ = Describe("Management-Center", Group("mc"), func() {
 			Expect(mc.Status.Message).Should(Not(BeEmpty()))
 		}
 
-		It("should be reflected to Management CR status", Tag(Kind|Any), func() {
+		It("should be reflected to Management CR status", Tag(Kind|AnyCloud), func() {
 			setLabelAndCRName("mc-3")
-			createWithoutCheck(mcconfig.Faulty(mcLookupKey, ee, labels))
+			createWithoutCheck(mcconfig.Faulty(mcLookupKey, labels))
 			assertStatusEventually(hazelcastcomv1alpha1.McFailed)
 		})
 	})
 
 	Context("ManagementCenter CR with Route", func() {
-		It("should be able to access route in Openshift env.", Tag(AnyLicense|OCP), func() {
+		It("should be able to access route in Openshift env.", Tag(OCP), func() {
 			setLabelAndCRName("mc-4")
-			mc := mcconfig.RouteEnabled(mcLookupKey, ee, labels)
+			mc := mcconfig.RouteEnabled(mcLookupKey, labels)
 			create(mc)
 
 			route := &routev1.Route{}

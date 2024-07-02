@@ -29,7 +29,7 @@ var _ = Describe("Hazelcast CR with Tiered Storage feature enabled", Group("tier
 
 	})
 	Context("Tiered Store enabled for map", func() {
-		It("should create Tiered Store Configs with correct default values", Tag(EE|Kind|AnyCloud), func() {
+		It("should create Tiered Store Configs with correct default values", Tag(Kind|AnyCloud), func() {
 			setLabelAndCRName("hts-1")
 
 			By("creating the Hazelcast with Local Device config")

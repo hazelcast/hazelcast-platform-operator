@@ -17,11 +17,9 @@ var _ = Describe("Hazelcast Properties", func() {
 	const namespace = "default"
 
 	BeforeEach(func() {
-		if ee {
-			By(fmt.Sprintf("creating license key secret '%s'", n.LicenseDataKey))
-			licenseKeySecret := CreateLicenseKeySecret(n.LicenseKeySecret, namespace)
-			assertExists(lookupKey(licenseKeySecret), licenseKeySecret)
-		}
+		By(fmt.Sprintf("creating license key secret '%s'", n.LicenseDataKey))
+		licenseKeySecret := CreateLicenseKeySecret(n.LicenseKeySecret, namespace)
+		assertExists(lookupKey(licenseKeySecret), licenseKeySecret)
 	})
 
 	AfterEach(func() {
@@ -32,7 +30,7 @@ var _ = Describe("Hazelcast Properties", func() {
 		It("should add new property", func() {
 			hz := &hazelcastv1alpha1.Hazelcast{
 				ObjectMeta: randomObjectMeta(namespace),
-				Spec:       test.HazelcastSpec(defaultHazelcastSpecValues(), ee),
+				Spec:       test.HazelcastSpec(defaultHazelcastSpecValues()),
 			}
 			hz.Spec.Properties = map[string]string{
 				"hazelcast.graceful.shutdown.max.wait": "300",
@@ -60,7 +58,7 @@ var _ = Describe("Hazelcast Properties", func() {
 		It("should not override default property", func() {
 			hz := &hazelcastv1alpha1.Hazelcast{
 				ObjectMeta: randomObjectMeta(namespace),
-				Spec:       test.HazelcastSpec(defaultHazelcastSpecValues(), ee),
+				Spec:       test.HazelcastSpec(defaultHazelcastSpecValues()),
 			}
 			hz.Spec.Properties = map[string]string{
 				"hazelcast.cluster.version.auto.upgrade.enabled": "false",

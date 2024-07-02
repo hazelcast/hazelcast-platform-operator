@@ -13,16 +13,14 @@ import (
 	hazelcastv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
 )
 
-func EqualSpecs(expected *HazelcastSpecValues, ee bool) types.GomegaMatcher {
+func EqualSpecs(expected *HazelcastSpecValues) types.GomegaMatcher {
 	return &HazelcastSpecEqual{
 		Expected: expected,
-		ee:       ee,
 	}
 }
 
 type HazelcastSpecEqual struct {
 	Expected *HazelcastSpecValues
-	ee       bool
 }
 
 func (matcher HazelcastSpecEqual) Match(actual interface{}) (success bool, err error) {
@@ -46,7 +44,7 @@ func (matcher HazelcastSpecEqual) Match(actual interface{}) (success bool, err e
 		return false, fmt.Errorf(
 			"expected ImagePullPolicy is %s but actual is %s", matcher.Expected.ImagePullPolicy, spec.ImagePullPolicy)
 	}
-	if matcher.ee && spec.GetLicenseKeySecretName() != matcher.Expected.LicenseKey {
+	if spec.GetLicenseKeySecretName() != matcher.Expected.LicenseKey {
 		return false, fmt.Errorf(
 			"expected LicenseKeySecretName is %s but actual is %s", matcher.Expected.LicenseKey, spec.GetLicenseKeySecretName())
 	}

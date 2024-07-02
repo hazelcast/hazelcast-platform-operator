@@ -39,9 +39,9 @@ var _ = Describe("Hazelcast JetJob", Group("jetjob"), func() {
 
 			var hazelcast *hazelcastcomv1alpha1.Hazelcast
 			if secretName != "" {
-				hazelcast = hazelcastconfig.JetWithBucketConfigured(hzLookupKey, ee, secretName, url, labels)
+				hazelcast = hazelcastconfig.JetWithBucketConfigured(hzLookupKey, secretName, url, labels)
 			} else {
-				hazelcast = hazelcastconfig.JetWithUrlConfigured(hzLookupKey, ee, url, labels)
+				hazelcast = hazelcastconfig.JetWithUrlConfigured(hzLookupKey, url, labels)
 			}
 			hazelcast.Spec.ClusterSize = pointer.Int32(1)
 			CreateHazelcastCR(hazelcast)
@@ -63,14 +63,14 @@ var _ = Describe("Hazelcast JetJob", Group("jetjob"), func() {
 					ContainSubstring(fmt.Sprintf("[%s/loggerSink#0] 13", jj.JobName())),
 					ContainSubstring(fmt.Sprintf("[%s/loggerSink#0] 89", jj.JobName()))))
 		},
-			Entry("using jar from bucket", Tag(Kind|Any), "br-secret-gcp", "gs://operator-user-code/jetJobs"),
-			Entry("using jar from remote url", Tag(Kind|Any), "", "https://storage.googleapis.com/operator-user-code-urls-public/jet-pipeline-1.0.2.jar"),
+			Entry("using jar from bucket", Tag(Kind|AnyCloud), "br-secret-gcp", "gs://operator-user-code/jetJobs"),
+			Entry("using jar from remote url", Tag(Kind|AnyCloud), "", "https://storage.googleapis.com/operator-user-code-urls-public/jet-pipeline-1.0.2.jar"),
 		)
 
 		DescribeTable("download and execute JetJob with external JAR", func(secretName, url string) {
 			setLabelAndCRName("jj-2")
 
-			hazelcast := hazelcastconfig.JetConfigured(hzLookupKey, ee, labels)
+			hazelcast := hazelcastconfig.JetConfigured(hzLookupKey, labels)
 			hazelcast.Spec.ClusterSize = pointer.Int32(1)
 			CreateHazelcastCR(hazelcast)
 
@@ -104,16 +104,16 @@ var _ = Describe("Hazelcast JetJob", Group("jetjob"), func() {
 					ContainSubstring(fmt.Sprintf("[%s/loggerSink#0] 13", jj.JobName())),
 					ContainSubstring(fmt.Sprintf("[%s/loggerSink#0] 89", jj.JobName()))))
 		},
-			Entry("using jar from bucket", Tag(Kind|Any), "br-secret-gcp", "gs://operator-user-code/jetJobs"),
-			Entry("using jar from remote url", Tag(Kind|Any), "", "https://storage.googleapis.com/operator-user-code-urls-public/jet-pipeline-1.0.2.jar"),
+			Entry("using jar from bucket", Tag(Kind|AnyCloud), "br-secret-gcp", "gs://operator-user-code/jetJobs"),
+			Entry("using jar from remote url", Tag(Kind|AnyCloud), "", "https://storage.googleapis.com/operator-user-code-urls-public/jet-pipeline-1.0.2.jar"),
 		)
 	})
 
 	Context("Operational behavior", func() {
-		It("verifies status change for a running JetJob", Tag(Kind|Any), func() {
+		It("verifies status change for a running JetJob", Tag(Kind|AnyCloud), func() {
 			setLabelAndCRName("jj-3")
 
-			hazelcast := hazelcastconfig.JetWithBucketConfigured(hzLookupKey, ee, "br-secret-gcp", "gs://operator-user-code/jetJobs", labels)
+			hazelcast := hazelcastconfig.JetWithBucketConfigured(hzLookupKey, "br-secret-gcp", "gs://operator-user-code/jetJobs", labels)
 			hazelcast.Spec.ClusterSize = pointer.Int32(1)
 			CreateHazelcastCR(hazelcast)
 
@@ -142,10 +142,10 @@ var _ = Describe("Hazelcast JetJob", Group("jetjob"), func() {
 			checkJetJobStatus(jjLookupKey, hazelcastcomv1alpha1.JetJobRunning)
 		})
 
-		It("fails the JetJob if Hazelcast cluster is failing", Tag(Kind|Any), func() {
+		It("fails the JetJob if Hazelcast cluster is failing", Tag(Kind|AnyCloud), func() {
 			setLabelAndCRName("jj-4")
 
-			hazelcast := hazelcastconfig.JetWithBucketConfigured(hzLookupKey, ee, "br-secret-gcp", "gs://wrong-bucket-name/jetJobs", labels)
+			hazelcast := hazelcastconfig.JetWithBucketConfigured(hzLookupKey, "br-secret-gcp", "gs://wrong-bucket-name/jetJobs", labels)
 			hazelcast.Spec.ClusterSize = pointer.Int32(1)
 			CreateHazelcastCRWithoutCheck(hazelcast)
 			By("checking Hazelcast CR in Pending state", func() {
@@ -172,11 +172,11 @@ var _ = Describe("Hazelcast JetJob", Group("jetjob"), func() {
 			checkJetJobStatus(jjLookupKey, hazelcastcomv1alpha1.JetJobCompleted)
 		})
 
-		It("persists JetJob on a new cluster when LosslessRestartEnabled", Tag(Kind|EE|AnyCloud), func() {
+		It("persists JetJob on a new cluster when LosslessRestartEnabled", Tag(Kind|AnyCloud), func() {
 			longRunJar := "jet-pipeline-longrun-2.0.0.jar"
 			setLabelAndCRName("jj-5")
 
-			hazelcast := hazelcastconfig.JetWithLosslessRestart(hzLookupKey, ee, "br-secret-gcp", "gs://operator-user-code/jetJobs", labels)
+			hazelcast := hazelcastconfig.JetWithLosslessRestart(hzLookupKey, "br-secret-gcp", "gs://operator-user-code/jetJobs", labels)
 			CreateHazelcastCR(hazelcast)
 
 			By("creating JetJob CR")
@@ -203,7 +203,7 @@ var _ = Describe("Hazelcast JetJob", Group("jetjob"), func() {
 			RemoveHazelcastCR(hazelcast)
 
 			By("creating a new Hazelcast cluster from hot-backup")
-			hazelcast = hazelcastconfig.JetWithRestore(hzLookupKey, ee, hotBackup.Name, labels)
+			hazelcast = hazelcastconfig.JetWithRestore(hzLookupKey, hotBackup.Name, labels)
 			CreateHazelcastCR(hazelcast)
 			evaluateReadyMembers(hzLookupKey)
 

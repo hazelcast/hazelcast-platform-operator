@@ -1159,7 +1159,7 @@ func restoreConfig(hotBackup *hazelcastcomv1alpha1.HotBackup, useBucketConfig bo
 func createWanResources(ctx context.Context, hzMapResources map[string][]string, ns string, labels map[string]string, mtFn ...func(p *hazelcastcomv1alpha1.Map)) (map[string]*hazelcastcomv1alpha1.Hazelcast, map[string]*hazelcastcomv1alpha1.Map) {
 	hzCrs := map[string]*hazelcastcomv1alpha1.Hazelcast{}
 	for hzCrName := range hzMapResources {
-		hz := hazelcastconfig.Default(types.NamespacedName{Name: hzCrName, Namespace: ns}, ee, labels)
+		hz := hazelcastconfig.Default(types.NamespacedName{Name: hzCrName, Namespace: ns}, labels)
 		hz.Spec.ClusterName = hzCrName
 		hz.Spec.ClusterSize = pointer.Int32(1)
 		hzCrs[hzCrName] = hz
@@ -1216,7 +1216,7 @@ func CreateMcForClusters(ctx context.Context, hzCrs ...*hazelcastcomv1alpha1.Haz
 	for _, hz := range hzCrs {
 		clusters = append(clusters, hazelcastcomv1alpha1.HazelcastClusterConfig{Name: hz.Spec.ClusterName, Address: hzclient.HazelcastUrl(hz)})
 	}
-	mc := mcconfig.WithClusterConfig(mcLookupKey, ee, clusters, labels)
+	mc := mcconfig.WithClusterConfig(mcLookupKey, clusters, labels)
 	Expect(k8sClient.Create(ctx, mc)).Should(Succeed())
 }
 

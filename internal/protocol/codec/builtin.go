@@ -7,6 +7,7 @@ import (
 
 	iserialization "github.com/hazelcast/hazelcast-go-client"
 	proto "github.com/hazelcast/hazelcast-go-client"
+	pubcluster "github.com/hazelcast/hazelcast-go-client/cluster"
 	clientTypes "github.com/hazelcast/hazelcast-go-client/types"
 
 	"github.com/hazelcast/hazelcast-platform-operator/internal/protocol/types"
@@ -352,4 +353,164 @@ func DecodeNullableForSqlSummary(it *proto.ForwardFrameIterator) (types.SqlSumma
 	}
 	ss := DecodeSqlSummary(it)
 	return ss, true
+}
+
+// fixSizedTypesCodec
+type fixSizedTypesCodec struct{}
+
+var FixSizedTypesCodec fixSizedTypesCodec
+
+func (fixSizedTypesCodec) EncodeBoolean(buffer []byte, offset int32, value bool) {
+	EncodeBoolean(buffer, offset, value)
+}
+
+func (fixSizedTypesCodec) DecodeBoolean(buffer []byte, offset int32) bool {
+	return DecodeBoolean(buffer, offset)
+}
+
+func (fixSizedTypesCodec) EncodeByte(buffer []byte, offset int32, value byte) {
+	buffer[offset] = value
+}
+
+func (fixSizedTypesCodec) DecodeByte(buffer []byte, offset int32) byte {
+	return buffer[offset]
+}
+
+func (fixSizedTypesCodec) EncodeShort(buffer []byte, offset, value int32) {
+	binary.LittleEndian.PutUint16(buffer[offset:], uint16(value))
+}
+
+func (fixSizedTypesCodec) DecodeShort(buffer []byte, offset int32) int16 {
+	return int16(binary.LittleEndian.Uint16(buffer[offset:]))
+}
+
+func (fixSizedTypesCodec) EncodeUUID(buffer []byte, offset int32, uuid clientTypes.UUID) {
+	isNullEncode := uuid.Default()
+	FixSizedTypesCodec.EncodeBoolean(buffer, offset, isNullEncode)
+	if isNullEncode {
+		return
+	}
+	bufferOffset := offset + proto.BooleanSizeInBytes
+	FixSizedTypesCodec.EncodeLong(buffer, bufferOffset, int64(uuid.MostSignificantBits()))
+	FixSizedTypesCodec.EncodeLong(buffer, bufferOffset+proto.LongSizeInBytes, int64(uuid.LeastSignificantBits()))
+}
+
+// EncodeLong
+// Deprecated: Use EncodeLong function instead.
+func (fixSizedTypesCodec) EncodeLong(buffer []byte, offset int32, value int64) {
+	binary.LittleEndian.PutUint64(buffer[offset:], uint64(value))
+}
+
+// CodecUtil
+type codecUtil struct{}
+
+var CodecUtil codecUtil
+
+func (codecUtil) FastForwardToEndFrame(frameIterator *proto.ForwardFrameIterator) {
+	expectedEndFrames := 1
+	for expectedEndFrames != 0 {
+		frame := frameIterator.Next()
+		if frame.IsEndFrame() {
+			expectedEndFrames--
+		} else if frame.IsBeginFrame() {
+			expectedEndFrames++
+		}
+	}
+}
+
+func (codecUtil) EncodeNullableForString(message *proto.ClientMessage, value string) {
+	if strings.TrimSpace(value) == "" {
+		message.AddFrame(proto.NullFrame.Copy())
+	} else {
+		EncodeString(message, value)
+	}
+}
+
+func (codecUtil) EncodeNullableForBitmapIndexOptions(message *proto.ClientMessage, options *types.BitmapIndexOptions) {
+	if options == nil {
+		message.AddFrame(proto.NullFrame.Copy())
+	} else {
+		EncodeBitmapIndexOptions(message, *options)
+	}
+}
+
+func (codecUtil) EncodeNullableForData(message *proto.ClientMessage, data iserialization.Data) {
+	if data == nil {
+		message.AddFrame(proto.NullFrame.Copy())
+	} else {
+		EncodeData(message, data)
+	}
+}
+
+func (c codecUtil) DecodeNullableForData(frameIterator *proto.ForwardFrameIterator) iserialization.Data {
+	return DecodeNullableForData(frameIterator)
+}
+
+func (c codecUtil) DecodeNullableForAddress(frameIterator *proto.ForwardFrameIterator) *pubcluster.Address {
+	if c.NextFrameIsNullFrame(frameIterator) {
+		return nil
+	}
+	addr := DecodeAddress(frameIterator)
+	return &addr
+}
+
+func (c codecUtil) DecodeNullableForLongArray(frameIterator *proto.ForwardFrameIterator) []int64 {
+	if c.NextFrameIsNullFrame(frameIterator) {
+		return nil
+	}
+	return DecodeLongArray(frameIterator)
+}
+
+func (c codecUtil) DecodeNullableForString(frameIterator *proto.ForwardFrameIterator) string {
+	if c.NextFrameIsNullFrame(frameIterator) {
+		return ""
+	}
+	return DecodeString(frameIterator)
+}
+
+func (codecUtil) NextFrameIsDataStructureEndFrame(frameIterator *proto.ForwardFrameIterator) bool {
+	return frameIterator.PeekNext().IsEndFrame()
+}
+
+// NextFrameIsNullFrame
+// Deprecated: Use NextFrameIsNullFrame function instead.
+func (codecUtil) NextFrameIsNullFrame(frameIterator *proto.ForwardFrameIterator) bool {
+	isNullFrame := frameIterator.PeekNext().IsNullFrame()
+	if isNullFrame {
+		frameIterator.Next()
+	}
+	return isNullFrame
+}
+
+// DecodeInt
+// Deprecated: Use DecodeInt function instead.
+func (fixSizedTypesCodec) DecodeInt(buffer []byte, offset int32) int32 {
+	return int32(binary.LittleEndian.Uint32(buffer[offset:]))
+}
+
+func (fixSizedTypesCodec) DecodeUUID(buffer []byte, offset int32) clientTypes.UUID {
+	isNull := FixSizedTypesCodec.DecodeBoolean(buffer, offset)
+	if isNull {
+		return clientTypes.UUID{}
+	}
+	mostSignificantOffset := offset + proto.BooleanSizeInBytes
+	leastSignificantOffset := mostSignificantOffset + proto.LongSizeInBytes
+	mostSignificant := uint64(FixSizedTypesCodec.DecodeLong(buffer, mostSignificantOffset))
+	leastSignificant := uint64(FixSizedTypesCodec.DecodeLong(buffer, leastSignificantOffset))
+
+	return clientTypes.NewUUIDWith(mostSignificant, leastSignificant)
+}
+
+func (fixSizedTypesCodec) DecodeLong(buffer []byte, offset int32) int64 {
+	return int64(binary.LittleEndian.Uint64(buffer[offset:]))
+}
+
+func DecodeLongArray(frameIterator *proto.ForwardFrameIterator) []int64 {
+	frame := frameIterator.Next()
+	itemCount := len(frame.Content) / proto.LongSizeInBytes
+	result := make([]int64, itemCount)
+	for i := 0; i < itemCount; i++ {
+		result[i] = FixSizedTypesCodec.DecodeLong(frame.Content, int32(i*proto.LongSizeInBytes))
+	}
+	return result
 }

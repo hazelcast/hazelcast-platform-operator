@@ -32,9 +32,9 @@ var _ = Describe("Hazelcast Cache Config", Group("cache"), func() {
 	})
 
 	Context("Creating cache configurations", func() {
-		It("should successfully create a cache config with correct default settings", Tag(Kind|Any), func() {
+		It("should successfully create a cache config with correct default settings", Tag(Kind|AnyCloud), func() {
 			setLabelAndCRName("hch-1")
-			hazelcast := hazelcastconfig.Default(hzLookupKey, ee, labels)
+			hazelcast := hazelcastconfig.Default(hzLookupKey, labels)
 			CreateHazelcastCR(hazelcast)
 
 			By("creating the default cache config")
@@ -53,10 +53,10 @@ var _ = Describe("Hazelcast Cache Config", Group("cache"), func() {
 			Expect(string(cacheConfig.InMemoryFormat)).Should(Equal(string(c.Spec.InMemoryFormat)))
 		})
 
-		It("should persist and remove cache config in/from Hazelcast config", Tag(Kind|EE|AnyCloud), func() {
+		It("should persist and remove cache config in/from Hazelcast config", Tag(Kind|AnyCloud), func() {
 			setLabelAndCRName("hch-2")
 			caches := []string{"cache1", "cache2", "cache3", "cachefail"}
-			hazelcast := hazelcastconfig.Default(hzLookupKey, ee, labels)
+			hazelcast := hazelcastconfig.Default(hzLookupKey, labels)
 			CreateHazelcastCR(hazelcast)
 			evaluateReadyMembers(hzLookupKey)
 			By("creating the cache configs")
@@ -87,9 +87,9 @@ var _ = Describe("Hazelcast Cache Config", Group("cache"), func() {
 
 	Context("Validating cache configurations", func() {
 		When("Native Memory is not enabled for Hazelcast CR", func() {
-			It("should fail to create a cache config with InMemoryFormatNative", Tag(Kind|Any), func() {
+			It("should fail to create a cache config with InMemoryFormatNative", Tag(Kind|AnyCloud), func() {
 				setLabelAndCRName("hch-3")
-				hazelcast := hazelcastconfig.Default(hzLookupKey, ee, labels)
+				hazelcast := hazelcastconfig.Default(hzLookupKey, labels)
 				CreateHazelcastCR(hazelcast)
 
 				By("creating the cache config with NativeMemory")
@@ -103,9 +103,9 @@ var _ = Describe("Hazelcast Cache Config", Group("cache"), func() {
 			})
 		})
 
-		It("should fail due to mismatch in persistence settings between Cache CR and Hazelcast CR", Tag(Kind|Any), func() {
+		It("should fail due to mismatch in persistence settings between Cache CR and Hazelcast CR", Tag(Kind|AnyCloud), func() {
 			setLabelAndCRName("hch-4")
-			hazelcast := hazelcastconfig.Default(hzLookupKey, ee, labels)
+			hazelcast := hazelcastconfig.Default(hzLookupKey, labels)
 			CreateHazelcastCR(hazelcast)
 			m := hazelcastconfig.DefaultCache(chLookupKey, hazelcast.Name, labels)
 			m.Spec.PersistenceEnabled = true

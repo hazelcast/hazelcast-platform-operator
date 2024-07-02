@@ -68,13 +68,10 @@ var _ = Describe("Hazelcast User Code Namespace", Group("user_code_namespace"), 
 		test.EventuallyInLogsUnordered(logReader, 10*Second, logInterval).Should(ContainElements(logEl...))
 	}
 
-	It("verify addition of entry listeners in Hazelcast map using UserCodeNamespace", Tag(Kind|Any), func() {
-		if !ee {
-			Skip("This test will only run in EE configuration")
-		}
+	It("verify addition of entry listeners in Hazelcast map using UserCodeNamespace", Tag(Kind|AnyCloud), func() {
 		setLabelAndCRName("ucn-1")
 
-		h := hazelcastconfig.Default(hzLookupKey, ee, labels)
+		h := hazelcastconfig.Default(hzLookupKey, labels)
 		h.Spec.UserCodeNamespaces = &hazelcastcomv1alpha1.UserCodeNamespacesConfig{}
 		CreateHazelcastCR(h)
 
@@ -109,13 +106,10 @@ var _ = Describe("Hazelcast User Code Namespace", Group("user_code_namespace"), 
 		assertMapEntryListener(h, m)
 	})
 
-	It("verify added UCN works after cluster pause", Tag(Kind|Any), func() {
-		if !ee {
-			Skip("This test will only run in EE configuration")
-		}
+	It("verify added UCN works after cluster pause", Tag(Kind|AnyCloud), func() {
 		setLabelAndCRName("ucn-2")
 
-		h := hazelcastconfig.Default(hzLookupKey, ee, labels)
+		h := hazelcastconfig.Default(hzLookupKey, labels)
 		h.Spec.UserCodeNamespaces = &hazelcastcomv1alpha1.UserCodeNamespacesConfig{}
 		CreateHazelcastCR(h)
 
@@ -164,10 +158,7 @@ var _ = Describe("Hazelcast User Code Namespace", Group("user_code_namespace"), 
 		assertMapEntryListener(h, m)
 	})
 
-	It("verify added UCN added before the HZ cluster creation is successful", Tag(Kind|Any), func() {
-		if !ee {
-			Skip("This test will only run in EE configuration")
-		}
+	It("verify added UCN added before the HZ cluster creation is successful", Tag(Kind|AnyCloud), func() {
 		setLabelAndCRName("ucn-3")
 
 		By("create UserCodeNamespace")
@@ -183,7 +174,7 @@ var _ = Describe("Hazelcast User Code Namespace", Group("user_code_namespace"), 
 		assertUserCodeNamespaceStatus(ucn, hazelcastcomv1alpha1.UserCodeNamespaceFailure)
 
 		By("create Hazelcast")
-		h := hazelcastconfig.Default(hzLookupKey, ee, labels)
+		h := hazelcastconfig.Default(hzLookupKey, labels)
 		h.Spec.UserCodeNamespaces = &hazelcastcomv1alpha1.UserCodeNamespacesConfig{}
 		CreateHazelcastCR(h)
 

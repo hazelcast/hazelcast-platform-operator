@@ -50,7 +50,7 @@ type HazelcastSpec struct {
 	ClusterSize *int32 `json:"clusterSize,omitempty"`
 
 	// Repository to pull the Hazelcast Platform image from.
-	// +kubebuilder:default:="docker.io/hazelcast/hazelcast"
+	// +kubebuilder:default:="docker.io/hazelcast/hazelcast-enterprise"
 	// +optional
 	Repository string `json:"repository,omitempty"`
 
@@ -73,8 +73,9 @@ type HazelcastSpec struct {
 	DeprecatedLicenseKeySecret string `json:"licenseKeySecret,omitempty"`
 
 	// Name of the secret with Hazelcast Enterprise License Key.
-	// +optional
-	LicenseKeySecretName string `json:"licenseKeySecretName,omitempty"`
+	// +kubebuilder:validation:MinLength:=1
+	// +required
+	LicenseKeySecretName string `json:"licenseKeySecretName"`
 
 	// Configuration to expose Hazelcast cluster to external clients.
 	// +optional
@@ -1383,8 +1384,6 @@ type Hazelcast struct {
 	// +optional
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
-	// Initial values will be filled with its fields' default values.
-	// +kubebuilder:default:={"repository" : "docker.io/hazelcast/hazelcast"}
 	// +optional
 	Spec HazelcastSpec `json:"spec,omitempty"`
 

@@ -33,7 +33,7 @@ var _ = Describe("Platform Persistence", Label("platform_persistence"), func() {
 		GinkgoWriter.Printf("Aftereach end time is %v\n", Now().String())
 	})
 
-	It("should successfully start after one member restart", Tag(EE|AnyCloud), func() {
+	It("should successfully start after one member restart", Tag(AnyCloud), func() {
 		setLabelAndCRName("hps-1")
 		ctx := context.Background()
 		clusterSize := int32(3)
@@ -69,7 +69,7 @@ var _ = Describe("Platform Persistence", Label("platform_persistence"), func() {
 		WaitForMapSize(ctx, hzLookupKey, m.MapName(), 100, 10*Minute)
 	})
 
-	It("should restore 3 GB data after planned shutdown", Tag(EE|AnyCloud), func() {
+	It("should restore 3 GB data after planned shutdown", Tag(AnyCloud), func() {
 		setLabelAndCRName("hps-2")
 		var mapSizeInMb = 3072
 		var pvcSizeInMb = mapSizeInMb * 2 // Taking backup duplicates the used storage
@@ -133,7 +133,7 @@ var _ = Describe("Platform Persistence", Label("platform_persistence"), func() {
 		WaitForMapSize(context.Background(), hzLookupKey, dm.MapName(), expectedMapSize, 30*Minute)
 	})
 
-	It("should not start repartitioning after one member restart", Tag(EE|AnyCloud), func() {
+	It("should not start repartitioning after one member restart", Tag(AnyCloud), func() {
 		setLabelAndCRName("hps-3")
 		ctx := context.Background()
 		clusterSize := int32(3)
@@ -175,7 +175,7 @@ var _ = Describe("Platform Persistence", Label("platform_persistence"), func() {
 		WaitForMapSize(context.Background(), hzLookupKey, m.GetName(), 100, 10*Minute)
 	})
 
-	It("should not start repartitioning after planned shutdown", Tag(EE|AnyCloud), func() {
+	It("should not start repartitioning after planned shutdown", Tag(AnyCloud), func() {
 		setLabelAndCRName("hps-4")
 		ctx := context.Background()
 		clusterSize := int32(3)
@@ -233,7 +233,7 @@ var _ = Describe("Platform Persistence", Label("platform_persistence"), func() {
 		WaitForMapSize(context.Background(), hzLookupKey, m.GetName(), 100, 10*Minute)
 	})
 
-	It("should persist SQL mappings", Tag(EE|AnyCloud), func() {
+	It("should persist SQL mappings", Tag(AnyCloud), func() {
 		setLabelAndCRName("hps-5")
 
 		hazelcast := hazelcastconfig.HazelcastSQLPersistence(hzLookupKey, 1, labels)
@@ -311,8 +311,8 @@ var _ = Describe("Platform Persistence", Label("platform_persistence"), func() {
 			WaitForMapSize(context.Background(), hzLookupKey, fmt.Sprintf("map-%d-%s", i, mapNameSuffix), expectedMapSize, 15*Minute)
 		}
 	},
-		Entry("should start with PARTIAL_RECOVERY_MOST_RECENT, auto.cluster.state=true and auto-remove-stale-data=true", Tag(EE|AnyCloud), Serial, hazelcastcomv1alpha1.MostRecent, "pr"),
-		Entry("should start with FULL_RECOVERY_ONLY, auto.cluster.state=true and auto-remove-stale-data=false", Tag(EE|AnyCloud), Serial, hazelcastcomv1alpha1.FullRecovery, "fr"),
+		Entry("should start with PARTIAL_RECOVERY_MOST_RECENT, auto.cluster.state=true and auto-remove-stale-data=true", Tag(AnyCloud), Serial, hazelcastcomv1alpha1.MostRecent, "pr"),
+		Entry("should start with FULL_RECOVERY_ONLY, auto.cluster.state=true and auto-remove-stale-data=false", Tag(AnyCloud), Serial, hazelcastcomv1alpha1.FullRecovery, "fr"),
 	)
 
 })

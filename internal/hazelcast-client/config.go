@@ -27,20 +27,26 @@ func BuildConfig(h *hazelcastv1alpha1.Hazelcast, pool *x509.CertPool, cert *tls.
 		Logger: hzlogger.Config{
 			CustomLogger: logger,
 		},
-		Cluster: cluster.Config{
-			ConnectionStrategy: cluster.ConnectionStrategyConfig{
-				Timeout:       hztypes.Duration(120 * time.Second),
-				ReconnectMode: cluster.ReconnectModeOn,
-				Retry: cluster.ConnectionRetryConfig{
-					InitialBackoff: hztypes.Duration(20 * time.Millisecond),
-					MaxBackoff:     hztypes.Duration(30 * time.Second),
-					Multiplier:     1.05,
-					Jitter:         0.05,
-				},
+		Cluster: clusterConfig(h, pool, cert),
+	}
+
+	return config
+}
+
+func clusterConfig(h *hazelcastv1alpha1.Hazelcast, pool *x509.CertPool, cert *tls.Certificate) cluster.Config {
+	cc := cluster.Config{
+		ConnectionStrategy: cluster.ConnectionStrategyConfig{
+			Timeout:       hztypes.Duration(120 * time.Second),
+			ReconnectMode: cluster.ReconnectModeOn,
+			Retry: cluster.ConnectionRetryConfig{
+				InitialBackoff: hztypes.Duration(20 * time.Millisecond),
+				MaxBackoff:     hztypes.Duration(30 * time.Second),
+				Multiplier:     1.05,
+				Jitter:         0.05,
 			},
 		},
 	}
-	cc := &config.Cluster
+
 	cc.Name = h.Spec.ClusterName
 	cc.Network.SetAddresses(HazelcastUrl(h))
 	if pool != nil {
@@ -54,7 +60,8 @@ func BuildConfig(h *hazelcastv1alpha1.Hazelcast, pool *x509.CertPool, cert *tls.
 		}
 		cc.Network.SSL.SetTLSConfig(&tlsConfig)
 	}
-	return config
+
+	return cc
 }
 
 func RestUrl(h *hazelcastv1alpha1.Hazelcast) string {

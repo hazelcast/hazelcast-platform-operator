@@ -26,10 +26,6 @@ func GetControllerManagerName() string {
 }
 
 func GetSuiteName() string {
-	edition := "OS"
-	if ee {
-		edition = "EE"
-	}
 	hazelcastVersion := os.Getenv("HZ_VERSION")
 	if hazelcastVersion == "" {
 		hazelcastVersion = n.HazelcastVersion
@@ -38,7 +34,7 @@ func GetSuiteName() string {
 	if managementCenterVersion == "" {
 		managementCenterVersion = n.MCVersion
 	}
-	return fmt.Sprintf("Operator Suite %s (HZ:%s; MC:%s)", edition, hazelcastVersion, managementCenterVersion)
+	return fmt.Sprintf("Operator Suite (HZ:%s; MC:%s)", hazelcastVersion, managementCenterVersion)
 }
 
 func getDeploymentReadyReplicas(ctx context.Context, name types.NamespacedName, deploy *appsv1.Deployment) (int32, error) {
@@ -164,36 +160,23 @@ func Group(group string) Labels {
 
 // A set of well known labels used by tests
 const (
-	OS    = 1 << 2 // Open Source License
-	EE    = 1 << 3 // Enterprise License
-	Kind  = 1 << 4
-	AWS   = 1 << 5
-	GCP   = 1 << 6
-	AZURE = 1 << 7
-	OCP   = 1 << 8
+	Kind  = 1 << 2
+	AWS   = 1 << 3
+	GCP   = 1 << 4
+	AZURE = 1 << 5
+	OCP   = 1 << 6
+	// AnyCloud tagged tests will run on all cloud providers
+	AnyCloud = AWS | GCP | AZURE | OCP
 )
 
 // tagNames maps tags to label representation
 var tagNames = map[uint32]string{
-	OS:    "os",
-	EE:    "ee",
 	Kind:  "kind",
 	AWS:   "aws",
 	GCP:   "gcp",
 	AZURE: "azure",
 	OCP:   "ocp",
 }
-
-const (
-	// AnyCloud tagged tests will run on all cloud providers
-	AnyCloud = AWS | GCP | AZURE | OCP
-
-	// AnyLicense tagged tests will run on all cloud providers
-	AnyLicense = OS | EE
-
-	// Any tagged tests will always run
-	Any = AnyCloud | AnyLicense
-)
 
 // Tag works like ginkgo Labels but is using typed labels
 func Tag(tag uint32) Labels {
