@@ -303,16 +303,17 @@ func NodeDiscoveryEnabled() bool {
 	return watching == "true"
 }
 
-func EnrichServiceNodePorts(newPorts []corev1.ServicePort, existing []corev1.ServicePort) []corev1.ServicePort {
+func EnrichServiceNodePorts(desired []corev1.ServicePort, current []corev1.ServicePort) []corev1.ServicePort {
 	existingMap := map[string]corev1.ServicePort{}
-	for _, port := range existing {
+	for _, port := range current {
 		existingMap[port.Name] = port
 	}
 
-	for i := range newPorts {
-		if val, ok := existingMap[newPorts[i].Name]; ok {
-			newPorts[i].NodePort = val.NodePort
+	for i := range desired {
+		if val, ok := existingMap[desired[i].Name]; ok {
+			desired[i].NodePort = val.NodePort
 		}
 	}
-	return newPorts
+
+	return desired
 }

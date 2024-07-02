@@ -28,7 +28,6 @@ import (
 	"gopkg.in/yaml.v3"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
-	v1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/resource"
@@ -395,14 +394,8 @@ func (r *HazelcastReconciler) reconcileService(ctx context.Context, h *hazelcast
 			delete(service.Labels, n.ServiceEndpointTypeLabelName)
 		}
 
-		// append default wan port to HZ Discovery Service if use did not configure
-		isAddWANPort := false
-		if h.Spec.AdvancedNetwork == nil || len(h.Spec.AdvancedNetwork.WAN) == 0 {
-			isAddWANPort = true
-		}
-
 		service.Spec.Type = serviceType(h)
-		service.Spec.Ports = util.EnrichServiceNodePorts(hazelcastPort(isAddWANPort), service.Spec.Ports)
+		service.Spec.Ports = util.EnrichServiceNodePorts(discoveryServicePorts(h.Spec.AdvancedNetwork), service.Spec.Ports)
 
 		return nil
 	})
@@ -418,49 +411,30 @@ func (r *HazelcastReconciler) reconcileWANServices(ctx context.Context, h *hazel
 		return nil
 	}
 	for _, w := range h.Spec.AdvancedNetwork.WAN {
-		service := &corev1.Service{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:        h.Name + "-" + w.Name,
-				Namespace:   h.Namespace,
-				Labels:      labels(h),
-				Annotations: h.Spec.Annotations,
-			},
-			Spec: corev1.ServiceSpec{
-				Selector: util.Labels(h),
-			},
+		if w.ServiceType == hazelcastv1alpha1.WANServiceTypeWithExposeExternally {
+			continue
 		}
+
+		service := wanService(w, h)
 
 		err := controllerutil.SetControllerReference(h, service, r.Scheme)
 		if err != nil {
 			return err
 		}
 
-		var i uint
-		var ports []corev1.ServicePort
-		for i = 0; i < w.PortCount; i++ {
-			ports = append(ports,
-				corev1.ServicePort{
-					Name:        fmt.Sprintf("%s%s-%d", n.WanPortNamePrefix, w.Name, i),
-					Protocol:    corev1.ProtocolTCP,
-					Port:        int32(w.Port + i),
-					TargetPort:  intstr.FromInt(int(w.Port + i)),
-					AppProtocol: pointer.String("tcp"),
-				})
-		}
-
 		opResult, err := util.CreateOrUpdate(ctx, r.Client, service, func() error {
 			switch w.ServiceType {
-			case corev1.ServiceTypeLoadBalancer, corev1.ServiceTypeNodePort:
+			case hazelcastv1alpha1.WANServiceTypeLoadBalancer, hazelcastv1alpha1.WANServiceTypeNodePort:
 				service.Labels[n.ServiceEndpointTypeLabelName] = n.ServiceEndpointTypeWANLabelValue
-			case corev1.ServiceTypeClusterIP:
+			case hazelcastv1alpha1.WANServiceTypeClusterIP:
 				delete(service.Labels, n.ServiceEndpointTypeLabelName)
 			}
 
-			service.Spec.Ports = util.EnrichServiceNodePorts(ports, service.Spec.Ports)
+			service.Spec.Ports = util.EnrichServiceNodePorts(wanPorts(w), service.Spec.Ports)
 			if w.ServiceType == "" {
-				service.Spec.Type = v1.ServiceTypeLoadBalancer
+				service.Spec.Type = corev1.ServiceTypeLoadBalancer
 			} else {
-				service.Spec.Type = w.ServiceType
+				service.Spec.Type = corev1.ServiceType(w.ServiceType)
 			}
 			return nil
 		})
@@ -475,7 +449,39 @@ func (r *HazelcastReconciler) reconcileWANServices(ctx context.Context, h *hazel
 	return nil
 }
 
-func serviceType(h *hazelcastv1alpha1.Hazelcast) v1.ServiceType {
+func wanService(w hazelcastv1alpha1.WANConfig, h *hazelcastv1alpha1.Hazelcast) *corev1.Service {
+	service := &corev1.Service{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:        h.Name + "-" + w.Name,
+			Namespace:   h.Namespace,
+			Labels:      labels(h),
+			Annotations: h.Spec.Annotations,
+		},
+		Spec: corev1.ServiceSpec{
+			Selector: util.Labels(h),
+			Ports:    wanPorts(w),
+		},
+	}
+	return service
+}
+
+func wanPorts(w hazelcastv1alpha1.WANConfig) []corev1.ServicePort {
+	var i uint
+	var ports []corev1.ServicePort
+	for i = 0; i < w.PortCount; i++ {
+		ports = append(ports,
+			corev1.ServicePort{
+				Name:        fmt.Sprintf("%s%s-%d", n.WanPortNamePrefix, w.Name, i),
+				Protocol:    corev1.ProtocolTCP,
+				Port:        int32(w.Port + i),
+				TargetPort:  intstr.FromInt(int(w.Port + i)),
+				AppProtocol: pointer.String("tcp"),
+			})
+	}
+	return ports
+}
+
+func serviceType(h *hazelcastv1alpha1.Hazelcast) corev1.ServiceType {
 	if h.Spec.ExposeExternally.IsEnabled() {
 		return h.Spec.ExposeExternally.DiscoveryK8ServiceType()
 	}
@@ -515,7 +521,7 @@ func (r *HazelcastReconciler) reconcileServicePerPod(ctx context.Context, h *haz
 				delete(service.Labels, n.ServiceEndpointTypeLabelName)
 			}
 
-			service.Spec.Ports = util.EnrichServiceNodePorts([]corev1.ServicePort{clientPort()}, service.Spec.Ports)
+			service.Spec.Ports = util.EnrichServiceNodePorts(servicePerPodPorts(h.Spec.AdvancedNetwork), service.Spec.Ports)
 			service.Spec.Type = h.Spec.ExposeExternally.MemberAccessServiceType()
 
 			return nil
@@ -534,7 +540,7 @@ func (r *HazelcastReconciler) reconcileServicePerPod(ctx context.Context, h *haz
 }
 
 // nodePublicAddress tries to find node public ip
-func nodePublicAddress(addresses []v1.NodeAddress) string {
+func nodePublicAddress(addresses []corev1.NodeAddress) string {
 	var fallbackAddress string
 	// we iterate over a unordered list of addresses
 	for _, address := range addresses {
@@ -585,35 +591,41 @@ func (r *HazelcastReconciler) reconcileHazelcastEndpoints(ctx context.Context, h
 					Name:      svc.Name,
 					Namespace: svc.Namespace,
 				}
-				// For the default Wan port when the WANConfig is not configured under the AdvancedNetwork config
-				if port.Name == n.WanDefaultPortName {
-					endpointNn.Name = fmt.Sprintf("%s-%s", endpointNn.Name, "wan")
-					hzEndpoints = append(hzEndpoints, hazelcastEndpointFromService(endpointNn, h, hazelcastv1alpha1.HazelcastEndpointTypeWAN, port.Port))
-					continue
-				}
+
 				if port.Name == n.HazelcastPortName {
 					hzEndpoints = append(hzEndpoints, hazelcastEndpointFromService(endpointNn, h, hazelcastv1alpha1.HazelcastEndpointTypeDiscovery, port.Port))
-					continue
+				} else if port.Name == n.WanDefaultPortName {
+					endpointNn.Name = fmt.Sprintf("%s-%s", endpointNn.Name, "wan")
+					hzEndpoints = append(hzEndpoints, hazelcastEndpointFromService(endpointNn, h, hazelcastv1alpha1.HazelcastEndpointTypeWAN, port.Port))
+				} else if strings.HasPrefix(port.Name, "wan") {
+					endpointNn.Name = fmt.Sprintf("%s-%s", endpointNn.Name, port.Name)
+					hzEndpoints = append(hzEndpoints, hazelcastEndpointFromService(endpointNn, h, hazelcastv1alpha1.HazelcastEndpointTypeWAN, port.Port))
 				}
 			}
 		case n.ServiceEndpointTypeMemberLabelValue:
-			endpointNn := types.NamespacedName{
-				Name:      svc.Name,
-				Namespace: svc.Namespace,
-			}
-			hzEndpoints = []*hazelcastv1alpha1.HazelcastEndpoint{
-				hazelcastEndpointFromService(endpointNn, h, hazelcastv1alpha1.HazelcastEndpointTypeMember, clientPort().Port),
-			}
-		case n.ServiceEndpointTypeWANLabelValue:
-			for i, port := range svc.Spec.Ports {
+			for _, port := range svc.Spec.Ports {
 				endpointNn := types.NamespacedName{
 					Name:      svc.Name,
 					Namespace: svc.Namespace,
 				}
-				if len(svc.Spec.Ports) > 1 {
-					endpointNn.Name = fmt.Sprintf("%s-%d", endpointNn.Name, i)
-				}
 
+				if port.Name == n.HazelcastPortName {
+					hzEndpoints = append(hzEndpoints, hazelcastEndpointFromService(endpointNn, h, hazelcastv1alpha1.HazelcastEndpointTypeMember, port.Port))
+				} else if port.Name == n.WanDefaultPortName {
+					endpointNn.Name = fmt.Sprintf("%s-wan", endpointNn.Name)
+					hzEndpoints = append(hzEndpoints, hazelcastEndpointFromService(endpointNn, h, hazelcastv1alpha1.HazelcastEndpointTypeWAN, port.Port))
+				} else if strings.HasPrefix(port.Name, "wan") {
+					endpointNn.Name = fmt.Sprintf("%s-%s", endpointNn.Name, port.Name)
+					hzEndpoints = append(hzEndpoints, hazelcastEndpointFromService(endpointNn, h, hazelcastv1alpha1.HazelcastEndpointTypeWAN, port.Port))
+				}
+			}
+		case n.ServiceEndpointTypeWANLabelValue:
+			for _, port := range svc.Spec.Ports {
+				endpointNn := types.NamespacedName{
+					Name:      svc.Name,
+					Namespace: svc.Namespace,
+				}
+				endpointNn.Name = fmt.Sprintf("%s-%s", endpointNn.Name, port.Name)
 				hzEndpoints = append(hzEndpoints, hazelcastEndpointFromService(endpointNn, h, hazelcastv1alpha1.HazelcastEndpointTypeWAN, port.Port))
 			}
 		default:
@@ -652,18 +664,9 @@ func (r *HazelcastReconciler) reconcileHazelcastEndpoints(ctx context.Context, h
 					address = nodeAddress[pods.Items[0].Spec.NodeName]
 				}
 
-				// depending on Endpoint type we get name of the port
-				var portName string
-				switch hzEndpoint.Spec.Type {
-				case v1alpha1.HazelcastEndpointTypeWAN:
-					portName = n.WanDefaultPortName
-				default:
-					portName = n.HazelcastPortName
-				}
-
 				// NodePorts get address from svc .nodePort property
 				for _, port := range svc.Spec.Ports {
-					if port.Name == portName {
+					if port.Port == hzEndpoint.Spec.Port {
 						hzEndpoint.Status.Address = fmt.Sprintf("%s:%d", address, port.NodePort)
 						break
 					}
@@ -726,7 +729,7 @@ func (r *HazelcastReconciler) reconcileUnusedServicePerPod(ctx context.Context, 
 	}
 
 	for i := s; i < p; i++ {
-		s := &v1.Service{}
+		s := &corev1.Service{}
 		err := r.Client.Get(ctx, client.ObjectKey{Name: servicePerPodName(i, h), Namespace: h.Namespace}, s)
 		if err != nil {
 			if kerrors.IsNotFound(err) {
@@ -764,26 +767,48 @@ func servicePerPodLabels(h *hazelcastv1alpha1.Hazelcast) map[string]string {
 	return ls
 }
 
-func hazelcastPort(isAddWANPort bool) []v1.ServicePort {
+func servicePerPodPorts(an *hazelcastv1alpha1.AdvancedNetwork) []corev1.ServicePort {
+	p := []corev1.ServicePort{
+		clientPort(),
+	}
+
+	if an != nil && len(an.WAN) > 0 {
+		for _, w := range an.WAN {
+			if w.ServiceType == hazelcastv1alpha1.WANServiceTypeWithExposeExternally {
+				p = append(p, wanPorts(w)...)
+			}
+		}
+	}
+
+	return p
+}
+
+func discoveryServicePorts(an *hazelcastv1alpha1.AdvancedNetwork) []corev1.ServicePort {
 	p := []corev1.ServicePort{
 		clientPort(),
 		{
 			Name:        n.MemberPortName,
-			Protocol:    v1.ProtocolTCP,
+			Protocol:    corev1.ProtocolTCP,
 			Port:        n.MemberServerSocketPort,
 			TargetPort:  intstr.FromInt(n.MemberServerSocketPort),
 			AppProtocol: pointer.String("tcp"),
 		},
 		{
 			Name:        n.RestPortName,
-			Protocol:    v1.ProtocolTCP,
+			Protocol:    corev1.ProtocolTCP,
 			Port:        n.RestServerSocketPort,
 			TargetPort:  intstr.FromInt(n.RestServerSocketPort),
 			AppProtocol: pointer.String("tcp"),
 		},
 	}
 
-	if isAddWANPort {
+	if an != nil && len(an.WAN) > 0 {
+		for _, w := range an.WAN {
+			if w.ServiceType == hazelcastv1alpha1.WANServiceTypeWithExposeExternally {
+				p = append(p, wanPorts(w)...)
+			}
+		}
+	} else {
 		p = append(p, defaultWANPort())
 	}
 
@@ -818,13 +843,13 @@ func (r *HazelcastReconciler) isServicePerPodReady(ctx context.Context, h *hazel
 
 	// Check if each service per pod is ready
 	for i := 0; i < int(*h.Spec.ClusterSize); i++ {
-		s := &v1.Service{}
+		s := &corev1.Service{}
 		err := r.Client.Get(ctx, client.ObjectKey{Name: servicePerPodName(i, h), Namespace: h.Namespace}, s)
 		if err != nil {
 			// Service is not created yet
 			return false
 		}
-		if s.Spec.Type == v1.ServiceTypeLoadBalancer {
+		if s.Spec.Type == corev1.ServiceTypeLoadBalancer {
 			if len(s.Status.LoadBalancer.Ingress) == 0 {
 				// LoadBalancer service waiting for External IP to get assigned
 				return false
@@ -928,7 +953,7 @@ func (r *HazelcastReconciler) reconcileMTLSSecret(ctx context.Context, h *hazelc
 	if err != nil {
 		return err
 	}
-	secret := &v1.Secret{}
+	secret := &corev1.Secret{}
 	secretName := types.NamespacedName{Name: n.MTLSCertSecretName, Namespace: h.Namespace}
 	err = r.Client.Get(ctx, secretName, secret)
 	if err != nil {
@@ -1201,7 +1226,7 @@ func hazelcastConfig(ctx context.Context, c client.Client, h *hazelcastv1alpha1.
 	}
 
 	if h.Spec.CustomConfigCmName != "" {
-		cfgCm := &v1.ConfigMap{}
+		cfgCm := &corev1.ConfigMap{}
 		if err := c.Get(ctx, types.NamespacedName{Name: h.Spec.CustomConfigCmName, Namespace: h.Namespace}, cfgCm, nil); err != nil {
 			return nil, err
 		}
@@ -1579,7 +1604,7 @@ func hazelcastKeystore(ctx context.Context, c client.Client, h *hazelcastv1alpha
 }
 
 func loadTLSKeyPair(ctx context.Context, c client.Client, h *hazelcastv1alpha1.Hazelcast) (cert []byte, key []byte, err error) {
-	var s v1.Secret
+	var s corev1.Secret
 	err = c.Get(ctx, types.NamespacedName{Name: h.Spec.TLS.SecretName, Namespace: h.Namespace}, &s)
 	if err != nil {
 		return
@@ -2063,7 +2088,7 @@ func getMapStoreProperties(ctx context.Context, c client.Client, sn, ns string) 
 	if sn == "" {
 		return nil, nil
 	}
-	s := &v1.Secret{}
+	s := &corev1.Secret{}
 	err := c.Get(ctx, types.NamespacedName{Name: sn, Namespace: ns}, s)
 	if err != nil {
 		return nil, err
@@ -2270,19 +2295,19 @@ func (r *HazelcastReconciler) reconcileStatefulset(ctx context.Context, h *hazel
 			},
 			ServiceName:         h.Name,
 			PodManagementPolicy: appsv1.ParallelPodManagement,
-			Template: v1.PodTemplateSpec{
+			Template: corev1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
 					Labels:      labels(h),
 					Annotations: h.Spec.Annotations,
 				},
-				Spec: v1.PodSpec{
+				Spec: corev1.PodSpec{
 					ServiceAccountName: serviceAccountName(h),
 					SecurityContext:    podSecurityContext(),
-					Containers: []v1.Container{{
+					Containers: []corev1.Container{{
 						Name: n.Hazelcast,
-						LivenessProbe: &v1.Probe{
-							ProbeHandler: v1.ProbeHandler{
-								HTTPGet: &v1.HTTPGetAction{
+						LivenessProbe: &corev1.Probe{
+							ProbeHandler: corev1.ProbeHandler{
+								HTTPGet: &corev1.HTTPGetAction{
 									Path:   "/hazelcast/health/node-state",
 									Port:   intstr.FromInt(n.RestServerSocketPort),
 									Scheme: corev1.URISchemeHTTP,
@@ -2294,9 +2319,9 @@ func (r *HazelcastReconciler) reconcileStatefulset(ctx context.Context, h *hazel
 							SuccessThreshold:    1,
 							FailureThreshold:    10,
 						},
-						ReadinessProbe: &v1.Probe{
-							ProbeHandler: v1.ProbeHandler{
-								HTTPGet: &v1.HTTPGetAction{
+						ReadinessProbe: &corev1.Probe{
+							ProbeHandler: corev1.ProbeHandler{
+								HTTPGet: &corev1.HTTPGetAction{
 									Path:   "/hazelcast/health/node-state",
 									Port:   intstr.FromInt(n.RestServerSocketPort),
 									Scheme: corev1.URISchemeHTTP,
@@ -2367,7 +2392,7 @@ func (r *HazelcastReconciler) reconcileStatefulset(ctx context.Context, h *hazel
 		if err != nil {
 			return err
 		}
-		sts.Spec.Template.Spec.InitContainers = []v1.Container{ic}
+		sts.Spec.Template.Spec.InitContainers = []corev1.Container{ic}
 
 		sts.Spec.Template.Spec.Volumes = volumes(h)
 		sts.Spec.Template.Spec.Containers[0].VolumeMounts = hzContainerVolumeMounts(h, pvcName)
@@ -2383,20 +2408,20 @@ func (r *HazelcastReconciler) reconcileStatefulset(ctx context.Context, h *hazel
 	return err
 }
 
-func persistentVolumeClaims(h *hazelcastv1alpha1.Hazelcast, pvcName string) []v1.PersistentVolumeClaim {
-	var pvcs []v1.PersistentVolumeClaim
+func persistentVolumeClaims(h *hazelcastv1alpha1.Hazelcast, pvcName string) []corev1.PersistentVolumeClaim {
+	var pvcs []corev1.PersistentVolumeClaim
 	if h.Spec.Persistence.IsEnabled() {
-		pvcs = append(pvcs, v1.PersistentVolumeClaim{
+		pvcs = append(pvcs, corev1.PersistentVolumeClaim{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:        pvcName,
 				Namespace:   h.Namespace,
 				Labels:      labels(h),
 				Annotations: h.Spec.Annotations,
 			},
-			Spec: v1.PersistentVolumeClaimSpec{
+			Spec: corev1.PersistentVolumeClaimSpec{
 				AccessModes: h.Spec.Persistence.PVC.AccessModes,
-				Resources: v1.ResourceRequirements{
-					Requests: v1.ResourceList{
+				Resources: corev1.ResourceRequirements{
+					Requests: corev1.ResourceList{
 						corev1.ResourceStorage: *h.Spec.Persistence.PVC.RequestStorage,
 					},
 				},
@@ -2405,17 +2430,17 @@ func persistentVolumeClaims(h *hazelcastv1alpha1.Hazelcast, pvcName string) []v1
 		})
 	}
 	if h.Spec.CPSubsystem.IsEnabled() && h.Spec.CPSubsystem.IsPVC() {
-		pvcs = append(pvcs, v1.PersistentVolumeClaim{
+		pvcs = append(pvcs, corev1.PersistentVolumeClaim{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:        n.CPPersistenceVolumeName,
 				Namespace:   h.Namespace,
 				Labels:      labels(h),
 				Annotations: h.Spec.Annotations,
 			},
-			Spec: v1.PersistentVolumeClaimSpec{
+			Spec: corev1.PersistentVolumeClaimSpec{
 				AccessModes: h.Spec.CPSubsystem.PVC.AccessModes,
-				Resources: v1.ResourceRequirements{
-					Requests: v1.ResourceList{
+				Resources: corev1.ResourceRequirements{
+					Requests: corev1.ResourceList{
 						corev1.ResourceStorage: *h.Spec.CPSubsystem.PVC.RequestStorage,
 					},
 				},
@@ -2426,19 +2451,19 @@ func persistentVolumeClaims(h *hazelcastv1alpha1.Hazelcast, pvcName string) []v1
 	return pvcs
 }
 
-func localDevicePersistentVolumeClaim(h *hazelcastv1alpha1.Hazelcast) []v1.PersistentVolumeClaim {
-	var pvcs []v1.PersistentVolumeClaim
+func localDevicePersistentVolumeClaim(h *hazelcastv1alpha1.Hazelcast) []corev1.PersistentVolumeClaim {
+	var pvcs []corev1.PersistentVolumeClaim
 	for _, localDeviceConfig := range h.Spec.LocalDevices {
-		pvcs = append(pvcs, v1.PersistentVolumeClaim{
+		pvcs = append(pvcs, corev1.PersistentVolumeClaim{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      localDeviceConfig.Name,
 				Namespace: h.Namespace,
 				Labels:    labels(h),
 			},
-			Spec: v1.PersistentVolumeClaimSpec{
+			Spec: corev1.PersistentVolumeClaimSpec{
 				AccessModes: localDeviceConfig.PVC.AccessModes,
-				Resources: v1.ResourceRequirements{
-					Requests: v1.ResourceList{
+				Resources: corev1.ResourceRequirements{
+					Requests: corev1.ResourceList{
 						corev1.ResourceStorage: *localDeviceConfig.PVC.RequestStorage,
 					},
 				},
@@ -2449,19 +2474,19 @@ func localDevicePersistentVolumeClaim(h *hazelcastv1alpha1.Hazelcast) []v1.Persi
 	return pvcs
 }
 
-func sidecarContainer(h *hazelcastv1alpha1.Hazelcast) v1.Container {
-	return v1.Container{
+func sidecarContainer(h *hazelcastv1alpha1.Hazelcast) corev1.Container {
+	return corev1.Container{
 		Name:  n.SidecarAgent,
 		Image: h.AgentDockerImage(),
-		Ports: []v1.ContainerPort{{
+		Ports: []corev1.ContainerPort{{
 			ContainerPort: n.DefaultAgentPort,
 			Name:          n.SidecarAgent,
-			Protocol:      v1.ProtocolTCP,
+			Protocol:      corev1.ProtocolTCP,
 		}},
 		Args: []string{"sidecar"},
-		LivenessProbe: &v1.Probe{
-			ProbeHandler: v1.ProbeHandler{
-				HTTPGet: &v1.HTTPGetAction{
+		LivenessProbe: &corev1.Probe{
+			ProbeHandler: corev1.ProbeHandler{
+				HTTPGet: &corev1.HTTPGetAction{
 					Path:   "/health",
 					Port:   intstr.FromInt(8080),
 					Scheme: corev1.URISchemeHTTP,
@@ -2473,9 +2498,9 @@ func sidecarContainer(h *hazelcastv1alpha1.Hazelcast) v1.Container {
 			SuccessThreshold:    1,
 			FailureThreshold:    10,
 		},
-		ReadinessProbe: &v1.Probe{
-			ProbeHandler: v1.ProbeHandler{
-				HTTPGet: &v1.HTTPGetAction{
+		ReadinessProbe: &corev1.Probe{
+			ProbeHandler: corev1.ProbeHandler{
+				HTTPGet: &corev1.HTTPGetAction{
 					Path:   "/health",
 					Port:   intstr.FromInt(8080),
 					Scheme: corev1.URISchemeHTTP,
@@ -2487,7 +2512,7 @@ func sidecarContainer(h *hazelcastv1alpha1.Hazelcast) v1.Container {
 			SuccessThreshold:    1,
 			FailureThreshold:    10,
 		},
-		Env: []v1.EnvVar{
+		Env: []corev1.EnvVar{
 			{
 				Name:  "BACKUP_CA",
 				Value: path.Join(n.MTLSCertPath, "ca.crt"),
@@ -2505,23 +2530,23 @@ func sidecarContainer(h *hazelcastv1alpha1.Hazelcast) v1.Container {
 	}
 }
 
-func hazelcastContainerWanRepPorts(h *hazelcastv1alpha1.Hazelcast) []v1.ContainerPort {
+func hazelcastContainerWanRepPorts(h *hazelcastv1alpha1.Hazelcast) []corev1.ContainerPort {
 	// If WAN is not configured, use the default port for it
 	if h.Spec.AdvancedNetwork == nil || len(h.Spec.AdvancedNetwork.WAN) == 0 {
-		return []v1.ContainerPort{{
+		return []corev1.ContainerPort{{
 			ContainerPort: n.WanDefaultPort,
 			Name:          n.WanDefaultPortName,
-			Protocol:      v1.ProtocolTCP,
+			Protocol:      corev1.ProtocolTCP,
 		}}
 	}
 
-	var c []v1.ContainerPort
+	var c []corev1.ContainerPort
 	for _, w := range h.Spec.AdvancedNetwork.WAN {
 		for i := 0; i < int(w.PortCount); i++ {
-			c = append(c, v1.ContainerPort{
+			c = append(c, corev1.ContainerPort{
 				ContainerPort: int32(int(w.Port) + i),
 				Name:          fmt.Sprintf("%s%s-%s", n.WanPortNamePrefix, w.Name, strconv.Itoa(i)),
-				Protocol:      v1.ProtocolTCP,
+				Protocol:      corev1.ProtocolTCP,
 			})
 		}
 	}
@@ -2529,15 +2554,15 @@ func hazelcastContainerWanRepPorts(h *hazelcastv1alpha1.Hazelcast) []v1.Containe
 	return c
 }
 
-func podSecurityContext() *v1.PodSecurityContext {
+func podSecurityContext() *corev1.PodSecurityContext {
 	// Openshift assigns user and fsgroup ids itself
 	if platform.GetType() == platform.OpenShift {
-		return &v1.PodSecurityContext{
+		return &corev1.PodSecurityContext{
 			RunAsNonRoot: pointer.Bool(true),
 		}
 	}
 
-	return &v1.PodSecurityContext{
+	return &corev1.PodSecurityContext{
 		FSGroup:      pointer.Int64(65534),
 		RunAsNonRoot: pointer.Bool(true),
 		// Have to give userID otherwise Kubelet fails to create the pod
@@ -2547,32 +2572,32 @@ func podSecurityContext() *v1.PodSecurityContext {
 	}
 }
 
-func containerSecurityContext() *v1.SecurityContext {
-	return &v1.SecurityContext{
+func containerSecurityContext() *corev1.SecurityContext {
+	return &corev1.SecurityContext{
 		RunAsNonRoot:             pointer.Bool(true),
 		Privileged:               pointer.Bool(false),
 		ReadOnlyRootFilesystem:   pointer.Bool(true),
 		AllowPrivilegeEscalation: pointer.Bool(false),
-		Capabilities: &v1.Capabilities{
-			Drop: []v1.Capability{"ALL"},
+		Capabilities: &corev1.Capabilities{
+			Drop: []corev1.Capability{"ALL"},
 		},
 	}
 }
 
-func initContainer(h *hazelcastv1alpha1.Hazelcast, pvcName string) (v1.Container, error) {
+func initContainer(h *hazelcastv1alpha1.Hazelcast, pvcName string) (corev1.Container, error) {
 	c := corev1.Container{
 		Name:  n.InitContainer,
 		Image: h.AgentDockerImage(),
 		Args:  []string{"execute-multiple-commands"},
-		Env: []v1.EnvVar{
+		Env: []corev1.EnvVar{
 			{
 				Name:  "CONFIG_FILE",
 				Value: n.InitConfigDir + n.InitConfigFile,
 			},
 			{
 				Name: "HOSTNAME",
-				ValueFrom: &v1.EnvVarSource{
-					FieldRef: &v1.ObjectFieldSelector{
+				ValueFrom: &corev1.EnvVarSource{
+					FieldRef: &corev1.ObjectFieldSelector{
 						APIVersion: "v1",
 						FieldPath:  "metadata.name",
 					},
@@ -2583,7 +2608,7 @@ func initContainer(h *hazelcastv1alpha1.Hazelcast, pvcName string) (v1.Container
 		TerminationMessagePolicy: "File",
 		SecurityContext:          containerSecurityContext(),
 		ImagePullPolicy:          corev1.PullIfNotPresent,
-		VolumeMounts: []v1.VolumeMount{
+		VolumeMounts: []corev1.VolumeMount{
 
 			{
 				Name:      n.InitConfigMap,
@@ -2613,54 +2638,54 @@ func initContainer(h *hazelcastv1alpha1.Hazelcast, pvcName string) (v1.Container
 	return c, nil
 }
 
-func persistenceVolumeMount(pvcName string) v1.VolumeMount {
-	return v1.VolumeMount{
+func persistenceVolumeMount(pvcName string) corev1.VolumeMount {
+	return corev1.VolumeMount{
 		Name:      pvcName,
 		MountPath: n.PersistenceMountPath,
 	}
 }
 
-func ucnBucketVolumeMount() v1.VolumeMount {
-	return v1.VolumeMount{
+func ucnBucketVolumeMount() corev1.VolumeMount {
+	return corev1.VolumeMount{
 		Name:      n.UCNVolumeName,
 		MountPath: n.UCNBucketPath,
 	}
 }
 
-func ucdBucketAgentVolumeMount() v1.VolumeMount {
-	return v1.VolumeMount{
+func ucdBucketAgentVolumeMount() corev1.VolumeMount {
+	return corev1.VolumeMount{
 		Name:      n.UserCodeBucketVolumeName,
 		MountPath: n.UserCodeBucketPath,
 	}
 }
 
-func jetJobJarsVolumeMount() v1.VolumeMount {
-	return v1.VolumeMount{
+func jetJobJarsVolumeMount() corev1.VolumeMount {
+	return corev1.VolumeMount{
 		Name:      n.JetJobJarsVolumeName,
 		MountPath: n.JetJobJarsPath,
 	}
 }
 
-func tmpDirVolumeMount() v1.VolumeMount {
-	return v1.VolumeMount{
+func tmpDirVolumeMount() corev1.VolumeMount {
+	return corev1.VolumeMount{
 		Name:      n.TmpDirVolName,
 		MountPath: "/tmp",
 	}
 }
 
-func ucdURLAgentVolumeMount() v1.VolumeMount {
-	return v1.VolumeMount{
+func ucdURLAgentVolumeMount() corev1.VolumeMount {
+	return corev1.VolumeMount{
 		Name:      n.UserCodeURLVolumeName,
 		MountPath: n.UserCodeURLPath,
 	}
 }
 
-func volumes(h *hazelcastv1alpha1.Hazelcast) []v1.Volume {
-	vols := []v1.Volume{
+func volumes(h *hazelcastv1alpha1.Hazelcast) []corev1.Volume {
+	vols := []corev1.Volume{
 		{
 			Name: n.HazelcastStorageName,
-			VolumeSource: v1.VolumeSource{
-				Secret: &v1.SecretVolumeSource{
+			VolumeSource: corev1.VolumeSource{
+				Secret: &corev1.SecretVolumeSource{
 					SecretName:  h.Name,
 					DefaultMode: pointer.Int32(420),
 				},
@@ -2668,9 +2693,9 @@ func volumes(h *hazelcastv1alpha1.Hazelcast) []v1.Volume {
 		},
 		{
 			Name: n.InitConfigMap,
-			VolumeSource: v1.VolumeSource{
-				ConfigMap: &v1.ConfigMapVolumeSource{
-					LocalObjectReference: v1.LocalObjectReference{
+			VolumeSource: corev1.VolumeSource{
+				ConfigMap: &corev1.ConfigMapVolumeSource{
+					LocalObjectReference: corev1.LocalObjectReference{
 						Name: h.Name + n.InitSuffix,
 					},
 					DefaultMode: pointer.Int32(420),
@@ -2699,20 +2724,20 @@ func volumes(h *hazelcastv1alpha1.Hazelcast) []v1.Volume {
 	return vols
 }
 
-func emptyDirVolume(name string) v1.Volume {
-	return v1.Volume{
+func emptyDirVolume(name string) corev1.Volume {
+	return corev1.Volume{
 		Name: name,
-		VolumeSource: v1.VolumeSource{
-			EmptyDir: &v1.EmptyDirVolumeSource{},
+		VolumeSource: corev1.VolumeSource{
+			EmptyDir: &corev1.EmptyDirVolumeSource{},
 		},
 	}
 }
 
-func tlsVolume(_ *hazelcastv1alpha1.Hazelcast) v1.Volume {
-	return v1.Volume{
+func tlsVolume(_ *hazelcastv1alpha1.Hazelcast) corev1.Volume {
+	return corev1.Volume{
 		Name: n.MTLSCertSecretName,
-		VolumeSource: v1.VolumeSource{
-			Secret: &v1.SecretVolumeSource{
+		VolumeSource: corev1.VolumeSource{
+			Secret: &corev1.SecretVolumeSource{
 				SecretName:  n.MTLSCertSecretName,
 				DefaultMode: &[]int32{420}[0],
 			},
@@ -2737,9 +2762,9 @@ func configMapVolumes(nameFn ConfigMapVolumeName, rfc hazelcastv1alpha1.RemoteFi
 	for _, cm := range rfc.ConfigMaps {
 		vols = append(vols, corev1.Volume{
 			Name: nameFn(cm),
-			VolumeSource: v1.VolumeSource{
-				ConfigMap: &v1.ConfigMapVolumeSource{
-					LocalObjectReference: v1.LocalObjectReference{
+			VolumeSource: corev1.VolumeSource{
+				ConfigMap: &corev1.ConfigMapVolumeSource{
+					LocalObjectReference: corev1.LocalObjectReference{
 						Name: cm,
 					},
 					DefaultMode: &[]int32{420}[0],
@@ -2750,8 +2775,8 @@ func configMapVolumes(nameFn ConfigMapVolumeName, rfc hazelcastv1alpha1.RemoteFi
 	return vols
 }
 
-func sidecarVolumeMounts(h *hazelcastv1alpha1.Hazelcast, pvcName string) []v1.VolumeMount {
-	vm := []v1.VolumeMount{
+func sidecarVolumeMounts(h *hazelcastv1alpha1.Hazelcast, pvcName string) []corev1.VolumeMount {
+	vm := []corev1.VolumeMount{
 		{
 			Name:      n.MTLSCertSecretName,
 			MountPath: n.MTLSCertPath,
@@ -2768,8 +2793,8 @@ func sidecarVolumeMounts(h *hazelcastv1alpha1.Hazelcast, pvcName string) []v1.Vo
 	return vm
 }
 
-func hzContainerVolumeMounts(h *hazelcastv1alpha1.Hazelcast, pvcName string) []v1.VolumeMount {
-	mounts := []v1.VolumeMount{
+func hzContainerVolumeMounts(h *hazelcastv1alpha1.Hazelcast, pvcName string) []corev1.VolumeMount {
+	mounts := []corev1.VolumeMount{
 		{
 			Name:      n.HazelcastStorageName,
 			MountPath: n.HazelcastMountPath,
@@ -2785,7 +2810,7 @@ func hzContainerVolumeMounts(h *hazelcastv1alpha1.Hazelcast, pvcName string) []v
 	}
 
 	if h.Spec.Persistence.IsEnabled() {
-		mounts = append(mounts, v1.VolumeMount{
+		mounts = append(mounts, corev1.VolumeMount{
 			Name:      pvcName,
 			MountPath: n.PersistenceMountPath,
 		})
@@ -2796,7 +2821,7 @@ func hzContainerVolumeMounts(h *hazelcastv1alpha1.Hazelcast, pvcName string) []v
 	}
 
 	if h.Spec.CPSubsystem.IsEnabled() && h.Spec.CPSubsystem.IsPVC() {
-		mounts = append(mounts, v1.VolumeMount{
+		mounts = append(mounts, corev1.VolumeMount{
 			Name:      n.CPPersistenceVolumeName,
 			MountPath: n.CPBaseDir,
 		})
@@ -2818,10 +2843,10 @@ func hzContainerVolumeMounts(h *hazelcastv1alpha1.Hazelcast, pvcName string) []v
 	return mounts
 }
 
-func localDeviceVolumeMounts(h *hazelcastv1alpha1.Hazelcast) []v1.VolumeMount {
-	var vms []v1.VolumeMount
+func localDeviceVolumeMounts(h *hazelcastv1alpha1.Hazelcast) []corev1.VolumeMount {
+	var vms []corev1.VolumeMount
 	for _, ld := range h.Spec.LocalDevices {
-		vms = append(vms, v1.VolumeMount{
+		vms = append(vms, corev1.VolumeMount{
 			Name:      ld.Name,
 			MountPath: path.Join(n.TieredStorageBaseDir, ld.Name),
 		})
@@ -2916,8 +2941,8 @@ func (r *HazelcastReconciler) isEnterpriseCluster(ctx context.Context, client hz
 	return failOverSupported, nil
 }
 
-func appendHAModeTopologySpreadConstraints(h *hazelcastv1alpha1.Hazelcast) []v1.TopologySpreadConstraint {
-	var topologySpreadConstraints []v1.TopologySpreadConstraint
+func appendHAModeTopologySpreadConstraints(h *hazelcastv1alpha1.Hazelcast) []corev1.TopologySpreadConstraint {
+	var topologySpreadConstraints []corev1.TopologySpreadConstraint
 	if h.Spec.Scheduling != nil {
 		topologySpreadConstraints = append(topologySpreadConstraints, h.Spec.Scheduling.TopologySpreadConstraints...)
 	}
@@ -2925,18 +2950,18 @@ func appendHAModeTopologySpreadConstraints(h *hazelcastv1alpha1.Hazelcast) []v1.
 		switch h.Spec.HighAvailabilityMode {
 		case "NODE":
 			topologySpreadConstraints = append(topologySpreadConstraints,
-				v1.TopologySpreadConstraint{
+				corev1.TopologySpreadConstraint{
 					MaxSkew:           1,
 					TopologyKey:       "kubernetes.io/hostname",
-					WhenUnsatisfiable: v1.ScheduleAnyway,
+					WhenUnsatisfiable: corev1.ScheduleAnyway,
 					LabelSelector:     &metav1.LabelSelector{MatchLabels: util.Labels(h)},
 				})
 		case "ZONE":
 			topologySpreadConstraints = append(topologySpreadConstraints,
-				v1.TopologySpreadConstraint{
+				corev1.TopologySpreadConstraint{
 					MaxSkew:           1,
 					TopologyKey:       "topology.kubernetes.io/zone",
-					WhenUnsatisfiable: v1.ScheduleAnyway,
+					WhenUnsatisfiable: corev1.ScheduleAnyway,
 					LabelSelector:     &metav1.LabelSelector{MatchLabels: util.Labels(h)},
 				})
 		}
@@ -2944,8 +2969,8 @@ func appendHAModeTopologySpreadConstraints(h *hazelcastv1alpha1.Hazelcast) []v1.
 	return topologySpreadConstraints
 }
 
-func env(h *hazelcastv1alpha1.Hazelcast) []v1.EnvVar {
-	envs := []v1.EnvVar{
+func env(h *hazelcastv1alpha1.Hazelcast) []corev1.EnvVar {
+	envs := []corev1.EnvVar{
 		{
 			Name:  JavaOpts,
 			Value: javaOPTS(h),
@@ -2973,11 +2998,11 @@ func env(h *hazelcastv1alpha1.Hazelcast) []v1.EnvVar {
 	}
 	if h.Spec.GetLicenseKeySecretName() != "" {
 		envs = append(envs,
-			v1.EnvVar{
+			corev1.EnvVar{
 				Name: hzLicenseKey,
-				ValueFrom: &v1.EnvVarSource{
-					SecretKeyRef: &v1.SecretKeySelector{
-						LocalObjectReference: v1.LocalObjectReference{
+				ValueFrom: &corev1.EnvVarSource{
+					SecretKeyRef: &corev1.SecretKeySelector{
+						LocalObjectReference: corev1.LocalObjectReference{
 							Name: h.Spec.GetLicenseKeySecretName(),
 						},
 						Key: n.LicenseDataKey,
@@ -3119,19 +3144,19 @@ func podAnnotations(annotations map[string]string, h *hazelcastv1alpha1.Hazelcas
 	return annotations, nil
 }
 
-func hazelcastContainerPorts(h *hazelcastv1alpha1.Hazelcast) []v1.ContainerPort {
-	ports := []v1.ContainerPort{{
+func hazelcastContainerPorts(h *hazelcastv1alpha1.Hazelcast) []corev1.ContainerPort {
+	ports := []corev1.ContainerPort{{
 		ContainerPort: n.DefaultHzPort,
 		Name:          n.Hazelcast,
-		Protocol:      v1.ProtocolTCP,
+		Protocol:      corev1.ProtocolTCP,
 	}, {
 		ContainerPort: n.MemberServerSocketPort,
 		Name:          n.MemberPortName,
-		Protocol:      v1.ProtocolTCP,
+		Protocol:      corev1.ProtocolTCP,
 	}, {
 		ContainerPort: n.RestServerSocketPort,
 		Name:          n.RestPortName,
-		Protocol:      v1.ProtocolTCP,
+		Protocol:      corev1.ProtocolTCP,
 	},
 	}
 

@@ -17,7 +17,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/hazelcast/hazelcast-platform-operator/internal/kubeclient"
-	"github.com/hazelcast/hazelcast-platform-operator/internal/naming"
 	n "github.com/hazelcast/hazelcast-platform-operator/internal/naming"
 	"github.com/hazelcast/hazelcast-platform-operator/internal/util"
 )
@@ -230,8 +229,8 @@ func (v *hazelcastValidator) validatePersistence(h *Hazelcast) {
 }
 
 func (v *hazelcastValidator) validateClusterSize(h *Hazelcast) {
-	if *h.Spec.ClusterSize > naming.ClusterSizeLimit {
-		v.Invalid(Path("spec", "clusterSize"), h.Spec.ClusterSize, fmt.Sprintf("may not be greater than %d", naming.ClusterSizeLimit))
+	if *h.Spec.ClusterSize > n.ClusterSizeLimit {
+		v.Invalid(Path("spec", "clusterSize"), h.Spec.ClusterSize, fmt.Sprintf("may not be greater than %d", n.ClusterSizeLimit))
 	}
 }
 
@@ -246,11 +245,10 @@ func (v *hazelcastValidator) validateAdvancedNetwork(h *Hazelcast) {
 
 func (v *hazelcastValidator) validateWANServiceTypes(h *Hazelcast) {
 	for i, w := range h.Spec.AdvancedNetwork.WAN {
-		if w.ServiceType == corev1.ServiceTypeNodePort || w.ServiceType == corev1.ServiceTypeExternalName {
-			v.Forbidden(Path("spec", "advancedNetwork", fmt.Sprintf("wan[%d]", i)), "invalid serviceType value, possible values are ClusterIP and LoadBalancer")
+		if w.ServiceType == WANServiceTypeWithExposeExternally && h.Spec.ExposeExternally == nil {
+			v.Forbidden(Path("spec", "advancedNetwork", fmt.Sprintf("wan[%d]", i), "serviceType"), fmt.Sprintf("%s can be used when expose externally is enabled", WANServiceTypeWithExposeExternally))
 		}
 	}
-
 }
 
 func (v *hazelcastValidator) validateWANPorts(h *Hazelcast) {

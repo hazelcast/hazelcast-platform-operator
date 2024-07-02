@@ -1153,12 +1153,29 @@ type AdvancedNetwork struct {
 }
 
 type WANConfig struct {
-	Port        uint               `json:"port,omitempty"`
-	PortCount   uint               `json:"portCount,omitempty"`
-	ServiceType corev1.ServiceType `json:"serviceType,omitempty"`
+	Port      uint `json:"port,omitempty"`
+	PortCount uint `json:"portCount,omitempty"`
+	// +kubebuilder:default:="LoadBalancer"
+	// +optional
+	ServiceType WANServiceType `json:"serviceType,omitempty"`
 	// +kubebuilder:validation:MaxLength:=8
 	Name string `json:"name,omitempty"`
 }
+
+// WANServiceType describes the service type where the wan ports are exposed
+// +kubebuilder:validation:Enum=ClusterIP;NodePort;LoadBalancer;WithExposeExternally
+type WANServiceType string
+
+const (
+	// WANServiceTypeClusterIP creates a new dedicated service in ClusterIp type for the WAN
+	WANServiceTypeClusterIP WANServiceType = WANServiceType(corev1.ServiceTypeClusterIP)
+	// WANServiceTypeNodePort creates a new dedicated service in NodePort type for the WAN
+	WANServiceTypeNodePort WANServiceType = WANServiceType(corev1.ServiceTypeNodePort)
+	// WANServiceTypeLoadBalancer creates a new dedicated service in LoadBalancer type for the WAN
+	WANServiceTypeLoadBalancer WANServiceType = WANServiceType(corev1.ServiceTypeLoadBalancer)
+	// WANServiceTypeWithExposeExternally exposes WAN ports in the existing service-per-pod services configured in 'exposeExternally'
+	WANServiceTypeWithExposeExternally WANServiceType = "WithExposeExternally"
+)
 
 type ServerSocketEndpointConfig struct {
 	Interfaces []string `json:"interfaces,omitempty"`

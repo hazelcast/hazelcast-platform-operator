@@ -143,6 +143,44 @@ var _ = Describe("Hazelcast CR", func() {
 		return hz
 	}
 
+	servicesToMap := func(svcs []corev1.Service) map[string]corev1.Service {
+		svcMap := make(map[string]corev1.Service)
+		for _, svc := range svcs {
+			svcMap[svc.Name] = svc
+		}
+		return svcMap
+	}
+
+	ensureWansPortsAreExposedOnService := func(wans []hazelcastv1alpha1.WANConfig, svc corev1.Service) {
+		for _, wan := range wans {
+			servicePortNameMap := make(map[string]corev1.ServicePort)
+			for _, p := range svc.Spec.Ports {
+				servicePortNameMap[p.Name] = p
+			}
+			for i := 0; i < int(wan.PortCount); i++ {
+				portName := fmt.Sprintf("wan-%s-%d", wan.Name, i)
+				Expect(servicePortNameMap).To(HaveKey(portName))
+				port := servicePortNameMap[portName]
+				Expect(port.Port).Should(Equal(int32(wan.Port + uint(i))))
+				Expect(port.TargetPort.IntVal).Should(Equal(int32(wan.Port + uint(i))))
+				Expect(port.Protocol).Should(Equal(corev1.ProtocolTCP))
+			}
+		}
+	}
+
+	ensureWansPortsAreNotExposedOnService := func(wans []hazelcastv1alpha1.WANConfig, svc corev1.Service) {
+		for _, wan := range wans {
+			wanPorts := []int32{}
+			for i := wan.Port; i < wan.PortCount; i++ {
+				wanPorts = append(wanPorts, int32(i))
+			}
+
+			for _, port := range svc.Spec.Ports {
+				Expect(wanPorts).Should(Not(ContainElement(port)))
+			}
+		}
+	}
+
 	BeforeEach(func() {
 		By(fmt.Sprintf("creating license key secret '%s'", n.LicenseDataKey))
 		licenseKeySecret := CreateLicenseKeySecret(n.LicenseKeySecret, namespace)
@@ -1499,7 +1537,7 @@ var _ = Describe("Hazelcast CR", func() {
 						{
 							Port:        5710,
 							PortCount:   5,
-							ServiceType: corev1.ServiceTypeClusterIP,
+							ServiceType: hazelcastv1alpha1.WANServiceTypeClusterIP,
 							Name:        "tokyo",
 						},
 						{
@@ -1592,16 +1630,76 @@ var _ = Describe("Hazelcast CR", func() {
 				serviceList := &corev1.ServiceList{}
 				err := k8sClient.List(context.Background(), serviceList, client.InNamespace(hz.Namespace), labelFilter(hz))
 				Expect(err).Should(BeNil())
+				Expect(serviceList.Items).Should(HaveLen(3))
 
-				for _, s := range serviceList.Items {
-					if strings.Contains(s.Name, "tokyo") {
-						Expect(true).Should(Equal(s.Spec.Type == corev1.ServiceTypeClusterIP))
-					}
-
-					if strings.Contains(s.Name, "istanbul") {
-						Expect(true).Should(Equal(s.Spec.Type == corev1.ServiceTypeLoadBalancer))
-					}
+				By("checking exposed wan ports")
+				svcMap := servicesToMap(serviceList.Items)
+				for _, wan := range hz.Spec.AdvancedNetwork.WAN {
+					serviceName := fmt.Sprintf("%s-%s", hz.Name, wan.Name)
+					Expect(svcMap).To(HaveKey(serviceName))
+					svc := svcMap[serviceName]
+					Expect(svc.Spec.Type).Should(BeEquivalentTo(wan.ServiceType))
+					Expect(svc.Spec.Ports).Should(HaveLen(int(wan.PortCount)))
+					ensureWansPortsAreExposedOnService([]hazelcastv1alpha1.WANConfig{wan}, svc)
 				}
+
+				Expect(svcMap).To(HaveKey(hz.Name))
+				svc := svcMap[hz.Name]
+				ensureWansPortsAreNotExposedOnService(hz.Spec.AdvancedNetwork.WAN, svc)
+			})
+
+			It("should expose WAN ports on service-per-pod services when service type is WithExposeExternally", func() {
+				spec := test.HazelcastSpec(defaultHazelcastSpecValues())
+				spec.ExposeExternally = &hazelcastv1alpha1.ExposeExternallyConfiguration{
+					Type:                 hazelcastv1alpha1.ExposeExternallyTypeSmart,
+					DiscoveryServiceType: corev1.ServiceTypeLoadBalancer,
+					MemberAccess:         hazelcastv1alpha1.MemberAccessLoadBalancer,
+				}
+				spec.AdvancedNetwork = &hazelcastv1alpha1.AdvancedNetwork{
+					WAN: []hazelcastv1alpha1.WANConfig{
+						{
+							Port:        5710,
+							PortCount:   5,
+							ServiceType: hazelcastv1alpha1.WANServiceTypeWithExposeExternally,
+							Name:        "tokyo",
+						},
+						{
+							Port:        5720,
+							PortCount:   5,
+							ServiceType: hazelcastv1alpha1.WANServiceTypeWithExposeExternally,
+							Name:        "istanbul",
+						},
+					},
+				}
+
+				hz := &hazelcastv1alpha1.Hazelcast{
+					ObjectMeta: randomObjectMeta(namespace),
+					Spec:       spec,
+				}
+
+				create(hz)
+				assertHzStatusIsPending(hz)
+
+				By("checking service-per-pod services")
+				serviceList := &corev1.ServiceList{}
+				err := k8sClient.List(context.Background(), serviceList, client.InNamespace(hz.Namespace), labelFilter(hz))
+				Expect(err).Should(BeNil())
+				Expect(serviceList.Items).Should(HaveLen(int(*hz.Spec.ClusterSize) + 1))
+
+				By("checking exposed wan ports")
+				svcMap := servicesToMap(serviceList.Items)
+
+				for i := 0; i < int(*hz.Spec.ClusterSize); i++ {
+					serviceName := fmt.Sprintf("%s-%d", hz.Name, i)
+					Expect(svcMap).To(HaveKey(serviceName))
+					svc := svcMap[serviceName]
+					Expect(svc.Spec.Type).Should(BeEquivalentTo(hazelcastv1alpha1.MemberAccessLoadBalancer))
+					ensureWansPortsAreExposedOnService(hz.Spec.AdvancedNetwork.WAN, svc)
+				}
+
+				Expect(svcMap).To(HaveKey(hz.Name))
+				svc := svcMap[hz.Name]
+				ensureWansPortsAreNotExposedOnService(hz.Spec.AdvancedNetwork.WAN, svc)
 			})
 		})
 
@@ -1675,6 +1773,51 @@ var _ = Describe("Hazelcast CR", func() {
 
 				Expect(len(svcList.Items)).Should(Equal(1)) // just the HZ Discovery Service
 			})
+
+			It("should not expose default WAN port on service-per-pod services", func() {
+				spec := test.HazelcastSpec(defaultHazelcastSpecValues())
+				spec.ExposeExternally = &hazelcastv1alpha1.ExposeExternallyConfiguration{
+					Type:                 hazelcastv1alpha1.ExposeExternallyTypeSmart,
+					DiscoveryServiceType: corev1.ServiceTypeLoadBalancer,
+					MemberAccess:         hazelcastv1alpha1.MemberAccessLoadBalancer,
+				}
+				hz := &hazelcastv1alpha1.Hazelcast{
+					ObjectMeta: randomObjectMeta(namespace),
+					Spec:       spec,
+				}
+
+				create(hz)
+				assertHzStatusIsPending(hz)
+
+				By("checking service-per-pod services")
+				serviceList := &corev1.ServiceList{}
+				err := k8sClient.List(context.Background(), serviceList, client.InNamespace(hz.Namespace), labelFilter(hz))
+				Expect(err).Should(BeNil())
+				Expect(serviceList.Items).Should(HaveLen(int(*hz.Spec.ClusterSize) + 1))
+
+				By("checking exposed wan ports")
+				svcMap := servicesToMap(serviceList.Items)
+
+				for i := 0; i < int(*hz.Spec.ClusterSize); i++ {
+					serviceName := fmt.Sprintf("%s-%d", hz.Name, i)
+					Expect(svcMap).To(HaveKey(serviceName))
+					svc := svcMap[serviceName]
+					Expect(svc.Spec.Type).Should(BeEquivalentTo(hazelcastv1alpha1.MemberAccessLoadBalancer))
+					servicePorts := make([]int32, 0)
+					for _, port := range svc.Spec.Ports {
+						servicePorts = append(servicePorts, port.Port)
+					}
+					Expect(servicePorts).Should(Not(ContainElement(int32(5710))))
+				}
+
+				Expect(svcMap).To(HaveKey(hz.Name))
+				svc := svcMap[hz.Name]
+				servicePorts := make([]int32, 0)
+				for _, port := range svc.Spec.Ports {
+					servicePorts = append(servicePorts, port.Port)
+				}
+				Expect(servicePorts).Should(ContainElement(int32(5710)))
+			})
 		})
 
 		It("should fail to overlap WAN ports with each other", func() {
@@ -1721,14 +1864,14 @@ var _ = Describe("Hazelcast CR", func() {
 				Should(MatchError(ContainSubstring("spec.advancedNetwork.wan[0]: Invalid value: \"5702-5704\": wan ports conflicting with one of 5701,5702,8081")))
 		})
 
-		It("should fail to set ServiceType to non-existing type value", func() {
+		It("should fail to set ServiceType to non-existing value", func() {
 			spec := test.HazelcastSpec(defaultHazelcastSpecValues())
 			spec.AdvancedNetwork = &hazelcastv1alpha1.AdvancedNetwork{
 				WAN: []hazelcastv1alpha1.WANConfig{
 					{
 						Port:        5702,
 						PortCount:   3,
-						ServiceType: corev1.ServiceTypeExternalName,
+						ServiceType: hazelcastv1alpha1.WANServiceType(corev1.ServiceTypeExternalName),
 					},
 				},
 			}
@@ -1739,7 +1882,28 @@ var _ = Describe("Hazelcast CR", func() {
 			}
 
 			Expect(k8sClient.Create(context.Background(), hz)).
-				Should(MatchError(ContainSubstring("invalid serviceType value, possible values are ClusterIP and LoadBalancer")))
+				Should(MatchError(ContainSubstring("is invalid: spec.advancedNetwork.wan[0].serviceType: Unsupported value: \"ExternalName\": supported values: \"ClusterIP\", \"NodePort\", \"LoadBalancer\", \"WithExposeExternally\"")))
+		})
+
+		It("should fail to set ServiceType to WithExposeExternally when exposeExternally is not enabled", func() {
+			spec := test.HazelcastSpec(defaultHazelcastSpecValues())
+			spec.AdvancedNetwork = &hazelcastv1alpha1.AdvancedNetwork{
+				WAN: []hazelcastv1alpha1.WANConfig{
+					{
+						Port:        5702,
+						PortCount:   3,
+						ServiceType: hazelcastv1alpha1.WANServiceTypeWithExposeExternally,
+					},
+				},
+			}
+
+			hz := &hazelcastv1alpha1.Hazelcast{
+				ObjectMeta: randomObjectMeta(namespace),
+				Spec:       spec,
+			}
+
+			Expect(k8sClient.Create(context.Background(), hz)).
+				Should(MatchError(ContainSubstring("is invalid: [spec.advancedNetwork.wan[0].serviceType: Forbidden: WithExposeExternally can be used when expose externally is enabled")))
 		})
 	})
 

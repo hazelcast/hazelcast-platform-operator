@@ -457,8 +457,14 @@ spec:
                         portCount:
                           type: integer
                         serviceType:
-                          description: Service Type string describes ingress methods
-                            for a service
+                          default: LoadBalancer
+                          description: WANServiceType describes the service type where
+                            the wan ports are exposed
+                          enum:
+                          - ClusterIP
+                          - NodePort
+                          - LoadBalancer
+                          - WithExposeExternally
                           type: string
                       type: object
                     type: array
