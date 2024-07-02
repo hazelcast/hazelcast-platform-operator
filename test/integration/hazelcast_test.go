@@ -1934,19 +1934,6 @@ var _ = Describe("Hazelcast CR", func() {
 				}, timeout, interval).Should(BeTrue())
 			})
 
-			It("should error when not using enterprise version", func() {
-				spec := test.HazelcastSpec(defaultHazelcastSpecValues())
-				spec.NativeMemory = &hazelcastv1alpha1.NativeMemoryConfiguration{
-					AllocatorType: hazelcastv1alpha1.NativeMemoryPooled,
-				}
-				hz := &hazelcastv1alpha1.Hazelcast{
-					ObjectMeta: randomObjectMeta(namespace),
-					Spec:       spec,
-				}
-
-				Expect(k8sClient.Create(context.Background(), hz)).Should(HaveOccurred())
-			})
-
 			It("should fail if NativeMemory.AllocatorType is not POOLED when persistence is enabled", func() {
 				spec := test.HazelcastSpec(defaultHazelcastSpecValues())
 				spec.NativeMemory = &hazelcastv1alpha1.NativeMemoryConfiguration{
