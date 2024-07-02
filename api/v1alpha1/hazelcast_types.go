@@ -197,6 +197,7 @@ type HazelcastSpec struct {
 	// Env configuration of environment variables
 	// +optional
 	// +kubebuilder:validation:XValidation:message="Environment variables cannot start with 'HZ_'. Use customConfigCmName to configure Hazelcast.",rule="self.all(env, env.name.startsWith('HZ_') == false)"
+	// +kubebuilder:validation:XValidation:message="Environment variable name cannot be empty.",rule="self.all(env, env.name != '')"
 	Env []corev1.EnvVar `json:"env,omitempty"`
 }
 
