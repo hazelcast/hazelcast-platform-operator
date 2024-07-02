@@ -750,6 +750,8 @@ spec:
                 - message: Environment variables cannot start with 'HZ_'. Use customConfigCmName
                     to configure Hazelcast.
                   rule: self.all(env, env.name.startsWith('HZ_') == false)
+                - message: Environment variable name cannot be empty.
+                  rule: self.all(env, env.name != '')
               executorServices:
                 description: Java Executor Service configurations, see https://docs.hazelcast.com/hazelcast/latest/computing/executor-service
                 items:
