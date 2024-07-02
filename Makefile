@@ -30,7 +30,7 @@ CONTROLLER_RUNTIME_VERSION ?= v0.16.3
 # https://github.com/redhat-openshift-ecosystem/ocp-olm-catalog-validator/releases
 OCP_OLM_CATALOG_VALIDATOR_VERSION ?= v0.0.1
 # https://github.com/operator-framework/operator-registry/releases
-OPM_VERSION ?= v1.26.2
+OPM_VERSION ?= v1.43.1
 # https://github.com/onsi/ginkgo/releases
 # It is set in the go.mod file
 GINKGO_VERSION ?= $(shell go list -m -f "{{.Version}}" github.com/onsi/ginkgo/v2)
@@ -140,7 +140,7 @@ help: ## Display this help.
 ##@ Development
 
 manifests: controller-gen ## Generate WebhookConfiguration, ClusterRole and CustomResourceDefinition objects.
-	@$(CONTROLLER_GEN) $(CRD_OPTIONS) rbac:roleName=manager-role webhook paths="./..." output:crd:artifacts:config=config/crd/bases
+	@$(CONTROLLER_GEN) $(CRD_OPTIONS) webhook paths="./..." output:crd:artifacts:config=config/crd/bases
 
 generate: controller-gen ## Generate code containing DeepCopy, DeepCopyInto, and DeepCopyObject method implementations.
 	@$(CONTROLLER_GEN) object:headerFile="hack/boilerplate.go.txt" paths="./..."
@@ -367,33 +367,52 @@ clean-up-namespace: ## Clean up all the resources that were created by the opera
 
 .PHONY: bundle
 bundle: operator-sdk manifests kustomize yq ## Generate bundle manifests and metadata, then validate generated files.
+	cd tools/olm-helm-role-sync && go run role-sync.go
 	$(OPERATOR_SDK) generate kustomize manifests -q
 	cd config/manager && $(KUSTOMIZE) edit set image controller=$(IMG)
 	($(YQ) 'select(.kind == "ClusterRole")  | .' config/rbac/role.yaml && \
 	 echo "---" && \
 	 $(YQ)  eval-all '. | select(.kind == "Role" ) | . as $$item ireduce ({}; . *+ $$item) '  config/rbac/role.yaml) > config/rbac/role.yaml.new && mv config/rbac/role.yaml.new config/rbac/role.yaml
-	$(KUSTOMIZE) build config/manifests | $(OPERATOR_SDK) generate bundle -q --use-image-digests --overwrite --version $(BUNDLE_VERSION) $(BUNDLE_METADATA_OPTS)
+	$(KUSTOMIZE) build config/manifests | $(OPERATOR_SDK) generate bundle -q --use-image-digests --overwrite --default-channel stable-v$(BUNDLE_VERSION) --version $(BUNDLE_VERSION) $(BUNDLE_METADATA_OPTS)
 	$(MAKE) manifests # Revert changes done for generating bundle
 	sed -i "s|containerImage: REPLACE_IMG|containerImage: $(IMG)|" bundle/manifests/hazelcast-platform-operator.clusterserviceversion.yaml
 	sed -i "s|createdAt: REPLACE_DATE|createdAt: \"$$(date +%F)T11:59:59Z\"|" bundle/manifests/hazelcast-platform-operator.clusterserviceversion.yaml
 	$(OPERATOR_SDK) bundle validate ./bundle --select-optional suite=operatorframework
 
-olm-deploy: operator-sdk ## Deploying Operator with OLM bundle. Available modes are AllNamespace|OwnNamespace|SingleNamespace
-	@$(eval CONTAINER_IMAGE=ttl.sh/$(shell uuidgen | tr "[:upper:]" "[:lower:]"):4h)
-	@$(eval BUNDLE_IMAGE=ttl.sh/$(shell uuidgen | tr "[:upper:]" "[:lower:]"):4h)
-	@$(eval VERSION=1.0.0)
+olm-deploy: opm operator-sdk ## Deploying Operator with OLM bundle. Available modes are AllNamespace|OwnNamespace|SingleNamespace
+	set -xeEuo pipefail
+	@$(eval CONTAINER_IMAGE=ttl.sh/ci-$(shell uuidgen | tr "[:upper:]" "[:lower:]"):4h)
+	@$(eval CATALOG_IMAGE=ttl.sh/ci-$(shell uuidgen | tr "[:upper:]" "[:lower:]"):4h)
+	@$(eval BUNDLE_IMAGE=ttl.sh/bi-$(shell uuidgen | tr "[:upper:]" "[:lower:]"):4h)
 	$(MAKE) docker-build-ci IMG=$(CONTAINER_IMAGE) VERSION=$(VERSION)
 	$(MAKE) docker-push IMG=$(CONTAINER_IMAGE)
 	$(MAKE) bundle IMG=${CONTAINER_IMAGE} VERSION=$(VERSION)
-	@printf "  com.redhat.openshift.versions: v4.8\n  operators.operatorframework.io.bundle.channel.default.v1: alpha" >> ./bundle/metadata/annotations.yaml
 	docker build -f bundle.Dockerfile -t ${BUNDLE_IMAGE} .
 	docker push ${BUNDLE_IMAGE}
-	$(KUBECTL) create namespace $(NS)
-	operator-sdk run bundle ${BUNDLE_IMAGE} --namespace=$(NS) --timeout=10m --install-mode=$(MODE)
 
-cleanup-olm: operator-sdk ## Clean up an Operator deployed with OLM
-	operator-sdk cleanup hazelcast-platform-operator --namespace=$(NS)
-	$(KUBECTL) delete namespace $(NS) --wait=true --timeout 5m
+	rm -rf catalog/ cn-operator-template.yaml cn-catalog.yaml cn-group.yaml cn-subscription.yaml catalog.Dockerfile
+	mkdir catalog/
+	$(OPM) generate dockerfile catalog
+
+	echo -e "Schema: olm.semver\nGenerateMajorChannels: false\nGenerateMinorChannels: false\nStable:\n  Bundles:\n  - Image: ${BUNDLE_IMAGE}" > cn-operator-template.yaml
+
+	$(OPM) alpha render-template semver -o yaml < cn-operator-template.yaml > catalog/catalog.yaml
+	$(OPM) validate catalog/
+	DOCKER_BUILDKIT=1 docker build --push -f catalog.Dockerfile -t ${CATALOG_IMAGE} .
+
+	echo -e "apiVersion: operators.coreos.com/v1alpha1\nkind: CatalogSource\nmetadata:\n  name: cn-catalog\n  namespace: operators\nspec:\n  sourceType: grpc\n  image: ${CATALOG_IMAGE}" > cn-catalog.yaml
+
+	$(KUBECTL) apply -f cn-catalog.yaml
+
+	echo -e "kind: OperatorGroup\napiVersion: operators.coreos.com/v1\nmetadata:\n   name: hazelcast-group\n   namespace: hazelcast\nspec:\n   targetNamespaces:\n     - test-operator-ee" > cn-group.yaml
+
+	$(KUBECTL) apply -f cn-group.yaml
+
+	echo -e "apiVersion: operators.coreos.com/v1alpha1\nkind: Subscription\nmetadata:\n  name: hazelcast-operator-sub\n  namespace: operators\nspec:\n  channel: stable-v$(VERSION)\n  installPlanApproval: Automatic\n  name: hazelcast-platform-operator\n  source: cn-catalog\n  sourceNamespace: operators\n  startingCSV: hazelcast-platform-operator.v$(VERSION).0" > cn-subscription.yaml
+
+	$(KUBECTL) apply -f cn-subscription.yaml
+	sleep 60
+	$(KUBECTL) rollout status -w deployment.apps/hazelcast-platform-controller-manager --namespace operators --timeout=60s
 
 .PHONY: bundle-build
 bundle-build: ## Build the bundle image.

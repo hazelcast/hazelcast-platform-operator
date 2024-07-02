@@ -45,10 +45,6 @@ func NewMapReconciler(c client.Client, log logr.Logger, pht chan struct{}, cs hz
 	}
 }
 
-//+kubebuilder:rbac:groups=hazelcast.com,resources=maps,verbs=get;list;watch;create;update;patch;delete,namespace=watched
-//+kubebuilder:rbac:groups=hazelcast.com,resources=maps/status,verbs=get;update;patch,namespace=watched
-//+kubebuilder:rbac:groups=hazelcast.com,resources=maps/finalizers,verbs=update,namespace=watched
-
 func (r *MapReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	logger := r.Log.WithValues("hazelcast-map", req.NamespacedName)
 
