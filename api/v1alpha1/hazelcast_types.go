@@ -1148,7 +1148,8 @@ type AdvancedNetwork struct {
 	// +optional
 	ClientServerSocketEndpointConfig ServerSocketEndpointConfig `json:"clientServerSocketEndpointConfig,omitempty"`
 
-	// +optional
+	// +listType=map
+	// +listMapKey=name
 	WAN []WANConfig `json:"wan,omitempty"`
 }
 
@@ -1156,8 +1157,9 @@ type WANConfig struct {
 	Port        uint               `json:"port,omitempty"`
 	PortCount   uint               `json:"portCount,omitempty"`
 	ServiceType corev1.ServiceType `json:"serviceType,omitempty"`
+	// +required
 	// +kubebuilder:validation:MaxLength:=8
-	Name string `json:"name,omitempty"`
+	Name string `json:"name"`
 }
 
 type ServerSocketEndpointConfig struct {

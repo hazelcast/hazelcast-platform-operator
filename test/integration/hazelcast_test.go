@@ -1721,6 +1721,32 @@ var _ = Describe("Hazelcast CR", func() {
 				Should(MatchError(ContainSubstring("spec.advancedNetwork.wan[0]: Invalid value: \"5702-5704\": wan ports conflicting with one of 5701,5702,8081")))
 		})
 
+		It("should fail when WAN name is duplicated", func() {
+			spec := test.HazelcastSpec(defaultHazelcastSpecValues(), ee)
+			spec.AdvancedNetwork = &hazelcastv1alpha1.AdvancedNetwork{
+				WAN: []hazelcastv1alpha1.WANConfig{
+					{
+						Name:      "London",
+						Port:      5702,
+						PortCount: 3,
+					},
+					{
+						Name:      "London",
+						Port:      5705,
+						PortCount: 2,
+					},
+				},
+			}
+
+			hz := &hazelcastv1alpha1.Hazelcast{
+				ObjectMeta: randomObjectMeta(namespace),
+				Spec:       spec,
+			}
+
+			Expect(k8sClient.Create(context.Background(), hz)).
+				Should(MatchError(ContainSubstring("is invalid: spec.advancedNetwork.wan[1]: Duplicate value: map[string]interface {}{\"name\":\"London\"}")))
+		})
+
 		It("should fail to set ServiceType to non-existing type value", func() {
 			spec := test.HazelcastSpec(defaultHazelcastSpecValues())
 			spec.AdvancedNetwork = &hazelcastv1alpha1.AdvancedNetwork{
