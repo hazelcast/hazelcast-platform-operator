@@ -222,6 +222,10 @@ ifeq ($(WORKFLOW_ID),eks)
 E2E_TEST_LABELS:=$(E2E_TEST_LABELS) && aws
 endif
 
+ifeq ($(WORKFLOW_ID),olm)
+E2E_TEST_LABELS:=$(E2E_TEST_LABELS) && gcp
+endif
+
 ifeq ($(WORKFLOW_ID),aks)
 E2E_TEST_LABELS:=$(E2E_TEST_LABELS) && azure
 endif
