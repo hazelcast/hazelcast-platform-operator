@@ -8,7 +8,7 @@ Hazelcast Platform Operator consists of controllers and [Custom Resources](https
 
 ## Hazelcast Custom Resource
 
-You can create Hazelcast clusters using the Hazelcast Custom Resource. The operator supports both open source and enterprise clusters. Hazelcast Custom Resource's main logic lies in the `controllers/hazelcast/hazelcast_controller.go`. In the reconciliation logic, at every step operator ensures the state is healthy before continuing with the following step. 
+You can create Hazelcast clusters using the Hazelcast Custom Resource. The operator supports enterprise clusters. Hazelcast Custom Resource's main logic lies in the `controllers/hazelcast/hazelcast_controller.go`. In the reconciliation logic, at every step operator ensures the state is healthy before continuing with the following step. 
 
 ```mermaid
 flowchart LR

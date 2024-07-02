@@ -48,9 +48,7 @@ spec:
           metadata:
             type: object
           spec:
-            default:
-              repository: docker.io/hazelcast/hazelcast
-            description: Initial values will be filled with its fields' default values.
+            description: HazelcastSpec defines the desired state of Hazelcast
             properties:
               advancedNetwork:
                 description: Hazelcast Advanced Network configuration
@@ -617,6 +615,7 @@ spec:
               licenseKeySecretName:
                 description: Name of the secret with Hazelcast Enterprise License
                   Key.
+                minLength: 1
                 type: string
               localDevices:
                 description: Hazelcast LocalDevice configuration
@@ -848,7 +847,7 @@ spec:
                 description: Hazelcast system properties, see https://docs.hazelcast.com/hazelcast/latest/system-properties
                 type: object
               repository:
-                default: docker.io/hazelcast/hazelcast
+                default: docker.io/hazelcast/hazelcast-enterprise
                 description: Repository to pull the Hazelcast Platform image from.
                 type: string
               resources:
@@ -2312,6 +2311,8 @@ spec:
                 default: 5.5.0-SNAPSHOT
                 description: Version of Hazelcast Platform.
                 type: string
+            required:
+            - licenseKeySecretName
             type: object
           status:
             description: HazelcastStatus defines the observed state of Hazelcast

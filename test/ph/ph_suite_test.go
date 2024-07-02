@@ -25,7 +25,7 @@ var controllerManagerName = types.NamespacedName{
 
 func TestPhoneHome(t *testing.T) {
 	RegisterFailHandler(Fail)
-	RunSpecs(t, GetSuiteName())
+	RunSpecs(t, "Operator Suite")
 }
 
 var _ = BeforeSuite(func() {

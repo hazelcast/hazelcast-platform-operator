@@ -46,9 +46,9 @@ var _ = Describe("Hazelcast Map - ", Group("map"), func() {
 	})
 
 	Context("Creating Map configurations", func() {
-		It("creates map config with correct default values", Tag(Kind|Any), func() {
+		It("creates map config with correct default values", Tag(Kind|AnyCloud), func() {
 			setLabelAndCRName("hm-1")
-			hazelcast := hazelcastconfig.Default(hzLookupKey, ee, labels)
+			hazelcast := hazelcastconfig.Default(hzLookupKey, labels)
 			CreateHazelcastCR(hazelcast)
 
 			By("creating the map config")
@@ -70,9 +70,9 @@ var _ = Describe("Hazelcast Map - ", Group("map"), func() {
 			Expect(mapConfig.MergePolicy).Should(Equal("com.hazelcast.spi.merge.PutIfAbsentMergePolicy"))
 		})
 
-		It("creates map config with indexes", Tag(Kind|Any), func() {
+		It("creates map config with indexes", Tag(Kind|AnyCloud), func() {
 			setLabelAndCRName("hm-2")
-			hazelcast := hazelcastconfig.Default(hzLookupKey, ee, labels)
+			hazelcast := hazelcastconfig.Default(hzLookupKey, labels)
 			CreateHazelcastCR(hazelcast)
 
 			m := hazelcastconfig.DefaultMap(mapLookupKey, hazelcast.Name, labels)
@@ -124,9 +124,9 @@ var _ = Describe("Hazelcast Map - ", Group("map"), func() {
 
 		})
 
-		It("persists map config with indexes", Tag(Kind|Any), func() {
+		It("persists map config with indexes", Tag(Kind|AnyCloud), func() {
 			setLabelAndCRName("hm-3")
-			hazelcast := hazelcastconfig.Default(hzLookupKey, ee, labels)
+			hazelcast := hazelcastconfig.Default(hzLookupKey, labels)
 			CreateHazelcastCR(hazelcast)
 
 			m := hazelcastconfig.DefaultMap(mapLookupKey, hazelcast.Name, labels)
@@ -155,11 +155,11 @@ var _ = Describe("Hazelcast Map - ", Group("map"), func() {
 			Expect(hzConfig.Hazelcast.Map[m.Name].Indexes[0].BitmapIndexOptions.UniqueKeyTransformation).Should(Equal(string(hazelcastcomv1alpha1.UniqueKeyTransitionRAW)))
 		})
 
-		It("persist and removed map config in/from Hazelcast config", Tag(Kind|EE|AnyCloud), func() {
+		It("persist and removed map config in/from Hazelcast config", Tag(Kind|AnyCloud), func() {
 			setLabelAndCRName("hm-4")
 			maps := []string{"map1", "map2", "map3", "mapfail"}
 
-			hazelcast := hazelcastconfig.Default(hzLookupKey, ee, labels)
+			hazelcast := hazelcastconfig.Default(hzLookupKey, labels)
 			CreateHazelcastCR(hazelcast)
 			evaluateReadyMembers(hzLookupKey)
 
@@ -197,9 +197,9 @@ var _ = Describe("Hazelcast Map - ", Group("map"), func() {
 			})
 		})
 
-		It("should persist Map Config with Attributes", Tag(Kind|Any), func() {
+		It("should persist Map Config with Attributes", Tag(Kind|AnyCloud), func() {
 			setLabelAndCRName("hm-5")
-			hazelcast := hazelcastconfig.Default(hzLookupKey, ee, labels)
+			hazelcast := hazelcastconfig.Default(hzLookupKey, labels)
 			CreateHazelcastCR(hazelcast)
 
 			m := hazelcastconfig.DefaultMap(mapLookupKey, hazelcast.Name, labels)
@@ -222,9 +222,9 @@ var _ = Describe("Hazelcast Map - ", Group("map"), func() {
 	})
 
 	Context("Updating map configuration", func() {
-		It("updates the map configuration correctly", Tag(Kind|Any), func() {
+		It("updates the map configuration correctly", Tag(Kind|AnyCloud), func() {
 			setLabelAndCRName("hm-6")
-			hazelcast := hazelcastconfig.Default(hzLookupKey, ee, labels)
+			hazelcast := hazelcastconfig.Default(hzLookupKey, labels)
 			CreateHazelcastCR(hazelcast)
 
 			By("port-forwarding to Hazelcast master pod")
@@ -260,9 +260,9 @@ var _ = Describe("Hazelcast Map - ", Group("map"), func() {
 
 		})
 
-		It("maintains last applied Map Config upon update failure", Label("cluster_scope"), Tag(Kind|Any), func() {
+		It("maintains last applied Map Config upon update failure", Label("cluster_scope"), Tag(Kind|AnyCloud), func() {
 			setLabelAndCRName("hm-7")
-			hazelcast := hazelcastconfig.Default(hzLookupKey, ee, labels)
+			hazelcast := hazelcastconfig.Default(hzLookupKey, labels)
 			CreateHazelcastCR(hazelcast)
 
 			m := hazelcastconfig.DefaultMap(mapLookupKey, hazelcast.Name, labels)
@@ -288,9 +288,9 @@ var _ = Describe("Hazelcast Map - ", Group("map"), func() {
 
 	Context("Validating map configurations", func() {
 		When("native memory is not enabled for Hazelcast CR", func() {
-			It("fails creating a map configuration with InMemoryFormat value", Tag(Kind|Any), func() {
+			It("fails creating a map configuration with InMemoryFormat value", Tag(Kind|AnyCloud), func() {
 				setLabelAndCRName("hm-8")
-				hazelcast := hazelcastconfig.Default(hzLookupKey, ee, labels)
+				hazelcast := hazelcastconfig.Default(hzLookupKey, labels)
 				CreateHazelcastCR(hazelcast)
 
 				By("creating the map config with NativeMemory")
@@ -302,9 +302,9 @@ var _ = Describe("Hazelcast Map - ", Group("map"), func() {
 				Expect(m.Status.Message).To(ContainSubstring("Native Memory must be enabled at Hazelcast"))
 			})
 
-			It("fails to set InMemoryFormat as NativeMemory in near cache", Tag(Kind|Any), func() {
+			It("fails to set InMemoryFormat as NativeMemory in near cache", Tag(Kind|AnyCloud), func() {
 				setLabelAndCRName("hm-9")
-				hazelcast := hazelcastconfig.Default(hzLookupKey, ee, labels)
+				hazelcast := hazelcastconfig.Default(hzLookupKey, labels)
 				CreateHazelcastCR(hazelcast)
 
 				By("creating the map config with NativeMemory enabled for near cache")
@@ -317,9 +317,9 @@ var _ = Describe("Hazelcast Map - ", Group("map"), func() {
 			})
 		})
 
-		It("fails when map CR persistence setting mismatches Hazelcast CR setting", Tag(Kind|Any), func() {
+		It("fails when map CR persistence setting mismatches Hazelcast CR setting", Tag(Kind|AnyCloud), func() {
 			setLabelAndCRName("hm-10")
-			hazelcast := hazelcastconfig.Default(hzLookupKey, ee, labels)
+			hazelcast := hazelcastconfig.Default(hzLookupKey, labels)
 			CreateHazelcastCR(hazelcast)
 
 			m := hazelcastconfig.PersistedMap(mapLookupKey, hazelcast.Name, labels)

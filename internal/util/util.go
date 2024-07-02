@@ -187,14 +187,6 @@ func listPods(ctx context.Context, cl client.Client, sts *appsv1.StatefulSet) (*
 	return pods, nil
 }
 
-func IsEnterprise(repo string) bool {
-	path := strings.Split(repo, "/")
-	if len(path) == 0 {
-		return false
-	}
-	return strings.HasSuffix(path[len(path)-1], "-enterprise")
-}
-
 func IsPhoneHomeEnabled() bool {
 	phEnabled, found := os.LookupEnv(n.PhoneHomeEnabledEnv)
 	return !found || phEnabled == "true"

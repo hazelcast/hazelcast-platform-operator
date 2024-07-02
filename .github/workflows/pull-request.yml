@@ -105,11 +105,8 @@ jobs:
       - name: Run unit tests
         run: make test-unit
 
-      - name: Run integration tests (OS)
-        run: make GO_TEST_FLAGS="-ee=false" test-it
-
       - name: Run integration tests (EE)
-        run: make GO_TEST_FLAGS="-ee=true" test-it
+        run: make test-it
 
   check_breaking_changes:
     name: Check breaking changes
@@ -176,7 +173,7 @@ jobs:
           echo "IMG=${{ env.GAR_REGION }}-docker.pkg.dev/${{ env.GAR_PROJECT }}/${{ env.GAR_REPO }}/$(uuidgen):5d" >> $GITHUB_OUTPUT
 
       - name: Build Image
-        uses: docker/build-push-action@v6.1.0
+        uses: docker/build-push-action@v6.2.0
         with:
           context: .
           builder: ${{ steps.buildx.outputs.name }}
@@ -198,7 +195,6 @@ jobs:
       matrix:
         node_number:
           ["01", "02", "03", "04", "05", "06", "07", "08", "09", "10"]
-        edition: ["os", "ee"]
     if: >-
       ( !cancelled()
       && ((github.event_name == 'pull_request_target'
@@ -210,8 +206,8 @@ jobs:
             && github.event.pull_request.head.repo.full_name == github.repository))
       )
     env:
-      NAMESPACE: kind-test-operator-${{ matrix.edition }}
-      RELEASE_NAME: hp-${{ matrix.edition }}-${{ github.run_id }}
+      NAMESPACE: kind-test-operator
+      RELEASE_NAME: hp-${{ github.run_id }}
       CLUSTER_NAME: kind
       IMG: ${{ needs.get-image.outputs.IMG }}
     steps:
@@ -325,7 +321,6 @@ jobs:
             EOF
 
       - name: Create Secrets
-        if: matrix.edition == 'ee'
         run: |
           kubectl create secret generic hazelcast-license-key \
              --namespace ${{ env.NAMESPACE }} \
@@ -342,8 +337,6 @@ jobs:
             --from-literal=storage-account=operatortest \
             --from-literal=storage-key=${{ env.AZURE_STORAGE_KEY }}
 
-      - name: Create Secret For Both OS and EE Tests
-        run: |
           kubectl create secret generic br-secret-gcp \
           --namespace ${{ env.NAMESPACE }} \
           --from-literal=google-credentials-path='${{ env.GKE_SA_KEY }}'
@@ -369,12 +362,7 @@ jobs:
       - name: Run Tests
         id: e2e-test
         run: |
-          case ${{ matrix.edition }} in
-            os) GO_TEST_FLAGS=-ee=false;;
-            ee) GO_TEST_FLAGS=-ee=true;;
-            *)  echo Unexpected edition: ${{ matrix.edition }} && exit 1;;
-          esac
-          make test-e2e-split-kind REPORT_SUFFIX=${{ matrix.edition }}_${{ matrix.node_number }} GO_TEST_FLAGS=${GO_TEST_FLAGS} NAMESPACE=${NAMESPACE} RELEASE_NAME=${RELEASE_NAME} WORKFLOW_ID=pr SHARD_ID="${{ matrix.node_number }}"
+          make test-e2e-split-kind REPORT_SUFFIX=ee_${{ matrix.node_number }} NAMESPACE=${NAMESPACE} RELEASE_NAME=${RELEASE_NAME} WORKFLOW_ID=pr SHARD_ID="${{ matrix.node_number }}"
 
       - name: Upload Test Report
         if: always()

@@ -2,10 +2,13 @@ package hazelcast
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
+	"reflect"
 	"time"
 
 	"github.com/go-logr/logr"
+	"github.com/hazelcast/hazelcast-platform-operator/internal/controller/hazelcast/mutate"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
@@ -21,7 +24,6 @@ import (
 
 	hazelcastv1alpha1 "github.com/hazelcast/hazelcast-platform-operator/api/v1alpha1"
 	recoptions "github.com/hazelcast/hazelcast-platform-operator/internal/controller"
-	"github.com/hazelcast/hazelcast-platform-operator/internal/controller/hazelcast/mutate"
 	hzclient "github.com/hazelcast/hazelcast-platform-operator/internal/hazelcast-client"
 	"github.com/hazelcast/hazelcast-platform-operator/internal/mtls"
 	n "github.com/hazelcast/hazelcast-platform-operator/internal/naming"
@@ -56,29 +58,6 @@ func NewHazelcastReconciler(c client.Client, log logr.Logger, s *runtime.Scheme,
 	}
 }
 
-// Role related to CRs
-//+kubebuilder:rbac:groups=hazelcast.com,resources=hazelcasts,verbs=get;list;watch;create;update;patch;delete,namespace=watched
-//+kubebuilder:rbac:groups=hazelcast.com,resources=hazelcasts/status,verbs=get;update;patch,namespace=watched
-//+kubebuilder:rbac:groups=hazelcast.com,resources=hazelcasts/finalizers,verbs=update,namespace=watched
-// ClusterRole inherited from permissions Hazelcast needs for node,zone discovery
-//+kubebuilder:rbac:groups="",resources=nodes,verbs=get
-// Role inherited from permissions Hazelcast needs for discovery
-//+kubebuilder:rbac:groups="",resources=endpoints;pods;services,verbs=get;list,namespace=watched
-// Role inherited from permissions Hazelcast needs for persistence
-//+kubebuilder:rbac:groups="apps",resources=statefulsets,verbs=watch;list,namespace=watched
-// ClusterRole related to Reconcile() to be able to give Hazelcast ClusterRole permissions
-//+kubebuilder:rbac:groups="rbac.authorization.k8s.io",resources=clusterroles;clusterrolebindings,verbs=get;list;watch;create;update;patch;delete
-// Role related to Reconcile() to be able to give Hazelcast Role permissions
-//+kubebuilder:rbac:groups="rbac.authorization.k8s.io",resources=roles;rolebindings,verbs=get;list;watch;create;update;patch;delete,namespace=watched
-// Role related to Reconcile()
-//+kubebuilder:rbac:groups="",resources=events;services;serviceaccounts;configmaps;secrets;pods,verbs=get;list;watch;create;update;patch;delete,namespace=watched
-//+kubebuilder:rbac:groups="apps",resources=statefulsets,verbs=get;list;watch;create;update;patch;delete,namespace=watched
-//+kubebuilder:rbac:groups="",resources=secrets,verbs=create;update;watch;get;list,namespace=watched
-// Role related to Reconcile() HazelcastEndpoint
-//+kubebuilder:rbac:groups=hazelcast.com,resources=hazelcastendpoints,verbs=get;list;watch;create;update;patch;delete,namespace=watched
-//+kubebuilder:rbac:groups=hazelcast.com,resources=hazelcastendpoints/status,verbs=get;update;patch,namespace=watched
-//+kubebuilder:rbac:groups=hazelcast.com,resources=hazelcastendpoints/finalizers,verbs=update,namespace=watched
-
 func (r *HazelcastReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	logger := r.Log.WithValues("hazelcast", req.NamespacedName)
 
@@ -108,6 +87,23 @@ func (r *HazelcastReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 		}
 		logger.V(util.DebugLevel).Info("Finalizer's pre-delete function executed successfully and the finalizer removed from custom resource", "Name:", n.Finalizer)
 		return ctrl.Result{}, nil
+	}
+
+	var isSpecChanged bool
+	if lastAppliedSpec, ok := h.ObjectMeta.Annotations[n.LastAppliedSpecAnnotation]; ok {
+		b, _ := json.Marshal(h.Spec)
+		isSpecChanged = !reflect.DeepEqual(lastAppliedSpec, string(b))
+	} else {
+		isSpecChanged = true
+	}
+
+	if !isSpecChanged && h.Status.Message == illegalClusterType.Error() {
+		return ctrl.Result{}, nil
+	} else if isSpecChanged {
+		err = r.updateLastAppliedSpec(ctx, h, logger)
+		if err != nil {
+			return r.update(ctx, h, recoptions.Error(err), withHzFailedPhase(err.Error()))
+		}
 	}
 
 	if mutated := mutate.HazelcastSpec(h); mutated {
@@ -227,6 +223,7 @@ func (r *HazelcastReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 			return r.update(ctx, h, recoptions.RetryAfter(retryAfter),
 				withHzPhase(hazelcastv1alpha1.Pending),
 				r.withMemberStatuses(ctx, h, err),
+				withHzMessage(""),
 				withHzStatefulSet(statefulSet),
 			)
 		}
@@ -242,6 +239,7 @@ func (r *HazelcastReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 			return r.update(ctx, h, recoptions.RetryAfter(retryAfter),
 				withHzPhase(hazelcastv1alpha1.Pending),
 				r.withMemberStatuses(ctx, h, err),
+				withHzMessage(""),
 				withHzStatefulSet(statefulSet),
 			)
 		} else {
@@ -263,6 +261,17 @@ func (r *HazelcastReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 		)
 	}
 	r.statusServiceRegistry.Create(req.NamespacedName, cl, r.Log, r.triggerReconcileChan)
+
+	isEnterprise, err := r.isEnterpriseCluster(ctx, cl, h)
+	if err != nil {
+		return r.update(ctx, h, recoptions.Error(err), withHzFailedPhase(err.Error()))
+	}
+	if !isEnterprise {
+		if err = r.Client.Delete(ctx, &statefulSet); err != nil {
+			return ctrl.Result{}, err
+		}
+		return r.update(ctx, h, recoptions.Error(illegalClusterType), withHzFailedPhase(illegalClusterType.Error()))
+	}
 
 	if err = r.ensureClusterActive(ctx, cl, h); err != nil {
 		logger.Error(err, "Cluster activation attempt after hot restore failed")

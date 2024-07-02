@@ -59,8 +59,8 @@ var _ = Context("Hazelcast WAN Sync", Group("wan_sync"), func() {
 		By("checking the size of the maps in the target cluster")
 		waitForMapSizePortForward(context.Background(), hzCrs[hzTrgLookupKey.Name], localPort, mapLookupKey.Name, mapSize, 1*Minute)
 	},
-		Entry("using Full WAN Sync", Tag(EE|AnyCloud), false),
-		Entry("using Delta WAN Sync", Tag(EE|AnyCloud), true),
+		Entry("using Full WAN Sync", Tag(AnyCloud), false),
+		Entry("using Delta WAN Sync", Tag(AnyCloud), true),
 	)
 
 	DescribeTable("should sync two maps with another cluster", func(isDelta bool) {
@@ -92,7 +92,7 @@ var _ = Context("Hazelcast WAN Sync", Group("wan_sync"), func() {
 		waitForMapSizePortForward(context.Background(), hzCrs[hzTrgLookupKey.Name], localPort, srcMap1, mapSize, 1*Minute)
 		waitForMapSizePortForward(context.Background(), hzCrs[hzTrgLookupKey.Name], localPort, srcMap2, mapSize, 1*Minute)
 	},
-		Entry("using Full WAN Sync", Tag(EE|AnyCloud), false),
-		Entry("using Delta WAN Sync", Tag(EE|AnyCloud), true),
+		Entry("using Full WAN Sync", Tag(AnyCloud), false),
+		Entry("using Delta WAN Sync", Tag(AnyCloud), true),
 	)
 })

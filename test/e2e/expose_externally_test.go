@@ -48,11 +48,11 @@ var _ = Describe("Hazelcast CR with expose externally feature", Group("expose_ex
 	}
 
 	Context("Cluster connectivity", func() {
-		It("should enable Hazelcast unisocket client connection to an externally exposed cluster", Tag(Kind|Any), func() {
+		It("should enable Hazelcast unisocket client connection to an externally exposed cluster", Tag(Kind), func() {
 			skipIfIstioSetup()
 
 			setLabelAndCRName("hee-1")
-			hazelcast := hazelcastconfig.ExposeExternallyUnisocket(hzLookupKey, ee, labels)
+			hazelcast := hazelcastconfig.ExposeExternallyUnisocket(hzLookupKey, labels)
 			CreateHazelcastCR(hazelcast)
 			evaluateReadyMembers(hzLookupKey)
 
@@ -64,11 +64,11 @@ var _ = Describe("Hazelcast CR with expose externally feature", Group("expose_ex
 			assertExternalAddressesNotEmpty()
 		})
 
-		It("should enable Hazelcast smart client connection to a cluster exposed with NodePort", Tag(AnyLicense|AWS|GCP|AZURE), func() {
+		It("should enable Hazelcast smart client connection to a cluster exposed with NodePort", Tag(AWS|GCP|AZURE), func() {
 			skipIfIstioSetup()
 
 			setLabelAndCRName("hee-2")
-			hazelcast := hazelcastconfig.ExposeExternallySmartNodePort(hzLookupKey, ee, labels)
+			hazelcast := hazelcastconfig.ExposeExternallySmartNodePort(hzLookupKey, labels)
 			CreateHazelcastCR(hazelcast)
 			evaluateReadyMembers(hzLookupKey)
 
@@ -121,11 +121,11 @@ var _ = Describe("Hazelcast CR with expose externally feature", Group("expose_ex
 			WaitForMapSize(ctx, hzLookupKey, "map", 100, Minute)
 		})
 
-		It("should enable Hazelcast smart client connection to a cluster exposed with LoadBalancer", Tag(Any), func() {
+		It("should enable Hazelcast smart client connection to a cluster exposed with LoadBalancer", Tag(AnyCloud), func() {
 			skipIfIstioSetup()
 
 			setLabelAndCRName("hee-3")
-			hazelcast := hazelcastconfig.ExposeExternallySmartLoadBalancer(hzLookupKey, ee, labels)
+			hazelcast := hazelcastconfig.ExposeExternallySmartLoadBalancer(hzLookupKey, labels)
 			CreateHazelcastCR(hazelcast)
 			evaluateReadyMembers(hzLookupKey)
 

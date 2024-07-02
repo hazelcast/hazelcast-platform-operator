@@ -33,11 +33,9 @@ var _ = Describe("Hazelcast Config Secret", func() {
 	}
 
 	BeforeEach(func() {
-		if ee {
-			By(fmt.Sprintf("creating license key secret '%s'", n.LicenseDataKey))
-			licenseKeySecret := CreateLicenseKeySecret(n.LicenseKeySecret, namespace)
-			assertExists(lookupKey(licenseKeySecret), licenseKeySecret)
-		}
+		By(fmt.Sprintf("creating license key secret '%s'", n.LicenseDataKey))
+		licenseKeySecret := CreateLicenseKeySecret(n.LicenseKeySecret, namespace)
+		assertExists(lookupKey(licenseKeySecret), licenseKeySecret)
 	})
 
 	AfterEach(func() {
@@ -63,7 +61,7 @@ var _ = Describe("Hazelcast Config Secret", func() {
 			Expect(k8sClient.Create(context.Background(), cm)).Should(Succeed())
 			hz := &hazelcastv1alpha1.Hazelcast{
 				ObjectMeta: randomObjectMeta(namespace),
-				Spec:       test.HazelcastSpec(defaultHazelcastSpecValues(), ee),
+				Spec:       test.HazelcastSpec(defaultHazelcastSpecValues()),
 			}
 			hz.Spec.CustomConfigCmName = cm.Name
 			Expect(k8sClient.Create(context.Background(), hz)).Should(Succeed())
@@ -94,7 +92,7 @@ var _ = Describe("Hazelcast Config Secret", func() {
 			cm.Data = make(map[string]string)
 			cm.Data[n.HazelcastCustomConfigKey] = string(out)
 			Expect(k8sClient.Create(context.Background(), cm)).Should(Succeed())
-			spec := test.HazelcastSpec(defaultHazelcastSpecValues(), ee)
+			spec := test.HazelcastSpec(defaultHazelcastSpecValues())
 			spec.DeprecatedUserCodeDeployment = &hazelcastv1alpha1.UserCodeDeploymentConfig{
 				ClientEnabled: pointer.Bool(false),
 			}
@@ -128,7 +126,7 @@ var _ = Describe("Hazelcast Config Secret", func() {
 			Expect(k8sClient.Create(context.Background(), cm)).Should(Succeed())
 			hz := &hazelcastv1alpha1.Hazelcast{
 				ObjectMeta: randomObjectMeta(namespace),
-				Spec:       test.HazelcastSpec(defaultHazelcastSpecValues(), ee),
+				Spec:       test.HazelcastSpec(defaultHazelcastSpecValues()),
 			}
 			hz.Spec.CustomConfigCmName = cm.Name
 			Expect(k8sClient.Create(context.Background(), hz)).Should(Succeed())
@@ -146,7 +144,7 @@ var _ = Describe("Hazelcast Config Secret", func() {
 		It("should fail if the config map does not exist", func() {
 			hz := &hazelcastv1alpha1.Hazelcast{
 				ObjectMeta: randomObjectMeta(namespace),
-				Spec:       test.HazelcastSpec(defaultHazelcastSpecValues(), ee),
+				Spec:       test.HazelcastSpec(defaultHazelcastSpecValues()),
 			}
 			hz.Spec.CustomConfigCmName = "cm"
 			Expect(k8sClient.Create(context.Background(), hz)).
@@ -161,7 +159,7 @@ var _ = Describe("Hazelcast Config Secret", func() {
 			Expect(k8sClient.Create(context.Background(), cm)).Should(Succeed())
 			hz := &hazelcastv1alpha1.Hazelcast{
 				ObjectMeta: randomObjectMeta(namespace),
-				Spec:       test.HazelcastSpec(defaultHazelcastSpecValues(), ee),
+				Spec:       test.HazelcastSpec(defaultHazelcastSpecValues()),
 			}
 			hz.Spec.CustomConfigCmName = cm.Name
 			Expect(k8sClient.Create(context.Background(), hz)).
@@ -177,7 +175,7 @@ var _ = Describe("Hazelcast Config Secret", func() {
 			Expect(k8sClient.Create(context.Background(), cm)).Should(Succeed())
 			hz := &hazelcastv1alpha1.Hazelcast{
 				ObjectMeta: randomObjectMeta(namespace),
-				Spec:       test.HazelcastSpec(defaultHazelcastSpecValues(), ee),
+				Spec:       test.HazelcastSpec(defaultHazelcastSpecValues()),
 			}
 			hz.Spec.CustomConfigCmName = cm.Name
 			Expect(k8sClient.Create(context.Background(), hz)).

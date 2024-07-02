@@ -4,14 +4,14 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	routev1 "github.com/openshift/api/route/v1"
 	"io"
 	"sync"
 	"testing"
 
+	routev1 "github.com/openshift/api/route/v1"
+
 	chaosmeshv1alpha1 "github.com/chaos-mesh/chaos-mesh/api/v1alpha1"
 	. "github.com/onsi/ginkgo/v2"
-	ginkgoTypes "github.com/onsi/ginkgo/v2/types"
 	. "github.com/onsi/gomega"
 	"k8s.io/apimachinery/pkg/runtime/serializer/json"
 	"k8s.io/apimachinery/pkg/types"
@@ -39,27 +39,14 @@ var controllerManagerName = types.NamespacedName{
 func TestE2E(t *testing.T) {
 	RegisterFailHandler(Fail)
 	suiteConfig, _ := GinkgoConfiguration()
-	SetLicenseLabelFilters(&suiteConfig)
 	RunSpecs(t, GetSuiteName(), suiteConfig)
-}
-
-func SetLicenseLabelFilters(suiteConfig *ginkgoTypes.SuiteConfig) {
-	if len(suiteConfig.LabelFilter) > 0 {
-		if ee {
-			suiteConfig.LabelFilter += "&& " + tagNames[EE]
-		} else {
-			suiteConfig.LabelFilter += "&& " + tagNames[OS]
-		}
-	}
 }
 
 var _ = SynchronizedBeforeSuite(func() []byte {
 	cfg := setupEnv()
 
-	if ee {
-		err := platform.FindAndSetPlatform(cfg)
-		Expect(err).NotTo(HaveOccurred())
-	}
+	err := platform.FindAndSetPlatform(cfg)
+	Expect(err).NotTo(HaveOccurred())
 
 	return []byte{}
 }, func(bytes []byte) {

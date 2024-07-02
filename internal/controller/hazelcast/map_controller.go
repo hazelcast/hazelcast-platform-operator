@@ -45,10 +45,6 @@ func NewMapReconciler(c client.Client, log logr.Logger, pht chan struct{}, cs hz
 	}
 }
 
-//+kubebuilder:rbac:groups=hazelcast.com,resources=maps,verbs=get;list;watch;create;update;patch;delete,namespace=watched
-//+kubebuilder:rbac:groups=hazelcast.com,resources=maps/status,verbs=get;update;patch,namespace=watched
-//+kubebuilder:rbac:groups=hazelcast.com,resources=maps/finalizers,verbs=update,namespace=watched
-
 func (r *MapReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	logger := r.Log.WithValues("hazelcast-map", req.NamespacedName)
 
@@ -211,7 +207,7 @@ func (r *MapReconciler) ReconcileMapConfig(
 			false,
 			m.Spec.Eviction.MaxSize,
 			hazelcastv1alpha1.EncodeMaxSizePolicy[m.Spec.Eviction.MaxSizePolicy],
-			defaultWanReplicationRefCodec(hz, m),
+			defaultWanReplicationRefCodec(m),
 		)
 	} else {
 		mapInput := codecTypes.DefaultAddMapConfigInput()
@@ -262,7 +258,7 @@ func fillAddMapConfigInput(ctx context.Context, c client.Client, mapInput *codec
 	mapInput.IndexConfigs = copyIndexes(ms.Indexes)
 	mapInput.AttributeConfigs = copyAttributes(ms.Attributes)
 	mapInput.HotRestartConfig.Enabled = ms.PersistenceEnabled
-	mapInput.WanReplicationRef = defaultWanReplicationRefCodec(hz, m)
+	mapInput.WanReplicationRef = defaultWanReplicationRefCodec(m)
 	mapInput.InMemoryFormat = string(ms.InMemoryFormat)
 	mapInput.UserCodeNamespace = ms.UserCodeNamespace
 	if ms.MerkleTree != nil {
@@ -350,11 +346,7 @@ func fillAddMapConfigInput(ctx context.Context, c client.Client, mapInput *codec
 	return nil
 }
 
-func defaultWanReplicationRefCodec(hz *hazelcastv1alpha1.Hazelcast, m *hazelcastv1alpha1.Map) codecTypes.WanReplicationRef {
-	if !util.IsEnterprise(hz.Spec.Repository) {
-		return codecTypes.WanReplicationRef{}
-	}
-
+func defaultWanReplicationRefCodec(m *hazelcastv1alpha1.Map) codecTypes.WanReplicationRef {
 	return codecTypes.WanReplicationRef{
 		Name:                 defaultWanReplicationRefName(m),
 		MergePolicyClassName: n.DefaultMergePolicyClassName,

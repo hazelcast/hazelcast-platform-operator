@@ -30,9 +30,9 @@ var _ = Describe("Hazelcast Queue Config", Group("queue"), func() {
 	})
 
 	Context("Creating Queue configurations", func() {
-		It("creates Queue config with correct default values", Tag(Kind|Any), func() {
+		It("creates Queue config with correct default values", Tag(Kind|AnyCloud), func() {
 			setLabelAndCRName("hq-1")
-			hazelcast := hazelcastconfig.Default(hzLookupKey, ee, labels)
+			hazelcast := hazelcastconfig.Default(hzLookupKey, labels)
 			CreateHazelcastCR(hazelcast)
 
 			By("creating the default queue config")
@@ -51,9 +51,9 @@ var _ = Describe("Hazelcast Queue Config", Group("queue"), func() {
 	})
 
 	Context("Updating Queue configurations", func() {
-		It("verifies that Queue Config updates are prohibited", Label("cluster_scope"), Tag(Kind|Any), func() {
+		It("verifies that Queue Config updates are prohibited", Label("cluster_scope"), Tag(Kind|AnyCloud), func() {
 			setLabelAndCRName("hq-2")
-			hazelcast := hazelcastconfig.Default(hzLookupKey, ee, labels)
+			hazelcast := hazelcastconfig.Default(hzLookupKey, labels)
 			CreateHazelcastCR(hazelcast)
 
 			By("creating the queue config")

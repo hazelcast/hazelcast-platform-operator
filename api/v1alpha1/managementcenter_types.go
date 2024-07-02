@@ -34,8 +34,9 @@ type ManagementCenterSpec struct {
 	DeprecatedLicenseKeySecret string `json:"licenseKeySecret,omitempty"`
 
 	// Name of the secret with Hazelcast Enterprise License Key.
-	// +optional
-	LicenseKeySecretName string `json:"licenseKeySecretName,omitempty"`
+	// +kubebuilder:validation:MinLength:=1
+	// +required
+	LicenseKeySecretName string `json:"licenseKeySecretName"`
 
 	// Connection configuration for the Hazelcast clusters that Management Center will monitor.
 	// +optional
@@ -341,8 +342,6 @@ type ManagementCenter struct {
 	// +optional
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
-	// Initial values will be filled with its fields' default values.
-	// +kubebuilder:default:={"repository" : "docker.io/hazelcast/management-center"}
 	// +optional
 	Spec ManagementCenterSpec `json:"spec,omitempty"`
 
