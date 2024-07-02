@@ -1648,7 +1648,7 @@ var _ = Describe("Hazelcast CR", func() {
 				ensureWansPortsAreNotExposedOnService(hz.Spec.AdvancedNetwork.WAN, svc)
 			})
 
-			It("should expose WAN ports on service-per-pod services", func() {
+			It("should expose WAN ports on service-per-pod services when service type is WithExposeExternally", func() {
 				spec := test.HazelcastSpec(defaultHazelcastSpecValues())
 				spec.ExposeExternally = &hazelcastv1alpha1.ExposeExternallyConfiguration{
 					Type:                 hazelcastv1alpha1.ExposeExternallyTypeSmart,
@@ -1774,7 +1774,7 @@ var _ = Describe("Hazelcast CR", func() {
 				Expect(len(svcList.Items)).Should(Equal(1)) // just the HZ Discovery Service
 			})
 
-			It("should expose default WAN port in service-per-pod services when exposeExternally is enabled", func() {
+			It("should not expose default WAN port on service-per-pod services", func() {
 				spec := test.HazelcastSpec(defaultHazelcastSpecValues())
 				spec.ExposeExternally = &hazelcastv1alpha1.ExposeExternallyConfiguration{
 					Type:                 hazelcastv1alpha1.ExposeExternallyTypeSmart,
@@ -1807,7 +1807,7 @@ var _ = Describe("Hazelcast CR", func() {
 					for _, port := range svc.Spec.Ports {
 						servicePorts = append(servicePorts, port.Port)
 					}
-					Expect(servicePorts).Should(ContainElement(int32(5710)))
+					Expect(servicePorts).Should(Not(ContainElement(int32(5710))))
 				}
 
 				Expect(svcMap).To(HaveKey(hz.Name))

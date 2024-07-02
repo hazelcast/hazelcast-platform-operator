@@ -1177,10 +1177,6 @@ const (
 	WANServiceTypeWithExposeExternally WANServiceType = "WithExposeExternally"
 )
 
-func (t WANServiceType) IsCorev1Service() bool {
-	return t != WANServiceTypeWithExposeExternally
-}
-
 type ServerSocketEndpointConfig struct {
 	Interfaces []string `json:"interfaces,omitempty"`
 }

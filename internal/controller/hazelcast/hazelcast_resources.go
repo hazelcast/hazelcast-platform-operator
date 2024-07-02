@@ -395,7 +395,7 @@ func (r *HazelcastReconciler) reconcileService(ctx context.Context, h *hazelcast
 		}
 
 		service.Spec.Type = serviceType(h)
-		service.Spec.Ports = util.EnrichServiceNodePorts(hazelcastPort(h.Spec.AdvancedNetwork), service.Spec.Ports)
+		service.Spec.Ports = util.EnrichServiceNodePorts(discoveryServicePorts(h.Spec.AdvancedNetwork), service.Spec.Ports)
 
 		return nil
 	})
@@ -411,11 +411,11 @@ func (r *HazelcastReconciler) reconcileWANServices(ctx context.Context, h *hazel
 		return nil
 	}
 	for _, w := range h.Spec.AdvancedNetwork.WAN {
-		if !w.ServiceType.IsCorev1Service() {
+		if w.ServiceType == hazelcastv1alpha1.WANServiceTypeWithExposeExternally {
 			continue
 		}
 
-		service := wanConfigService(w, h)
+		service := wanService(w, h)
 
 		err := controllerutil.SetControllerReference(h, service, r.Scheme)
 		if err != nil {
@@ -430,7 +430,7 @@ func (r *HazelcastReconciler) reconcileWANServices(ctx context.Context, h *hazel
 				delete(service.Labels, n.ServiceEndpointTypeLabelName)
 			}
 
-			service.Spec.Ports = util.EnrichServiceNodePorts(wanConfigServicePorts(w), service.Spec.Ports)
+			service.Spec.Ports = util.EnrichServiceNodePorts(wanPorts(w), service.Spec.Ports)
 			if w.ServiceType == "" {
 				service.Spec.Type = corev1.ServiceTypeLoadBalancer
 			} else {
@@ -449,7 +449,7 @@ func (r *HazelcastReconciler) reconcileWANServices(ctx context.Context, h *hazel
 	return nil
 }
 
-func wanConfigService(w hazelcastv1alpha1.WANConfig, h *hazelcastv1alpha1.Hazelcast) *corev1.Service {
+func wanService(w hazelcastv1alpha1.WANConfig, h *hazelcastv1alpha1.Hazelcast) *corev1.Service {
 	service := &corev1.Service{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:        h.Name + "-" + w.Name,
@@ -459,13 +459,13 @@ func wanConfigService(w hazelcastv1alpha1.WANConfig, h *hazelcastv1alpha1.Hazelc
 		},
 		Spec: corev1.ServiceSpec{
 			Selector: util.Labels(h),
-			Ports:    wanConfigServicePorts(w),
+			Ports:    wanPorts(w),
 		},
 	}
 	return service
 }
 
-func wanConfigServicePorts(w hazelcastv1alpha1.WANConfig) []corev1.ServicePort {
+func wanPorts(w hazelcastv1alpha1.WANConfig) []corev1.ServicePort {
 	var i uint
 	var ports []corev1.ServicePort
 	for i = 0; i < w.PortCount; i++ {
@@ -521,7 +521,7 @@ func (r *HazelcastReconciler) reconcileServicePerPod(ctx context.Context, h *haz
 				delete(service.Labels, n.ServiceEndpointTypeLabelName)
 			}
 
-			service.Spec.Ports = util.EnrichServiceNodePorts(servicePerPodPort(h.Spec.AdvancedNetwork), service.Spec.Ports)
+			service.Spec.Ports = util.EnrichServiceNodePorts(servicePerPodPorts(h.Spec.AdvancedNetwork), service.Spec.Ports)
 			service.Spec.Type = h.Spec.ExposeExternally.MemberAccessServiceType()
 
 			return nil
@@ -767,7 +767,7 @@ func servicePerPodLabels(h *hazelcastv1alpha1.Hazelcast) map[string]string {
 	return ls
 }
 
-func servicePerPodPort(an *hazelcastv1alpha1.AdvancedNetwork) []corev1.ServicePort {
+func servicePerPodPorts(an *hazelcastv1alpha1.AdvancedNetwork) []corev1.ServicePort {
 	p := []corev1.ServicePort{
 		clientPort(),
 	}
@@ -775,17 +775,15 @@ func servicePerPodPort(an *hazelcastv1alpha1.AdvancedNetwork) []corev1.ServicePo
 	if an != nil && len(an.WAN) > 0 {
 		for _, w := range an.WAN {
 			if w.ServiceType == hazelcastv1alpha1.WANServiceTypeWithExposeExternally {
-				p = append(p, wanConfigServicePorts(w)...)
+				p = append(p, wanPorts(w)...)
 			}
 		}
-	} else {
-		p = append(p, defaultWANPort())
 	}
 
 	return p
 }
 
-func hazelcastPort(an *hazelcastv1alpha1.AdvancedNetwork) []corev1.ServicePort {
+func discoveryServicePorts(an *hazelcastv1alpha1.AdvancedNetwork) []corev1.ServicePort {
 	p := []corev1.ServicePort{
 		clientPort(),
 		{
@@ -807,7 +805,7 @@ func hazelcastPort(an *hazelcastv1alpha1.AdvancedNetwork) []corev1.ServicePort {
 	if an != nil && len(an.WAN) > 0 {
 		for _, w := range an.WAN {
 			if w.ServiceType == hazelcastv1alpha1.WANServiceTypeWithExposeExternally {
-				p = append(p, wanConfigServicePorts(w)...)
+				p = append(p, wanPorts(w)...)
 			}
 		}
 	} else {
